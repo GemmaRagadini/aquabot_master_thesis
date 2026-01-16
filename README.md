@@ -9,8 +9,8 @@ ROS 2 workspace for the Aquabot Master Thesis.
 - master
 
 ## Build
-colcon build
-source install/setup.bash 
+- colcon build
+- source install/setup.bash 
 
 ## Launch
 ros2 launch aquabot_bringup system_launch.py
