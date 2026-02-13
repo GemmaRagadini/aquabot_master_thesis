@@ -50,7 +50,7 @@ class ArduinoReader(Node):
         
     def read_data(self):
         if not self.serial_conn:
-            self.get_logger().warn("Serial connection not established.")
+            # self.get_logger().warn("Serial connection not established.")
             return None, None, 0
 
         # Read all data in the buffer (non-blocking)
