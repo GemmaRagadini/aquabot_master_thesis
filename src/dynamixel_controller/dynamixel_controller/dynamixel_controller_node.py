@@ -1,15 +1,47 @@
 import rclpy
 from rclpy.node import Node
-
+from std_msgs.msg import Float64MultiArray, Float64
 
 class DynamixelController(Node):
     def __init__(self):
         super().__init__('dynamixel_controller_node')
-        self.get_logger().info('dynamixel_controller_node started.')
+
+        # Publisher verso ros2_control
+        self.cmd_pub = self.create_publisher(
+            Float64MultiArray,
+            '/forward_position_controller/commands',
+            10
+        )
+
+        # Subscriber dal master
+        self.create_subscription(
+            Float64,
+            '/aquabot/dynamixel/target_position',
+            self.on_target,
+            10
+        )
+
+    def on_target(self, msg: Float64):
+        
+        target = msg.data
+        # Saturazione sicurezza [0, pi]
+        if target < 0.0:
+            target = 0.0
+        if target > 3.14159:
+            target = 3.14159
+
+        cmd = Float64MultiArray()
+        cmd.data = [target]
+
+        self.cmd_pub.publish(cmd)
+
+        self.get_logger().info(f'Sent to ros2_control: {target:.2f} rad')
+
 
     def close(self):
         self.get_logger().info('dynamixel_controller_node shutting down.')
         self.destroy_node()
+
 
 
 def main(args=None):

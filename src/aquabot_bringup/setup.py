@@ -17,6 +17,8 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
         # Tutti i config yaml
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        # URDF / Xacro
+        (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -25,5 +27,5 @@ setup(
     description='Aquabot bringup package (launch + config).',
     license='MIT',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []} # vuoto
+    entry_points={'console_scripts': []}
 )
