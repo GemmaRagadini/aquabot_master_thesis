@@ -13,7 +13,7 @@ class MasterNode(Node):
 
         self.create_subscription(
             Float32MultiArray,
-            '/sensor_reading',
+            'sensor_reading',
             self.on_sensor,
             10
         )
