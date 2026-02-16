@@ -2,16 +2,10 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, Float64
 
+# per adesso legge soltanto i valori della posizione target 
 class DynamixelController(Node):
     def __init__(self):
         super().__init__('dynamixel_controller_node')
-
-        # Publisher verso ros2_control
-        self.cmd_pub = self.create_publisher(
-            Float64MultiArray,
-            '/forward_position_controller/commands',
-            10
-        )
 
         # Subscriber dal master
         self.create_subscription(
@@ -32,10 +26,6 @@ class DynamixelController(Node):
 
         cmd = Float64MultiArray()
         cmd.data = [target]
-
-        self.cmd_pub.publish(cmd)
-
-        self.get_logger().info(f'Sent to ros2_control: {target:.2f} rad')
 
 
     def close(self):

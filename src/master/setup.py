@@ -23,6 +23,7 @@ setup(
     entry_points={
         'console_scripts': [
             'master_node = master.master_node:main',
+            'fake_sensor_node = master.fake_sensor_node:main',
         ],
     },
 )
