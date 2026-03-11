@@ -17,7 +17,3 @@ ros2 launch aquabot_bringup system_launch.py
 
 # write csv 
 ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
-
-# topic  
-ros2 topic echo /target_position
-ros2 topic echo /sensor_reading
