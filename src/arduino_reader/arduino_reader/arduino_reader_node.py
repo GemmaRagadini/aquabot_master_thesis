@@ -23,7 +23,7 @@ class ArduinoReader(Node):
         rate = self.get_parameter('rate').get_parameter_value().integer_value
         self.serial_conn = None
 
-        self.publisher_ = self.create_publisher(Float32MultiArray, 'sensor_reading', 10)
+        self.publisher_ = self.create_publisher(Float32MultiArray, '/sensor_reading', 10)
 
         # connect to serial
         self.connect_serial()

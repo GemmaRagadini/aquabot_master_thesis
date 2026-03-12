@@ -15,6 +15,8 @@ class DynamixelController(Node):
     ADDR_GOAL_POSITION = 116
     TORQUE_ENABLE = 1
     TORQUE_DISABLE = 0
+    ADDR_PROFILE_ACCELERATION = 108
+    ADDR_PROFILE_VELOCITY = 112
 
     def __init__(self):
         super().__init__('dynamixel_controller_node')
@@ -28,6 +30,10 @@ class DynamixelController(Node):
         self.declare_parameter('tail_min_rad', -0.7)
         self.declare_parameter('tail_max_rad', 0.7)
 
+        self.declare_parameter('profile_velocity', 100)
+        self.declare_parameter('profile_acceleration', 10)
+
+        # legge i parametri ROS
         self.target_topic = self.get_parameter('target_topic').value
         self.device_name = self.get_parameter('device_name').value
         self.baudrate = int(self.get_parameter('baudrate').value)
@@ -35,16 +41,56 @@ class DynamixelController(Node):
         self.protocol_version = float(self.get_parameter('protocol_version').value)
         self.tail_min_rad = float(self.get_parameter('tail_min_rad').value)
         self.tail_max_rad = float(self.get_parameter('tail_max_rad').value)
+        self.profile_velocity = int(self.get_parameter('profile_velocity').value)
+        self.profile_acceleration = int(self.get_parameter('profile_acceleration').value)
 
+        # oggetti SDK per porta seriale e protocollo Dynamixel
         self.port_handler = PortHandler(self.device_name)
         self.packet_handler = PacketHandler(self.protocol_version)
 
+        # apre la porta seriale
         if not self.port_handler.openPort():
             raise RuntimeError(f'Impossibile aprire la porta {self.device_name}')
 
+        # imposta il baudrate
         if not self.port_handler.setBaudRate(self.baudrate):
             raise RuntimeError(f'Impossibile impostare baudrate {self.baudrate}')
 
+        # scrive Profile Acceleration nel registro 108
+        dxl_comm_result, dxl_error = self.packet_handler.write4ByteTxRx(
+            self.port_handler,
+            self.dxl_id,
+            self.ADDR_PROFILE_ACCELERATION,
+            self.profile_acceleration
+        )
+
+        if dxl_comm_result != 0:
+            raise RuntimeError(
+                f'Errore comunicazione profile acceleration: {dxl_comm_result}'
+            )
+        if dxl_error != 0:
+            raise RuntimeError(
+                f'Errore Dynamixel profile acceleration: {dxl_error}'
+            )
+
+        # scrive Profile Velocity nel registro 112
+        dxl_comm_result, dxl_error = self.packet_handler.write4ByteTxRx(
+            self.port_handler,
+            self.dxl_id,
+            self.ADDR_PROFILE_VELOCITY,
+            self.profile_velocity
+        )
+
+        if dxl_comm_result != 0:
+            raise RuntimeError(
+                f'Errore comunicazione profile velocity: {dxl_comm_result}'
+            )
+        if dxl_error != 0:
+            raise RuntimeError(
+                f'Errore Dynamixel profile velocity: {dxl_error}'
+            )
+
+        # abilita la coppia del motore
         dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(
             self.port_handler,
             self.dxl_id,
@@ -55,13 +101,16 @@ class DynamixelController(Node):
         if dxl_comm_result != 0:
             raise RuntimeError(f'Errore comunicazione torque enable: {dxl_comm_result}')
         if dxl_error != 0:
-            raise RuntimeError(f'Errore dynamixel torque enable: {dxl_error}')
+            raise RuntimeError(f'Errore Dynamixel torque enable: {dxl_error}')
 
+        # subscriber: riceve il target dal master
         self.create_subscription(Float64, self.target_topic, self.on_target, 10)
 
         self.get_logger().info(
             f'Dynamixel controller ready. topic={self.target_topic}, '
-            f'port={self.device_name}, baudrate={self.baudrate}, id={self.dxl_id}'
+            f'port={self.device_name}, baudrate={self.baudrate}, id={self.dxl_id}, '
+            f'profile_velocity={self.profile_velocity}, '
+            f'profile_acceleration={self.profile_acceleration}'
         )
     
     # conversione radianti => tick
