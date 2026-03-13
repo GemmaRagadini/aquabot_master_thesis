@@ -12,7 +12,7 @@ def generate_launch_description():
             parameters=[{
                 'sensor_topic': '/sensor_reading',
                 'target_topic': '/aquabot/dynamixel/target_position',
-                'traj': 'straight',
+                'traj': 'std',
                 'tail_bias_rad': 0.0,
                 'tail_amp_rad': 0.4,
                 'tail_freq_hz': 1.0,

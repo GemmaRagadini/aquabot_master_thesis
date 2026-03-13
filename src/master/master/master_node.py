@@ -26,7 +26,7 @@ class MasterNode(Node):
         self.declare_parameter('target_topic', '/aquabot/dynamixel/target_position')
         self.declare_parameter('sensor_topic', '/sensor_reading')
 
-        self.declare_parameter('traj', 'straight')
+        self.declare_parameter('traj', 'std')
         # posizione centrale della coda
         self.declare_parameter('tail_bias_rad', 0.0)
         # ampiezza oscillazione 
@@ -40,7 +40,18 @@ class MasterNode(Node):
         self.declare_parameter('control_rate_hz', 50.0)
         self.declare_parameter('log_rate_hz', 20.0)
         self.declare_parameter('log_dir', 'logs')
+        # parametri per variazione frequenza/ampiezza
+        self.declare_parameter('trial_duration_sec',  20.0)
+        self.declare_parameter('freq_min_hz', 0.5)
+        self.declare_parameter('freq_max_hz', 2.0)
+        self.declare_parameter('amp_min_rad', 0.1)
+        self.declare_parameter('amp_max_rad', 0.6)
 
+        self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
+        self.freq_min= float(self.get_parameter('freq_min_hz').value)
+        self.freq_max = float(self.get_parameter('freq_max_hz').value)
+        self.amp_min = float(self.get_parameter('amp_min_rad').value)
+        self.amp_max = float(self.get_parameter('amp_max_rad').value)
         self.target_topic = self.get_parameter('target_topic').value
         self.sensor_topic = self.get_parameter('sensor_topic').value
         self.traj = self.get_parameter('traj').value
@@ -73,6 +84,11 @@ class MasterNode(Node):
         self.control_timer = self.create_timer(1.0 / self.control_rate, self.control_step)
         self.log_timer = self.create_timer(1.0 / self.log_rate, self.log_step)
 
+        self.phase_acc = 0.0 
+        self.last_control_time = None
+        self.current_amp = self.amp
+        self.current_freq = self.freq
+        
         self.get_logger().info(
             f"Master ready. target_topic={self.target_topic} sensor_topic={self.sensor_topic} "
             f"traj={self.traj} bias={self.bias} amp={self.amp} freq={self.freq}Hz"
@@ -133,6 +149,8 @@ class MasterNode(Node):
                 pass
         self.csv_file = None
         self.csv_writer = None
+        self.last_control_time = None
+        self.phase_acc = 0.0
 
         msg = Float64()
         msg.data = float(clamp(self.bias, self.tail_min, self.tail_max))
@@ -141,26 +159,100 @@ class MasterNode(Node):
     # genera il comando per la coda => funzione chiamata dal timer
     def control_step(self):
         now = self.get_clock().now()
-        if self.t0 is None:
+        if self.t0 is None: 
             self.t0 = now
+        if self.last_control_time is None: 
+            self.last_control_time = now
+
         t_rel = (now - self.t0).nanoseconds * 1e-9
-        # calcola posizione coda
-        target = self.compute_target(t_rel)
-        self.latest_target = target
-        # crea messaggio ROS
+        dt = (now - self.last_control_time).nanoseconds *1e-9 
+        self.last_control_time = now
+
+        target = self.compute_target(t_rel, dt)
+        self.latest_target = target 
+
         msg = Float64()
         msg.data = float(target)
         self.publisher.publish(msg)
 
+     
     # calcola l'angolo della coda 
-    def compute_target(self, t_rel: float):
-        # vai dritto
-        if self.traj == 'straight':
-            phase = 2.0 * math.pi * self.freq * t_rel
-            #  sinusoide 
-            theta = self.bias + self.amp * math.sin(phase)
+    def compute_target(self, t_rel: float, dt:float):
+        
+        # traiettoria standard 
+        if self.traj == 'std':
+            freq_t = self.freq
+            amp_t = self.amp
+            self.current_amp = amp_t
+            self.current_freq = freq_t
+            self.phase_acc += 2.0 * math.pi * freq_t * dt
+            theta = self.bias + amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
-        return clamp(self.bias, self.tail_min, self.tail_max)
+        # sweep di frequanza con ampiezza costante
+        elif self.traj == 'freq_sweep':
+            alpha = self.triangular_profile(t_rel, self.trial_duration)
+            freq_t = self.freq_min + alpha * (self.freq_max - self.freq_min)
+            amp_t = self.amp
+            self.current_amp = amp_t
+            self.current_freq = freq_t
+            self.phase_acc += 2.0 * math.pi * freq_t * dt
+            theta = self.bias + amp_t * math.sin(self.phase_acc)
+            return clamp(theta, self.tail_min, self.tail_max)
+        
+        # sweep di ampiezza con frequenza costante
+        elif self.traj == 'amp_sweep': 
+            alpha = self.triangular_profile(t_rel, self.trial_duration)
+            amp_t = self.amp_min + alpha * (self.amp_max - self.amp_min)
+            freq_t = self.freq
+            self.current_amp = amp_t
+            self.current_freq = freq_t
+            self.phase_acc += 2.0 * math.pi * freq_t * dt
+            theta = self.bias +  amp_t * math.sin(self.phase_acc)
+            return clamp(theta, self.tail_min, self.tail_max)
+        
+        #fallback 
+        return clamp(self.bias, self.tail_min,self.tail_max)
+
+
+
+    # parte dal minimo , arriva al massimo, torna al minimo 
+    def triangular_profile(self, t_rel: float, duration: float) -> float: 
+        if duration <= 0.0: 
+            return 0.0
+        
+        tau = (t_rel % duration) /duration # tra 0 e 1  
+        if tau < 0.5: 
+            return 2.0 * tau # salita 0->1 
+        else: 
+            return 2.0 * (1.0 -tau) # discesa 1->0
+
+    def start_new_trial(self): 
+        self.stop_trial()
+        os.makedirs(self.log_dir, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(self.log_dir, f"trial_{stamp}.csv")
+        self.csv_file = open(filename, 'w', newline='')
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow([
+            "t_ros_sec",
+            "t_rel_sec",
+            "tail_target_rad",
+            "tail_bias_rad",
+            "tail_amp_rad"
+            "tail_freq_hz", 
+            "phase_rad", 
+            "cycle_idx",
+            "sensor_len",
+            "sensor_values"
+        ])
+        self.csv_file.flush()
+
+        self.t0 = self.get_clock().now() 
+        self.last_control_time = self.t0
+        self.phase_acc = 0.0 
+        self.recording = True 
+        self.get_logger().info(f"Started trial -> {filename}")
+
 
     # salva i dati sensori
     def log_step(self):
@@ -173,21 +265,22 @@ class MasterNode(Node):
         t_ros_sec = now.nanoseconds * 1e-9
         t_rel = (now - self.t0).nanoseconds * 1e-9 if self.t0 else 0.0
         phase = (2.0 * math.pi * self.freq * t_rel) % (2.0 * math.pi)
-        cycle_idx = int(math.floor(self.freq * t_rel)) if self.freq > 0.0 else 0
-
+        cycle_idx = int(self.phase_acc / (2.0 * math.pi))
+        
         self.csv_writer.writerow([
             t_ros_sec,
             t_rel,
             float(self.latest_target),
             float(self.bias),
-            float(self.amp),
-            float(self.freq),
-            float(phase),
+            float(self.current_amp),
+            float(self.current_freq),
+            float(self.phase_acc % (2.0 * math.pi)),
             cycle_idx,
             len(self.last_sensor),
             self.last_sensor
         ])
         self.csv_file.flush()
+
 
     def destroy_node(self):
         self.stop_trial()
