@@ -26,7 +26,7 @@ class MasterNode(Node):
         self.declare_parameter('target_topic', '/aquabot/dynamixel/target_position')
         self.declare_parameter('sensor_topic', '/sensor_reading')
 
-        self.declare_parameter('traj', 'std')
+        self.declare_parameter('traj', 'amp_sweep')
         # posizione centrale della coda
         self.declare_parameter('tail_bias_rad', 0.0)
         # ampiezza oscillazione 
@@ -40,6 +40,7 @@ class MasterNode(Node):
         self.declare_parameter('control_rate_hz', 50.0)
         self.declare_parameter('log_rate_hz', 20.0)
         self.declare_parameter('log_dir', 'logs')
+
         # parametri per variazione frequenza/ampiezza
         self.declare_parameter('trial_duration_sec',  20.0)
         self.declare_parameter('freq_min_hz', 0.5)
@@ -157,24 +158,54 @@ class MasterNode(Node):
         self.publisher.publish(msg)
 
     # genera il comando per la coda => funzione chiamata dal timer
+    # def control_step(self):
+    #     now = self.get_clock().now()
+    #     if self.t0 is None: 
+    #         self.t0 = now
+    #     if self.last_control_time is None: 
+    #         self.last_control_time = now
+
+    #     t_rel = (now - self.t0).nanoseconds * 1e-9
+    #     dt = (now - self.last_control_time).nanoseconds *1e-9 
+    #     self.last_control_time = now
+
+    #     target = self.compute_target(t_rel, dt)
+    #     self.latest_target = target 
+
+    #     msg = Float64()
+    #     msg.data = float(target)
+    #     self.publisher.publish(msg)
+    
+    # VERSIONE CON LOG
     def control_step(self):
         now = self.get_clock().now()
-        if self.t0 is None: 
+
+        if self.t0 is None:
             self.t0 = now
-        if self.last_control_time is None: 
+
+        if self.last_control_time is None:
             self.last_control_time = now
 
+        # tempo relativo
         t_rel = (now - self.t0).nanoseconds * 1e-9
-        dt = (now - self.last_control_time).nanoseconds *1e-9 
+        dt = (now - self.last_control_time).nanoseconds * 1e-9
         self.last_control_time = now
 
+        # calcolo target
         target = self.compute_target(t_rel, dt)
-        self.latest_target = target 
+        self.latest_target = target
 
+        # pubblicazione
         msg = Float64()
         msg.data = float(target)
         self.publisher.publish(msg)
 
+        # log ogni ~0.25 secondi
+        if int(t_rel * 4) != int((t_rel - dt) * 4):            
+            self.get_logger().info(
+                f"[control] t={t_rel:.2f}s  target={target:.3f} rad  "
+                f"amp={self.current_amp:.3f} rad  freq={self.current_freq:.3f} Hz"
+            )
      
     # calcola l'angolo della coda 
     def compute_target(self, t_rel: float, dt:float):
@@ -238,7 +269,7 @@ class MasterNode(Node):
             "t_rel_sec",
             "tail_target_rad",
             "tail_bias_rad",
-            "tail_amp_rad"
+            "tail_amp_rad",
             "tail_freq_hz", 
             "phase_rad", 
             "cycle_idx",
@@ -254,19 +285,24 @@ class MasterNode(Node):
         self.get_logger().info(f"Started trial -> {filename}")
 
 
-    # salva i dati sensori
+    # scrive il csv
     def log_step(self):
         if not self.recording or self.csv_writer is None:
-            return
-        if self.last_sensor is None:
             return
 
         now = self.get_clock().now()
         t_ros_sec = now.nanoseconds * 1e-9
         t_rel = (now - self.t0).nanoseconds * 1e-9 if self.t0 else 0.0
-        phase = (2.0 * math.pi * self.freq * t_rel) % (2.0 * math.pi)
+        phase = self.phase_acc % (2.0 * math.pi)
         cycle_idx = int(self.phase_acc / (2.0 * math.pi))
-        
+
+        if self.last_sensor is None:
+            sensor_len = 0
+            sensor_values = []
+        else:
+            sensor_len = len(self.last_sensor)
+            sensor_values = self.last_sensor
+
         self.csv_writer.writerow([
             t_ros_sec,
             t_rel,
@@ -274,12 +310,38 @@ class MasterNode(Node):
             float(self.bias),
             float(self.current_amp),
             float(self.current_freq),
-            float(self.phase_acc % (2.0 * math.pi)),
+            float(phase),
             cycle_idx,
-            len(self.last_sensor),
-            self.last_sensor
+            sensor_len,
+            sensor_values
         ])
         self.csv_file.flush()
+    # scrive il csv
+    # def log_step(self):
+    #     if not self.recording or self.csv_writer is None:
+    #         return
+    #     if self.last_sensor is None:
+    #         return
+
+    #     now = self.get_clock().now()
+    #     t_ros_sec = now.nanoseconds * 1e-9
+    #     t_rel = (now - self.t0).nanoseconds * 1e-9 if self.t0 else 0.0
+    #     phase = (2.0 * math.pi * self.freq * t_rel) % (2.0 * math.pi)
+    #     cycle_idx = int(self.phase_acc / (2.0 * math.pi))
+        
+    #     self.csv_writer.writerow([
+    #         t_ros_sec,
+    #         t_rel,
+    #         float(self.latest_target),
+    #         float(self.bias),
+    #         float(self.current_amp),
+    #         float(self.current_freq),
+    #         float(self.phase_acc % (2.0 * math.pi)),
+    #         cycle_idx,
+    #         len(self.last_sensor),
+    #         self.last_sensor
+    #     ])
+    #     self.csv_file.flush()
 
 
     def destroy_node(self):
