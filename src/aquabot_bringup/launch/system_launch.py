@@ -20,6 +20,8 @@ def generate_launch_description():
                 'tail_max_rad': 0.7,
                 'control_rate_hz': 50.0,
                 'log_rate_hz': 20.0,
+                'feedback_enabled': True,
+                'feedback_gain': 0.0005,
                 'log_dir': './logs',
             }]
         ),

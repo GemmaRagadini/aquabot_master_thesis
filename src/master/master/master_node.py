@@ -48,6 +48,10 @@ class MasterNode(Node):
         self.declare_parameter('amp_min_rad', 0.1)
         self.declare_parameter('amp_max_rad', 0.6)
 
+        # collegamento sensori -> motore 
+        self.declare_parameter("feedback_enabled", False)
+        self.declare_parameter("feedback_gain", 0.0)
+
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min= float(self.get_parameter('freq_min_hz').value)
         self.freq_max = float(self.get_parameter('freq_max_hz').value)
@@ -64,7 +68,9 @@ class MasterNode(Node):
         self.control_rate = float(self.get_parameter('control_rate_hz').value)
         self.log_rate = float(self.get_parameter('log_rate_hz').value)
         self.log_dir = self.get_parameter('log_dir').value
-        
+        self.feedback_enabled = bool(self.get_parameter("feedback_enabled").value)
+        self.feedback_gain = float(self.get_parameter("feedback_gain").value)
+
         # pubblica il target della coda
         self.publisher = self.create_publisher(Float64, self.target_topic, 10)
         self.subscription = self.create_subscription(
@@ -89,11 +95,22 @@ class MasterNode(Node):
         self.last_control_time = None
         self.current_amp = self.amp
         self.current_freq = self.freq
-        
+        # sensori -> motore 
+        self.current_bias_offset = 0.0 # per il log
+
         self.get_logger().info(
-            f"Master ready. target_topic={self.target_topic} sensor_topic={self.sensor_topic} "
-            f"traj={self.traj} bias={self.bias} amp={self.amp} freq={self.freq}Hz"
+            f"Master ready. "
+            f"target_topic={self.target_topic} "
+            f"sensor_topic={self.sensor_topic} "
+            f"traj={self.traj} "
+            f"bias={self.bias:.3f} "
+            f"amp={self.amp:.3f} "
+            f"freq={self.freq:.3f}Hz "
+            f"feedback_enabled={self.feedback_enabled} "
+            f"feedback_gain={self.feedback_gain:.6f}"
         )
+        
+
     # riceve dati sensori
     def sensor_callback(self, msg: Float32MultiArray):
         self.last_sensor = list(msg.data)
@@ -157,24 +174,6 @@ class MasterNode(Node):
         msg.data = float(clamp(self.bias, self.tail_min, self.tail_max))
         self.publisher.publish(msg)
 
-    # genera il comando per la coda => funzione chiamata dal timer
-    # def control_step(self):
-    #     now = self.get_clock().now()
-    #     if self.t0 is None: 
-    #         self.t0 = now
-    #     if self.last_control_time is None: 
-    #         self.last_control_time = now
-
-    #     t_rel = (now - self.t0).nanoseconds * 1e-9
-    #     dt = (now - self.last_control_time).nanoseconds *1e-9 
-    #     self.last_control_time = now
-
-    #     target = self.compute_target(t_rel, dt)
-    #     self.latest_target = target 
-
-    #     msg = Float64()
-    #     msg.data = float(target)
-    #     self.publisher.publish(msg)
     
     # VERSIONE CON LOG
     def control_step(self):
@@ -206,10 +205,11 @@ class MasterNode(Node):
                 f"[control] t={t_rel:.2f}s  target={target:.3f} rad  "
                 f"amp={self.current_amp:.3f} rad  freq={self.current_freq:.3f} Hz"
             )
-     
+
+
+
     # calcola l'angolo della coda 
     def compute_target(self, t_rel: float, dt:float):
-        
         # traiettoria standard 
         if self.traj == 'std':
             freq_t = self.freq
@@ -217,7 +217,9 @@ class MasterNode(Node):
             self.current_amp = amp_t
             self.current_freq = freq_t
             self.phase_acc += 2.0 * math.pi * freq_t * dt
-            theta = self.bias + amp_t * math.sin(self.phase_acc)
+            bias_offset = self.compute_bias_offset()
+            bias = self.bias + bias_offset
+            theta = bias + amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
         # sweep di frequanza con ampiezza costante
         elif self.traj == 'freq_sweep':
@@ -227,7 +229,9 @@ class MasterNode(Node):
             self.current_amp = amp_t
             self.current_freq = freq_t
             self.phase_acc += 2.0 * math.pi * freq_t * dt
-            theta = self.bias + amp_t * math.sin(self.phase_acc)
+            bias_offset = self.compute_bias_offset()
+            bias = self.bias + bias_offset
+            theta = bias + amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
         
         # sweep di ampiezza con frequenza costante
@@ -238,11 +242,15 @@ class MasterNode(Node):
             self.current_amp = amp_t
             self.current_freq = freq_t
             self.phase_acc += 2.0 * math.pi * freq_t * dt
-            theta = self.bias +  amp_t * math.sin(self.phase_acc)
+            bias_offset = self.compute_bias_offset()
+            bias = self.bias + bias_offset
+            theta = bias +  amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
         
-        #fallback 
-        return clamp(self.bias, self.tail_min,self.tail_max)
+        # fallback
+        bias_offset = self.compute_bias_offset()
+        bias = self.bias + bias_offset
+        return clamp(bias, self.tail_min, self.tail_max)
 
 
 
@@ -256,6 +264,25 @@ class MasterNode(Node):
             return 2.0 * tau # salita 0->1 
         else: 
             return 2.0 * (1.0 -tau) # discesa 1->0
+
+
+
+    def compute_bias_offset(self): 
+        if not self.feedback_enabled: 
+            self.current_bias_offset = 0.0 
+            return 0.0 
+        if self.last_sensor is None: 
+            self.current_bias_offset = 0.0 
+            return 0.0 
+        if len(self.last_sensor) < 2: 
+            self.current_bias_offset = 0.0 
+            return 0.0 
+        sensor_diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
+        bias_offset = self.feedback_gain * sensor_diff
+        self.current_bias_offset = bias_offset  
+        return bias_offset 
+
+
 
     def start_new_trial(self): 
         self.stop_trial()
@@ -316,33 +343,7 @@ class MasterNode(Node):
             sensor_values
         ])
         self.csv_file.flush()
-    # scrive il csv
-    # def log_step(self):
-    #     if not self.recording or self.csv_writer is None:
-    #         return
-    #     if self.last_sensor is None:
-    #         return
-
-    #     now = self.get_clock().now()
-    #     t_ros_sec = now.nanoseconds * 1e-9
-    #     t_rel = (now - self.t0).nanoseconds * 1e-9 if self.t0 else 0.0
-    #     phase = (2.0 * math.pi * self.freq * t_rel) % (2.0 * math.pi)
-    #     cycle_idx = int(self.phase_acc / (2.0 * math.pi))
-        
-    #     self.csv_writer.writerow([
-    #         t_ros_sec,
-    #         t_rel,
-    #         float(self.latest_target),
-    #         float(self.bias),
-    #         float(self.current_amp),
-    #         float(self.current_freq),
-    #         float(self.phase_acc % (2.0 * math.pi)),
-    #         cycle_idx,
-    #         len(self.last_sensor),
-    #         self.last_sensor
-    #     ])
-    #     self.csv_file.flush()
-
+    
 
     def destroy_node(self):
         self.stop_trial()
