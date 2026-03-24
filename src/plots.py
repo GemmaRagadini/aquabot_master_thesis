@@ -47,4 +47,38 @@ def plot_tail_amplitude(csv_path):
     plt.tight_layout()
     plt.show()
 
-plot_tail_amplitude('logs/trial_20260318_151401.csv')
+
+# plotta la posizione del motore
+def plot_motor(csv_path):
+    t = []
+    target = []
+    position = []
+    bias_total = []
+
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            t.append(float(row["t_rel_sec"]))
+            target.append(float(row["tail_target_rad"]))
+            position.append(float(row["present_position_rad"]))
+            bias_total.append(float(row["tail_bias_rad"]) + float(row["tail_bias_offset_rad"]))
+
+    plt.figure(figsize=(12, 6))
+
+    # --- posizione target e posizione reale ---
+    # plt.plot(t, target, color='red', linewidth=1.5, linestyle='--', label='Target [rad]')
+    plt.plot(t, position, color='blue', linewidth=1.5, label='Posizione motore [rad]')
+    plt.axhline(0, color='black', linewidth=0.8)
+    plt.ylabel("Angolo [rad]")
+    plt.title("Posizione del motore")
+    plt.legend(loc='upper right')
+    plt.grid(True)
+
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+plot_motor('logs/trial_20260324_141223.csv')
+plot_tail_amplitude('logs/trial_20260324_141223.csv')
