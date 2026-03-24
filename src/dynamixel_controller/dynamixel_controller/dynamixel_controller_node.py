@@ -17,6 +17,8 @@ class DynamixelController(Node):
     TORQUE_DISABLE = 0
     ADDR_PROFILE_ACCELERATION = 108
     ADDR_PROFILE_VELOCITY = 112
+    ADDR_PRESENT_POSITION = 132
+    ADDR_PRESENT_CURRENT = 126
 
     def __init__(self):
         super().__init__('dynamixel_controller_node')
@@ -105,14 +107,36 @@ class DynamixelController(Node):
 
         # subscriber: riceve il target dal master
         self.create_subscription(Float64, self.target_topic, self.on_target, 10)
-
-        self.get_logger().info(
-            f'Dynamixel controller ready. topic={self.target_topic}, '
-            f'port={self.device_name}, baudrate={self.baudrate}, id={self.dxl_id}, '
-            f'profile_velocity={self.profile_velocity}, '
-            f'profile_acceleration={self.profile_acceleration}'
-        )
+        # publisher
+        self.pub_position = self.create_publisher(Float64, '/aquabot/dynamixel/present_position', 10)
+        self.pub_current = self.create_publisher(Float64, '/aquabot/dynamixel/present_current', 10)
+        # timer di lettura
+        self.read_timer = self.create_timer(1.0 / 20.0, self.read_motor_state)
     
+    def read_motor_state(self):
+        # leggi posizione
+        pos_tick, result, error = self.packet_handler.read4ByteTxRx(
+            self.port_handler, self.dxl_id, self.ADDR_PRESENT_POSITION
+        )
+        if result == 0 and error == 0:
+            pos_rad = (pos_tick - 2048.0) / 4096.0 * (2.0 * math.pi)
+            msg = Float64()
+            msg.data = pos_rad
+            self.pub_position.publish(msg)
+
+        # leggi corrente (valore signed a 16 bit)
+        current_raw, result, error = self.packet_handler.read2ByteTxRx(
+            self.port_handler, self.dxl_id, self.ADDR_PRESENT_CURRENT
+        )
+        if result == 0 and error == 0:
+            # converti da unsigned a signed
+            if current_raw > 32767:
+                current_raw -= 65536
+            current_ma = current_raw * 2.69  # mA per unit (XM430)
+            msg = Float64()
+            msg.data = current_ma
+            self.pub_current.publish(msg)
+
     # conversione radianti => tick
     def rad_to_tick(self, angle_rad: float) -> int:
         angle_rad = clamp(angle_rad, self.tail_min_rad, self.tail_max_rad)
@@ -144,9 +168,9 @@ class DynamixelController(Node):
             self.get_logger().error(f'Errore dynamixel write goal: {dxl_error}')
             return
 
-        self.get_logger().info(
-            f'target_rad={target_rad:.3f} -> goal_tick={goal_tick}'
-        )
+        # self.get_logger().info(
+        #     f'target_rad={target_rad:.3f} -> goal_tick={goal_tick}'
+        # )
 
     def destroy_node(self):
         try:
