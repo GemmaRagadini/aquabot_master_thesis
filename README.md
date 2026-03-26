@@ -28,7 +28,10 @@ ros2 launch aquabot_bringup system_launch.py
 # write csv 
 ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
 
-- fare immagini e slide + video
-- soa e inizio struttura algoritmo
 
+## Data collection 
+collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il pretraining. 4 a freq fissa e amp_sweep , 3 viceversa. 
+
+- fare immagini e slide + video => non ho fatto quelli con feedback perché i sensori non funzionano bene
+- soa e inizio struttura algoritmo
 
