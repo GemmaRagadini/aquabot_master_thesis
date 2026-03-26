@@ -106,6 +106,39 @@ class MasterNode(Node):
         self.present_position = 0.0
         self.present_current = 0.0
 
+        # aggiornamento parametri a runtime senza riavviare il nodo
+        self.add_on_set_parameters_callback(self.parameter_callback)
+
+
+    def parameter_callback(self, params):
+        from rcl_interfaces.msg import SetParametersResult
+        for p in params:
+            if p.name == 'mode':
+                self.mode = p.value
+                self.get_logger().info(f"mode -> {self.mode}")
+            elif p.name == 'tail_freq_hz':
+                self.freq = float(p.value)
+                self.current_freq = self.freq
+            elif p.name == 'tail_amp_rad':
+                self.amp = float(p.value)
+                self.current_amp = self.amp
+            elif p.name == 'amp_min_rad':
+                self.amp_min = float(p.value)
+            elif p.name == 'amp_max_rad':
+                self.amp_max = float(p.value)
+            elif p.name == 'freq_min_hz':
+                self.freq_min = float(p.value)
+            elif p.name == 'freq_max_hz':
+                self.freq_max = float(p.value)
+            elif p.name == 'trial_duration_sec':
+                self.trial_duration = float(p.value)
+            elif p.name == 'tail_bias_rad':
+                self.bias = float(p.value)
+            elif p.name == 'feedback_enabled':
+                self.feedback_enabled = bool(p.value)
+            elif p.name == 'feedback_gain':
+                self.feedback_gain = float(p.value)
+        return SetParametersResult(successful=True)
 
     def sensor_callback(self, msg: Float32MultiArray):
         
