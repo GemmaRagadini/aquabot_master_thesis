@@ -35,3 +35,11 @@ collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il 
 - fare immagini e slide + video => non ho fatto quelli con feedback perché i sensori non funzionano bene
 - soa e inizio struttura algoritmo
 
+
+
+# Rete
+python3 src/master/master/dataset.py ./logs --checkpoint_dir checkpoints/
+python3 src/master/master/train.py --log_dir ./logs --checkpoint_dir ./checkpoints
+
+# Cosa fare ora  
+Spiegazione del punto in cui siamo 
