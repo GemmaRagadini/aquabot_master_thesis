@@ -4,7 +4,7 @@ import torch.nn as nn
 # definisce l'architettura
  
 class FishStaticNet(nn.Module):
-    def __init__(self, input_size=2, gru_hidden=64, mlp_hidden=128):
+    def __init__(self, input_size=3, gru_hidden=64, mlp_hidden=128):
         # input_size: numero di canali nella sequenza 
         #gru_hidden: dim hidden state del GRU 
         #mlp _hidden: dim hidden layer dell'mlp 

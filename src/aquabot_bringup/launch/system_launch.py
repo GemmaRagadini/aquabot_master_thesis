@@ -12,7 +12,7 @@ def generate_launch_description():
             parameters=[{
                 'sensor_topic': '/sensor_reading',
                 'target_topic': '/aquabot/dynamixel/target_position',
-                'mode': 'std', # tipo di trial
+                'mode': 'freq_sweep', # tipo di trial
                 'trial_duration_sec': 20.0, 
                 'tail_bias_rad': 0.0,
                 'tail_amp_rad': 1.2,
@@ -24,9 +24,9 @@ def generate_launch_description():
                 'log_dir': './logs',
 
                 
-                'feedback_enabled': True, # per versione variazione centro oscillazione
+                'feedback_enabled': False, # per versione variazione centro oscillazione
 
-                'feedback_gain': 0.0005, # sia per modalità feedback che per 1to1
+                'feedback_gain': 0.001, # sia per modalità feedback che per 1to1
                 'feedback_alpha': 0.1,
                 'feedback_max_offset': 1.5,
 
