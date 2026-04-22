@@ -5,9 +5,11 @@ import torch
 from torch.utils.data import Dataset
 from pathlib import Path
 
-# WINDOW: quanti timestep di storia diamo alla GRU
-# a 20Hz, 30 timestep = 1.5 secondi
-WINDOW    = 30
+# Definisce una classe FishDataset che trasforma i CSV prodotti durante i trial in sequenze  
+# per addestrare la rete FishStaticNet.
+
+
+WINDOW    = 30 # WINDOW: quanti timestep di storia diamo alla GRU => a 20Hz, 30 timestep = 1.5 secondi
 SAMPLE_HZ = 20.0
 
 
@@ -20,6 +22,7 @@ class FishDataset(Dataset):
         # statistiche di normalizzazione (salvate nel checkpoint per runtime)
         self.norm_stats = {}
 
+        # si cercano tutti i trial_*.csv
         csv_files = list(Path(log_dir).glob("trial_*.csv"))
         if not csv_files:
             raise FileNotFoundError(f"Nessun csv in {log_dir}")
@@ -39,8 +42,9 @@ class FishDataset(Dataset):
 
         print(f"Dataset: {len(self)} campioni da {len(csv_files)} trial.")
 
+
+    # converte la colonna sensor_values da stringa "[v1, v2]" a array numpy
     def _parse_sensor_values(self, series: pd.Series):
-        # converte la colonna sensor_values da stringa "[v1, v2]" a array numpy
         def parse_one(s):
             try:
                 vals = ast.literal_eval(str(s))
@@ -59,11 +63,10 @@ class FishDataset(Dataset):
         sensor_diff = sensors[:, 0] - sensors[:, 1]
         sensor_mean = (sensors[:, 0] + sensors[:, 1]) / 2.0   
 
-        # offset a riposo: media dei primi 50 campioni (come fa master_node)
+        # offset a riposo: media dei primi 50 campioni  => SI FA COSÌ ???
         offset = sensor_diff[:50].mean()
         sensor_diff_cal = sensor_diff - offset
 
-        # offset a riposo anche per la media
         offset_mean = sensor_mean[:50].mean()
         sensor_mean_cal = sensor_mean - offset_mean
 
@@ -71,12 +74,11 @@ class FishDataset(Dataset):
         v_flow = np.zeros(len(df), dtype=np.float32)
         # v_flow = df["v_flow"].values.astype(np.float32)  # decommentare quando disponibile
 
-        # --- ground truth ---
         cmd_servo = df["tail_target_rad"].values.astype(np.float32)
         amp_des   = df["tail_amp_rad"].values.astype(np.float32)
         freq_des  = df["tail_freq_hz"].values.astype(np.float32)
 
-        # --- normalizzazione per-episodio ---
+        # ogni feature viene normalizzata
         sd_mean,  sd_std  = sensor_diff_cal.mean(), sensor_diff_cal.std() + 1e-6
         sm_mean,  sm_std  = sensor_mean_cal.mean(), sensor_mean_cal.std() + 1e-6
         cmd_mean, cmd_std = cmd_servo.mean(),        cmd_servo.std()       + 1e-6
@@ -95,13 +97,16 @@ class FishDataset(Dataset):
             "vf_mean":  float(vf_mean),  "vf_std":  float(vf_std),
         }
 
-        # --- finestre scorrevoli ---
+        # per ogni timestep si costtuisce  
+        # seq, di dim (30,3), storia degli ultimi 30 timestep dei tre canali (sensor_diff, sensor_mean, v_flow)
+        # target, (2,), amp e freq desiderate al timestep corrente 
+        # label, (2,), cmd servo e flow da imparare 
         for i in range(window, len(df)):
             seq = np.stack([
-                sd_n[i - window:i],   # sensor_diff  — deformazione laterale
-                sm_n[i - window:i],   # sensor_mean  — deformazione assiale media
-                vf_n[i - window:i],   # v_flow
-            ], axis=1)                # shape: (window, 3)
+                sd_n[i - window:i],   
+                sm_n[i - window:i],   
+                vf_n[i - window:i],   
+            ], axis=1)                
 
             target = np.array([amp_des[i], freq_des[i]], dtype=np.float32)  # (2,)
             label  = np.array([cmd_n[i],   vf_n[i]],    dtype=np.float32)   # (2,)

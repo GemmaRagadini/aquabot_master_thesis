@@ -66,32 +66,32 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
 
 
 
-def compute_fisher(model, dataset, n_samples=500):
-    # calcola la matrice di Fisher sui pesi del modello
-    # serve per EWC nella fase di adattamento strutturale (dinamica)
-    loader = DataLoader(dataset, batch_size=1, shuffle=True) 
-    fisher = {n:torch.zeros_like(p) for n,p in model.named_parameters()} 
-    mse = nn.MSELoss() 
+# def compute_fisher(model, dataset, n_samples=500):
+#     # calcola la matrice di Fisher sui pesi del modello
+#     # serve per EWC nella fase di adattamento strutturale (dinamica)
+#     loader = DataLoader(dataset, batch_size=1, shuffle=True) 
+#     fisher = {n:torch.zeros_like(p) for n,p in model.named_parameters()} 
+#     mse = nn.MSELoss() 
 
-    model.eval() 
-    for i, (seq,target, label) in enumerate(loader): 
-        if i >=  n_samples: 
-            break 
+#     model.eval() 
+#     for i, (seq,target, label) in enumerate(loader): 
+#         if i >=  n_samples: 
+#             break 
 
-        cmd_pred, _, _ = model(seq, target) 
-        loss = mse(cmd_pred, label[:,0]) 
+#         cmd_pred, _, _ = model(seq, target) 
+#         loss = mse(cmd_pred, label[:,0]) 
 
-        model.zero_grad() 
-        loss.backward() 
+#         model.zero_grad() 
+#         loss.backward() 
 
-        for n,p in model.named_parameters(): 
-            if p.grad is not None: 
-                fisher[n] += p.grad.pow(2) 
+#         for n,p in model.named_parameters(): 
+#             if p.grad is not None: 
+#                 fisher[n] += p.grad.pow(2) 
     
-    for n in fisher: 
-        fisher[n] /= n_samples
+#     for n in fisher: 
+#         fisher[n] /= n_samples
     
-    return fisher
+#     return fisher
 
 
 def save_checkpoint(model, norm_stats, checkpoint_dir, name = "checkpoint.pt"): 
@@ -129,9 +129,9 @@ if __name__ == '__main__':
         checkpoint_dir=args.checkpoint_dir,
     )
 
-    # Fisher  
-    print("\nCalcolo matrice di Fisher...") 
-    fisher = compute_fisher(model, dataset) 
+    # # Fisher  
+    # print("\nCalcolo matrice di Fisher...") 
+    # fisher = compute_fisher(model, dataset) 
 
     # salvataggio 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
