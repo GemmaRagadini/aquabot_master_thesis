@@ -30,7 +30,8 @@ ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
 
 
 ## Data collection 
-collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il pretraining. 4 a freq fissa e amp_sweep , 3 viceversa. 
+src/aquabot_bringup/launch/collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il pretraining. 4 a freq fissa e amp_sweep , 3 viceversa. 
+NB. prima va lanciato system_launch.py
 
 - fare immagini e slide + video => non ho fatto quelli con feedback perché i sensori non funzionano bene
 - soa e inizio struttura algoritmo

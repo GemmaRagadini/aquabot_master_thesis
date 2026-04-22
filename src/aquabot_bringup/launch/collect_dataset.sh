@@ -2,10 +2,6 @@
 # collect_dataset.sh
 # Lancia i trial di raccolta dati automaticamente.
 # Prerequisito: i nodi ROS2 devono essere già in esecuzione.
-#
-# Uso:
-#   bash collect_dataset.sh
-#   bash collect_dataset.sh --dry-run   (stampa i comandi senza eseguirli)
 
 DRY_RUN=false
 if [[ "$1" == "--dry-run" ]]; then

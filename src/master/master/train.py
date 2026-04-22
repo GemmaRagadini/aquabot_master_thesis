@@ -2,13 +2,13 @@ import argparse
 import os
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 
 from model   import FishStaticNet
 from dataset import FishDataset
 
 # produce un file checkpoints/fish_static_net.pt che contiene i pesi addestrati => verra' caricato dal master per fare inferenza
-
 def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="checkpoints/"):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
@@ -22,6 +22,7 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
     mse = nn.MSELoss()
 
     best_val_loss = float('inf')
+    train_losses, val_losses = [], []
 
     for epoch in range(epochs):
         # training
@@ -54,6 +55,9 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
 
         scheduler.step(val_loss)
 
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+
         if epoch % 10 == 0:
             print(f"Epoch {epoch:3d} | train {train_loss:.4f} | val {val_loss:.4f}")
 
@@ -62,7 +66,7 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
             save_checkpoint(model, dataset.norm_stats, checkpoint_dir, name="best.pt")
 
     print(f"\nTraining completato. Best val loss: {best_val_loss:.4f}")
-    return model
+    return model, train_losses, val_losses
 
 
 
@@ -116,12 +120,12 @@ if __name__ == '__main__':
 
     #modello  
     model = FishStaticNet() 
-    n_params = sum(p.numel() for p in model.parameters()) 
-    print(f"Parametri della rete in : {n_params}")
+    # n_params = sum(p.numel() for p in model.parameters()) 
+    # print(f"Parametri della rete in : {n_params}")
 
     # training 
     print("\nInizio training...")
-    model = train(
+    model, train_losses, val_losses = train(
         model, dataset, 
         epochs=args.epochs, 
         lr = args.lr, 
@@ -140,6 +144,26 @@ if __name__ == '__main__':
         "model_state": model.state_dict(), 
         "norm_stats": dataset.norm_stats,
         "theta_star": {n:p.clone() for n,p in model.named_parameters()},
-        "fisher": fisher, 
+        # "fisher": fisher, 
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path})")
+
+    # plot loss curves
+    best_epoch = val_losses.index(min(val_losses)) + 1
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(range(1, len(train_losses) + 1), train_losses, color='steelblue', linewidth=1.5, label='Train loss')
+    ax.plot(range(1, len(val_losses)   + 1), val_losses,   color='tomato',    linewidth=1.5, label='Val loss')
+    ax.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--',
+               label=f'Best val (epoch {best_epoch})')
+    ax.set_xlabel("Epoch", fontsize=13)
+    ax.set_ylabel("Loss (MSE)", fontsize=13)
+    ax.set_title("Training & Validation Loss", fontsize=15, fontweight='bold')
+    ax.legend(fontsize=12)
+    ax.grid(True)
+    plt.tight_layout()
+
+    plot_path = os.path.join(args.checkpoint_dir, "loss_curve.png")
+    plt.savefig(plot_path, dpi=150)
+    print(f"Loss curve salvata in {plot_path}")
+    plt.show()
