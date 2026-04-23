@@ -5,11 +5,11 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 
-from model   import FishStaticNet
+from model   import FishSensorEstimator
 from dataset import FishDataset
 
-# produce un file checkpoints/fish_static_net.pt che contiene i pesi addestrati => verra' caricato dal master per fare inferenza
-def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="checkpoints/"):
+
+def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
     train_ds, val_ds = random_split(dataset, [n_train, n_val])
@@ -28,11 +28,9 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
         # training
         model.train()
         train_loss = 0.0
-        for seq, target, label in train_loader:
-            cmd_pred, vflow_pred, _ = model(seq, target)
-            l_cmd   = mse(cmd_pred,   label[:, 0])
-            l_vflow = mse(vflow_pred, label[:, 1])
-            loss    = l_cmd + lambda_flow * l_vflow
+        for seq, target in train_loader:
+            pred, _ = model(seq)
+            loss = mse(pred, target)   # pred e target: (batch, 3)
 
             optimizer.zero_grad()
             loss.backward()
@@ -44,17 +42,14 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for seq, target, label in val_loader:
-                cmd_pred, vflow_pred, _ = model(seq, target)
-                l_cmd   = mse(cmd_pred,   label[:, 0])
-                l_vflow = mse(vflow_pred, label[:, 1])
-                val_loss += (l_cmd + lambda_flow * l_vflow).item()
+            for seq, target in val_loader:
+                pred, _ = model(seq)
+                val_loss += mse(pred, target).item()
 
         train_loss /= len(train_loader)
         val_loss   /= len(val_loader)
 
         scheduler.step(val_loss)
-
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
@@ -69,39 +64,9 @@ def train(model, dataset, epochs=100, lr=1e-3, lambda_flow=0.3, checkpoint_dir="
     return model, train_losses, val_losses
 
 
-
-# def compute_fisher(model, dataset, n_samples=500):
-#     # calcola la matrice di Fisher sui pesi del modello
-#     # serve per EWC nella fase di adattamento strutturale (dinamica)
-#     loader = DataLoader(dataset, batch_size=1, shuffle=True) 
-#     fisher = {n:torch.zeros_like(p) for n,p in model.named_parameters()} 
-#     mse = nn.MSELoss() 
-
-#     model.eval() 
-#     for i, (seq,target, label) in enumerate(loader): 
-#         if i >=  n_samples: 
-#             break 
-
-#         cmd_pred, _, _ = model(seq, target) 
-#         loss = mse(cmd_pred, label[:,0]) 
-
-#         model.zero_grad() 
-#         loss.backward() 
-
-#         for n,p in model.named_parameters(): 
-#             if p.grad is not None: 
-#                 fisher[n] += p.grad.pow(2) 
-    
-#     for n in fisher: 
-#         fisher[n] /= n_samples
-    
-#     return fisher
-
-
-def save_checkpoint(model, norm_stats, checkpoint_dir, name = "checkpoint.pt"): 
-    os.makedirs(checkpoint_dir, exist_ok= True)
-    path = os.path.join(checkpoint_dir, name) 
-    # theta_star e fisher vengono aggiunti dopo compute_fisher()
+def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    path = os.path.join(checkpoint_dir, name)
     torch.save({"model_state": model.state_dict(), "norm_stats": norm_stats}, path)
 
 
@@ -111,42 +76,32 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_dir', default='checkpoints/')
     parser.add_argument('--epochs',         type=int,   default=100)
     parser.add_argument('--lr',             type=float, default=1e-3)
-    parser.add_argument('--lambda_flow',    type=float, default=0.3)
     args = parser.parse_args()
 
-    # dataset 
-    print("Caricamento dataset...") 
-    dataset = FishDataset(args.log_dir) 
+    print("Caricamento dataset...")
+    dataset = FishDataset(args.log_dir)
 
-    #modello  
-    model = FishStaticNet() 
-    # n_params = sum(p.numel() for p in model.parameters()) 
-    # print(f"Parametri della rete in : {n_params}")
+    model = FishSensorEstimator()
+    n_params = sum(p.numel() for p in model.parameters())
+    print(f"Parametri della rete: {n_params}")
 
-    # training 
     print("\nInizio training...")
     model, train_losses, val_losses = train(
-        model, dataset, 
-        epochs=args.epochs, 
-        lr = args.lr, 
-        lambda_flow=args.lambda_flow, 
+        model, dataset,
+        epochs=args.epochs,
+        lr=args.lr,
         checkpoint_dir=args.checkpoint_dir,
     )
 
-    # # Fisher  
-    # print("\nCalcolo matrice di Fisher...") 
-    # fisher = compute_fisher(model, dataset) 
-
-    # salvataggio 
+    # salvataggio finale
     os.makedirs(args.checkpoint_dir, exist_ok=True)
-    final_path=os.path.join(args.checkpoint_dir, "fish_static_net.pt") 
+    final_path = os.path.join(args.checkpoint_dir, "fish_sensor_estimator.pt")
     torch.save({
-        "model_state": model.state_dict(), 
-        "norm_stats": dataset.norm_stats,
-        "theta_star": {n:p.clone() for n,p in model.named_parameters()},
-        # "fisher": fisher, 
+        "model_state": model.state_dict(),
+        "norm_stats":  dataset.norm_stats,
+        "theta_star":  {n: p.clone() for n, p in model.named_parameters()},
     }, final_path)
-    print(f"Checkpoint finale salvato in {final_path})")
+    print(f"Checkpoint finale salvato in {final_path}")
 
     # plot loss curves
     best_epoch = val_losses.index(min(val_losses)) + 1

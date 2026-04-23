@@ -39,8 +39,13 @@ NB. prima va lanciato system_launch.py
 
 
 # Rete
-python3 src/master/master/dataset.py ./logs --checkpoint_dir checkpoints/
-python3 src/master/master/train.py --log_dir ./logs --checkpoint_dir ./checkpoints
+
+python3 src/net/dataset.py ./logs --checkpoint_dir checkpoints/
+python3 src/net/train.py --log_dir ./logs --checkpoint_dir ./checkpoints
+
+## Inversa 
+python3 src/net/dataset_inverse.py ./logs --checkpoint_dir checkpoints/
+python3 src/net/train_inverse.py --log_dir ./logs --checkpoint_dir ./checkpoints
 
 # Cosa fare ora
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
