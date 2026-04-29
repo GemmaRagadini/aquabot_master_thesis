@@ -48,6 +48,10 @@ class MasterNode(Node):
         self.declare_parameter("feedback_alpha", 0.1)
         self.declare_parameter("feedback_max_offset", 0.5)
 
+        # parametri per turning (variazione sinusoidale del centro di oscillazione)
+        self.declare_parameter("turning_bias_amp_rad", 0.4)
+        self.declare_parameter("turning_bias_freq_hz", 0.08)
+
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min = float(self.get_parameter('freq_min_hz').value)
         self.freq_max = float(self.get_parameter('freq_max_hz').value)
@@ -68,6 +72,8 @@ class MasterNode(Node):
         self.feedback_gain = float(self.get_parameter("feedback_gain").value)
         self.feedback_alpha = float(self.get_parameter("feedback_alpha").value)
         self.feedback_max_offset = float(self.get_parameter("feedback_max_offset").value)
+        self.turning_bias_amp = float(self.get_parameter("turning_bias_amp_rad").value)
+        self.turning_bias_freq = float(self.get_parameter("turning_bias_freq_hz").value)
 
         # pubblica il target della coda
         self.publisher = self.create_publisher(Float64, self.target_topic, 10)
@@ -138,6 +144,10 @@ class MasterNode(Node):
                 self.feedback_enabled = bool(p.value)
             elif p.name == 'feedback_gain':
                 self.feedback_gain = float(p.value)
+            elif p.name == 'turning_bias_amp_rad':
+                self.turning_bias_amp = float(p.value)
+            elif p.name == 'turning_bias_freq_hz':
+                self.turning_bias_freq = float(p.value)
         return SetParametersResult(successful=True)
 
     def sensor_callback(self, msg: Float32MultiArray):
@@ -228,6 +238,7 @@ class MasterNode(Node):
 
     def control_step(self):
         now = self.get_clock().now()
+
         if self.t0 is None:
             self.t0 = now
 
@@ -253,7 +264,6 @@ class MasterNode(Node):
         #     # )
 
     def compute_target(self, t_rel: float, dt: float):
-
         if self.mode == 'std':
             freq_t = self.freq
             amp_t = self.amp
@@ -287,7 +297,6 @@ class MasterNode(Node):
             return clamp(theta, self.tail_min, self.tail_max)
         
         elif self.mode == 'combined_sweep':
-            self.get_logger().info(f"combined_sweep")
             # amp e freq variano con profili triangolari a periodi incommensurabili
             # (rapporto aureo) => esplorazione scorrelata dello spazio (amp, freq)
             PHI = 1.6180339887
@@ -300,6 +309,24 @@ class MasterNode(Node):
             self.phase_acc += 2.0 * math.pi * freq_t * dt
             bias_offset = self.compute_bias_offset()
             theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
+            return clamp(theta, self.tail_min, self.tail_max)
+
+        elif self.mode == 'turning_combined':
+            # amp e freq variano (profili triangolari incommensurabili) +
+            # centro di oscillazione varia sinusoidalmente
+            PHI = 1.6180339887
+            alpha_amp  = self.triangular_profile(t_rel, self.trial_duration)
+            alpha_freq = self.triangular_profile(t_rel, self.trial_duration / PHI)
+            amp_t  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
+            freq_t = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
+            self.current_amp  = amp_t
+            self.current_freq = freq_t
+            self.phase_acc += 2.0 * math.pi * freq_t * dt
+            bias_t = self.bias + self.turning_bias_amp * math.sin(
+                2.0 * math.pi * self.turning_bias_freq * t_rel
+            )
+            bias_offset = self.compute_bias_offset()
+            theta = bias_t + bias_offset + amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
 
         elif self.mode == '1to1':
@@ -405,7 +432,6 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
-    pass
 
 
 if __name__ == '__main__':
