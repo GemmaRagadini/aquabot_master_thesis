@@ -228,7 +228,6 @@ class MasterNode(Node):
 
     def control_step(self):
         now = self.get_clock().now()
-
         if self.t0 is None:
             self.t0 = now
 
@@ -254,6 +253,7 @@ class MasterNode(Node):
         #     # )
 
     def compute_target(self, t_rel: float, dt: float):
+
         if self.mode == 'std':
             freq_t = self.freq
             amp_t = self.amp
@@ -286,6 +286,22 @@ class MasterNode(Node):
             theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
         
+        elif self.mode == 'combined_sweep':
+            self.get_logger().info(f"combined_sweep")
+            # amp e freq variano con profili triangolari a periodi incommensurabili
+            # (rapporto aureo) => esplorazione scorrelata dello spazio (amp, freq)
+            PHI = 1.6180339887
+            alpha_amp  = self.triangular_profile(t_rel, self.trial_duration)
+            alpha_freq = self.triangular_profile(t_rel, self.trial_duration / PHI)
+            amp_t  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
+            freq_t = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
+            self.current_amp  = amp_t
+            self.current_freq = freq_t
+            self.phase_acc += 2.0 * math.pi * freq_t * dt
+            bias_offset = self.compute_bias_offset()
+            theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
+            return clamp(theta, self.tail_min, self.tail_max)
+
         elif self.mode == '1to1':
             # la posizione target segue direttamente i sensori
             if self.last_sensor is None or len(self.last_sensor) < 2:
@@ -389,6 +405,7 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+    pass
 
 
 if __name__ == '__main__':

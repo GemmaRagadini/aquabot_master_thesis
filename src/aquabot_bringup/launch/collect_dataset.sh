@@ -2,6 +2,10 @@
 # collect_dataset.sh
 # Lancia i trial di raccolta dati automaticamente.
 # Prerequisito: i nodi ROS2 devono essere già in esecuzione.
+#
+# Uso:
+#   bash collect_dataset.sh
+#   bash collect_dataset.sh --dry-run   (stampa i comandi senza eseguirli)
 
 DRY_RUN=false
 if [[ "$1" == "--dry-run" ]]; then
@@ -86,7 +90,29 @@ for amp in 0.4 0.7 1.0; do
     done
 done
 
+# ── Gruppo 3: combined_sweep — amp e freq variano insieme (scorrelate) ───────
+echo ""
+echo "=== GRUPPO 3: combined_sweep ==="
+# Trial più lungo: serve tempo per coprire lo spazio (amp, freq)
+# con due profili triangolari a periodi incommensurabili (rapporto aureo).
+DURATION=60
+DURATION_ROS=60.0
+
+set_param mode combined_sweep
+set_param amp_min_rad 0.3
+set_param amp_max_rad 1.2
+set_param freq_min_hz 0.5
+set_param freq_max_hz 2.0
+set_param trial_duration_sec $DURATION_ROS
+
+for rep in $(seq 1 $REPS); do
+    echo ""
+    echo "  combined_sweep | rep=${rep}/${REPS}"
+    start_trial
+    wait_trial $DURATION
+done
+
 echo ""
 echo "================================================"
-echo "  Dataset completo: $((( 4 + 3 ) * REPS)) trial in ./logs"
+echo "  Dataset completo: $((( 4 + 3 + 1 ) * REPS)) trial in ./logs"
 echo "================================================"

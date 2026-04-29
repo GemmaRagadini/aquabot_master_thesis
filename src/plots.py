@@ -114,8 +114,41 @@ def plot_tail_amplitude(csv_path):
     plt.show()
 
 
-CSV = 'logs/trial_20260414_113250.csv'
+def plot_combined_sweep(csv_path):
+    rows = _read_csv(csv_path)
+    t    = [float(r["t_rel_sec"])    for r in rows]
+    amp  = [float(r["tail_amp_rad"]) for r in rows]
+    freq = [float(r["tail_freq_hz"]) for r in rows]
+
+    color_amp  = '#1f77b4'
+    color_freq = '#d62728'
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.plot(t, amp, color=color_amp, linewidth=1.8, label='Amplitude [rad]')
+    ax.set_xlabel("Time [s]", fontsize=LABEL_SIZE)
+    ax.set_ylabel("Amplitude [rad]", fontsize=LABEL_SIZE, color=color_amp)
+    ax.tick_params(axis='y', labelcolor=color_amp, labelsize=TICK_SIZE)
+    ax.tick_params(axis='x', labelsize=TICK_SIZE)
+    ax.grid(True, alpha=0.4)
+
+    ax_freq = ax.twinx()
+    ax_freq.plot(t, freq, color=color_freq, linewidth=1.8,
+                 linestyle='--', label='Frequency [Hz]')
+    ax_freq.set_ylabel("Frequency [Hz]", fontsize=LABEL_SIZE, color=color_freq)
+    ax_freq.tick_params(axis='y', labelcolor=color_freq, labelsize=TICK_SIZE)
+
+    lines  = ax.get_lines() + ax_freq.get_lines()
+    labels = [l.get_label() for l in lines]
+    ax.legend(lines, labels, fontsize=LEGEND_SIZE, loc='upper right')
+    ax.set_title("Amplitude & frequency vs time", fontsize=TITLE_SIZE, fontweight='bold')
+
+    plt.tight_layout()
+    plt.show()
+
+
+CSV = 'logs/trial_20260429_121021.csv'
 
 plot_motor(CSV)
 plot_tail_amplitude(CSV)
 plot_sensors(CSV)
+plot_combined_sweep(CSV)   # usare con trial combined_sweep
