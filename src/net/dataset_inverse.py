@@ -9,13 +9,19 @@ from pathlib import Path
 WINDOW    = 30
 SAMPLE_HZ = 20.0
 
+# H_OUT: quanti istanti passati sono nel target storia
+# a 20Hz, 20 timestep = 1 secondo = un ciclo completo a 1 Hz
+H_OUT = 20
+
 
 class FishInverseDataset(Dataset):
-    def __init__(self, log_dir: str, window: int = WINDOW):
-        self.sequences = []   # (window, 3)  storia sensori
-        self.targets   = []   # (1,)         tail_target_rad
+    def __init__(self, log_dir: str, window: int = WINDOW, h_out: int = H_OUT):
+        self.sequences       = []   # (window, 3)  storia sensori
+        self.targets_history = []   # (h_out,)     comandi passati
+        self.targets_future  = []   # (1,)         comando al t+1
 
         self.norm_stats = {}
+        self.h_out = h_out
 
         csv_files = list(Path(log_dir).glob("trial_*.csv"))
         if not csv_files:
@@ -26,12 +32,13 @@ class FishInverseDataset(Dataset):
         for csv_path in csv_files:
             try:
                 df = pd.read_csv(csv_path)
-                self._process_episode(df, window)
+                self._process_episode(df, window, h_out)
             except Exception as e:
                 print(f"  Skipped {csv_path.name}: {e}")
 
-        self.sequences = torch.tensor(np.array(self.sequences), dtype=torch.float32)
-        self.targets   = torch.tensor(np.array(self.targets),   dtype=torch.float32)
+        self.sequences       = torch.tensor(np.array(self.sequences),       dtype=torch.float32)
+        self.targets_history = torch.tensor(np.array(self.targets_history), dtype=torch.float32)
+        self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
 
         print(f"Dataset: {len(self)} campioni da {len(csv_files)} trial.")
 
@@ -47,7 +54,7 @@ class FishInverseDataset(Dataset):
         parsed = series.apply(parse_one)
         return np.array(parsed.tolist(), dtype=np.float32)
 
-    def _process_episode(self, df: pd.DataFrame, window: int):
+    def _process_episode(self, df: pd.DataFrame, window: int, h_out: int):
         # --- input: sensori ---
         sensors = self._parse_sensor_values(df["sensor_values"])
         sensor_diff = sensors[:, 0] - sensors[:, 1]
@@ -84,7 +91,8 @@ class FishInverseDataset(Dataset):
         }
 
         # --- finestre scorrevoli ---
-        for i in range(window, len(df)):
+        # il loop finisce a len(df)-1 perché serve il campione t+1 per il target futuro
+        for i in range(window, len(df) - 1):
             # input: finestra di sensori  =>  (window, 3)
             seq = np.stack([
                 sd_n[i - window:i],
@@ -92,24 +100,33 @@ class FishInverseDataset(Dataset):
                 vf_n[i - window:i],
             ], axis=1)
 
-            # target: comando motore al timestep corrente  =>  scalare
-            target = np.array([cmd_n[i]], dtype=np.float32)
+            # target storia: ultimi h_out comandi  =>  (h_out,)
+            target_history = cmd_n[i - h_out:i].copy()   # (h_out,)
+
+            # target futuro: comando al timestep t+1  =>  (1,)
+            target_future = np.array([cmd_n[i + 1]], dtype=np.float32)
 
             self.sequences.append(seq)
-            self.targets.append(target)
+            self.targets_history.append(target_history)
+            self.targets_future.append(target_future)
 
     def __len__(self):
         return len(self.sequences)
 
     def __getitem__(self, idx):
-        return self.sequences[idx], self.targets[idx]
+        return (
+            self.sequences[idx],
+            self.targets_history[idx],
+            self.targets_future[idx],
+        )
 
 
 if __name__ == '__main__':
     import sys
     log_dir = sys.argv[1] if len(sys.argv) > 1 else "../../logs"
     ds = FishInverseDataset(log_dir)
-    seq, target = ds[0]
-    print(f"seq shape:    {seq.shape}")     # (30, 3)
-    print(f"target shape: {target.shape}")  # (1,)
-    print(f"norm_stats:   {ds.norm_stats}")
+    seq, t_hist, t_fut = ds[0]
+    print(f"seq shape:            {seq.shape}")      # (30, 3)
+    print(f"target_history shape: {t_hist.shape}")   # (20,)
+    print(f"target_future shape:  {t_fut.shape}")    # (1,)
+    print(f"norm_stats:           {ds.norm_stats}")

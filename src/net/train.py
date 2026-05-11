@@ -8,6 +8,10 @@ from torch.utils.data import DataLoader, random_split
 from model   import FishSensorEstimator
 from dataset import FishDataset
 
+# peso della testa futuro nella loss combinata
+# λ > 1 dà più importanza all'anticipazione rispetto alla ricostruzione della storia
+LAMBDA_FUTURE = 2.0
+
 
 def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
     n_val   = int(0.2 * len(dataset))
@@ -25,12 +29,17 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
     train_losses, val_losses = [], []
 
     for epoch in range(epochs):
-        # training
+        # --- training ---
         model.train()
         train_loss = 0.0
-        for seq, target in train_loader:
-            pred, _ = model(seq)
-            loss = mse(pred, target)   # pred e target: (batch, 3)
+        for seq, t_hist, t_fut, _ in train_loader:
+            pred_history, pred_future, _ = model(seq)
+
+            # loss storia:  (batch, h_out, 3) vs (batch, h_out, 3)
+            loss_history = mse(pred_history, t_hist)
+            # loss futuro:  (batch, 3)        vs (batch, 3)
+            loss_future  = mse(pred_future,  t_fut)
+            loss = loss_history + LAMBDA_FUTURE * loss_future
 
             optimizer.zero_grad()
             loss.backward()
@@ -38,13 +47,15 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
             optimizer.step()
             train_loss += loss.item()
 
-        # validation
+        # --- validation ---
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for seq, target in val_loader:
-                pred, _ = model(seq)
-                val_loss += mse(pred, target).item()
+            for seq, t_hist, t_fut, _ in val_loader:
+                pred_history, pred_future, _ = model(seq)
+                loss_history = mse(pred_history, t_hist)
+                loss_future  = mse(pred_future,  t_fut)
+                val_loss += (loss_history + LAMBDA_FUTURE * loss_future).item()
 
         train_loss /= len(train_loader)
         val_loss   /= len(val_loader)
@@ -113,7 +124,7 @@ if __name__ == '__main__':
                label=f'Best val (epoch {best_epoch})')
     ax.set_xlabel("Epoch", fontsize=13)
     ax.set_ylabel("Loss (MSE)", fontsize=13)
-    ax.set_title("Training & Validation Loss", fontsize=15, fontweight='bold')
+    ax.set_title("SensorEstimator — Training & Validation Loss", fontsize=15, fontweight='bold')
     ax.legend(fontsize=12)
     ax.grid(True)
     plt.tight_layout()

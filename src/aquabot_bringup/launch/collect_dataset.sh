@@ -9,13 +9,15 @@ if [[ "$1" == "--dry-run" ]]; then
 fi
 
 MARGIN=3          # secondi extra dopo trial_duration prima del prossimo trial
-REPS=3            # ripetizioni per ogni combinazione
+# DA CAMBIARE!!!!  ALMENO 3
+REPS=1            # ripetizioni per ogni combinazione 
 
 # range condivisi
 AMP_MIN=0.3
 AMP_MAX=1.2
 FREQ_MIN=0.5
-FREQ_MAX=2.0
+# DA CAMBIARE !! 1.5
+FREQ_MAX=1.0 
 
 run() {
     if $DRY_RUN; then
@@ -55,15 +57,16 @@ echo "================================================"
 # ── Gruppo 1: amp_sweep
 echo ""
 echo "=== GRUPPO 1: amp_sweep ==="
-DURATION=30
-DURATION_ROS=30.0
+# FORSE AUMENTARE !!!
+DURATION=20
+DURATION_ROS=20.0
 
 set_param mode amp_sweep
 set_param amp_min_rad $AMP_MIN
 set_param amp_max_rad $AMP_MAX
 set_param trial_duration_sec $DURATION_ROS
 
-for freq in 0.5 1.0 1.5 2.0; do
+for freq in 0.5 1.0 1.5; do
     set_param tail_freq_hz $freq
     for rep in $(seq 1 $REPS); do
         echo ""
@@ -77,8 +80,8 @@ done
 # ── Gruppo 2: freq_sweep 
 echo ""
 echo "=== GRUPPO 2: freq_sweep ==="
-DURATION=30
-DURATION_ROS=30.0
+DURATION=20
+DURATION_ROS=20.0
 
 set_param mode freq_sweep
 set_param freq_min_hz $FREQ_MIN
@@ -99,8 +102,8 @@ done
 # ── Gruppo 3: combined_sweep 
 echo ""
 echo "=== GRUPPO 3: combined_sweep ==="
-DURATION=60
-DURATION_ROS=60.0
+DURATION=20
+DURATION_ROS=20.0
 
 set_param mode combined_sweep
 set_param amp_min_rad $AMP_MIN
@@ -121,8 +124,8 @@ done
 
 echo ""
 echo "=== GRUPPO 4: turning_combined ==="
-DURATION=60
-DURATION_ROS=60.0
+DURATION=20
+DURATION_ROS=20.0
 
 set_param mode turning_combined
 set_param amp_min_rad $AMP_MIN
