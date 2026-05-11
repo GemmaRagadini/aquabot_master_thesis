@@ -31,14 +31,14 @@ class MasterNode(Node):
         self.declare_parameter('tail_freq_hz', 0.5)
         self.declare_parameter('tail_min_rad', -1.5)
         self.declare_parameter('tail_max_rad', 1.5)
-        self.declare_parameter('control_rate_hz', 50.0)
+        self.declare_parameter('control_rate_hz', 10.0)
         self.declare_parameter('log_rate_hz', 20.0)
         self.declare_parameter('log_dir', 'logs')
 
         # parametri per variazione frequenza/ampiezza
         self.declare_parameter('trial_duration_sec', 20.0)
         self.declare_parameter('freq_min_hz', 0.5)
-        self.declare_parameter('freq_max_hz', 2.0)
+        self.declare_parameter('freq_max_hz', 1.5)
         self.declare_parameter('amp_min_rad', 0.1)
         self.declare_parameter('amp_max_rad', 0.6)
 
@@ -84,7 +84,7 @@ class MasterNode(Node):
         self.create_subscription(Float64, '/aquabot/dynamixel/present_position',
             self.position_callback, 10)
         self.create_subscription(Float64, '/aquabot/dynamixel/present_current',
-            self.current_callback, 10)
+            self.current_callback, 10)  # loggata come present_current_ma; usata come proxy v_flow nel dataset
 
         self.last_sensor = None
         self.last_sensor_time = None
@@ -96,7 +96,9 @@ class MasterNode(Node):
 
         self.srv_trial = self.create_service(SetBool, 'trial', self.trial_callback)
         self.control_timer = self.create_timer(1.0 / self.control_rate, self.control_step)
-        self.log_timer = self.create_timer(1.0 / self.log_rate, self.log_step)
+        # self.log_timer = self.create_timer(1.0 / self.log_rate, self.log_step)
+        self.log_counter = 0
+        self.log_every = max(1, int(round(self.control_rate / self.log_rate)))  # 50/20=2, 50/50=1
 
         self.phase_acc = 0.0
         self.last_control_time = None
@@ -256,12 +258,10 @@ class MasterNode(Node):
         msg.data = float(target)
         self.publisher.publish(msg)
 
-        # if int(t_rel * 4) != int((t_rel - dt) * 4):
-        #     # self.get_logger().info(
-        #     #     f"[control] t={t_rel:.2f}s  target={target:.3f} rad  "
-        #     #     f"amp={self.current_amp:.3f} rad  freq={self.current_freq:.3f} Hz  "
-        #     #     f"bias_offset={self.current_bias_offset:.4f} rad"
-        #     # )
+        self.log_counter += 1
+        if self.log_counter >= self.log_every:
+            self.log_counter = 0
+            self.log_step()
 
     def compute_target(self, t_rel: float, dt: float):
         if self.mode == 'std':
@@ -283,7 +283,7 @@ class MasterNode(Node):
             self.phase_acc += 2.0 * math.pi * freq_t * dt
             bias_offset = self.compute_bias_offset()
             theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
+            return clamp(theta, self.tail_min, self.tail_max)  
 
         elif self.mode == 'amp_sweep':
             alpha = self.triangular_profile(t_rel, self.trial_duration)

@@ -12,14 +12,14 @@ def generate_launch_description():
             parameters=[{
                 'sensor_topic': '/sensor_reading',
                 'target_topic': '/aquabot/dynamixel/target_position',
-                'mode': 'turning_combined', # tipo di trial
+                'mode': 'std', # tipo di trial
                 'trial_duration_sec': 20.0, 
                 'tail_bias_rad': 0.0,
                 'tail_amp_rad': 1.2,
                 'tail_freq_hz': 0.5,
                 'tail_min_rad': -1.5,
                 'tail_max_rad': 1.5,
-                'control_rate_hz': 50.0,
+                'control_rate_hz': 20.0,
                 'log_rate_hz': 20.0,
                 'log_dir': './logs',
 
@@ -34,7 +34,7 @@ def generate_launch_description():
                 'amp_min_rad': 0.3,
                 'amp_max_rad': 1.5,
                 'freq_min_hz': 0.5,   
-                'freq_max_hz': 2.0,  
+                'freq_max_hz': 1.5,  
             }]
         ),
         Node(
@@ -50,8 +50,8 @@ def generate_launch_description():
                 'protocol_version': 2.0,
                 'tail_min_rad': -1.5, 
                 'tail_max_rad': 1.5,
-                'profile_velocity': 125, 
-                'profile_acceleration':125,
+                'profile_velocity': 500, 
+                'profile_acceleration':400,
             }]
         ),
         Node(

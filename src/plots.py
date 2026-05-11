@@ -146,9 +146,9 @@ def plot_combined_sweep(csv_path):
     plt.show()
 
 
-CSV = 'logs/trial_20260429_140940.csv'
+CSV = 'logs/trial_20260511_113913.csv'
 
 plot_motor(CSV)
-plot_tail_amplitude(CSV)
-plot_sensors(CSV)
-plot_combined_sweep(CSV)   # usare con trial combined_sweep
+# plot_tail_amplitude(CSV)
+# plot_sensors(CSV)
+# plot_combined_sweep(CSV)   # usare con trial combined_sweep

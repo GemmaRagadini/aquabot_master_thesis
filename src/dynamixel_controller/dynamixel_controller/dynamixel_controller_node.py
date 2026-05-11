@@ -112,7 +112,7 @@ class DynamixelController(Node):
         self.pub_current = self.create_publisher(Float64, '/aquabot/dynamixel/present_current', 10)
         # timer di lettura
         self.read_timer = self.create_timer(1.0 / 20.0, self.read_motor_state)
-    
+        
     def read_motor_state(self):
         # leggi posizione
         pos_tick, result, error = self.packet_handler.read4ByteTxRx(
