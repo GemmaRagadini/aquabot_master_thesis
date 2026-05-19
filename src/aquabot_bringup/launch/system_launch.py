@@ -1,6 +1,15 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+# Limiti meccanici misurati empiricamente con Dynamixel Wizard
+# Tick 2299 => +0.385 rad   Tick 2975 => +1.422 rad
+# Centro di oscillazione: (0.385 + 1.422) / 2 = 0.903 rad
+# Semiampiezza massima:   (1.422 - 0.385) / 2 = 0.519 rad
+TAIL_MIN_RAD  = 0.385
+TAIL_MAX_RAD  = 1.422
+TAIL_BIAS_RAD = 0.903
+MAX_AMP_RAD   = 0.519
+
 
 def generate_launch_description():
     return LaunchDescription([
@@ -12,29 +21,38 @@ def generate_launch_description():
             parameters=[{
                 'sensor_topic': '/sensor_reading',
                 'target_topic': '/aquabot/dynamixel/target_position',
-                'mode': 'std', # tipo di trial
-                'trial_duration_sec': 20.0, 
-                'tail_bias_rad': 0.0,
-                'tail_amp_rad': 1.2,
+                'mode': 'turning_combined',
+                'trial_duration_sec': 30.0,
+
+                # centro reale 
+                'tail_bias_rad': TAIL_BIAS_RAD,
+
+                # ampiezza e freq default 
+                'tail_amp_rad': 0.3,
                 'tail_freq_hz': 0.5,
-                'tail_min_rad': -1.5,
-                'tail_max_rad': 1.5,
+
+                # LIMITI 
+                'tail_min_rad': TAIL_MIN_RAD,
+                'tail_max_rad': TAIL_MAX_RAD,
+
                 'control_rate_hz': 20.0,
                 'log_rate_hz': 20.0,
                 'log_dir': './logs',
 
-                
-                'feedback_enabled': False, # per versione variazione centro oscillazione
-
-                'feedback_gain': 0.001, # sia per modalità feedback che per 1to1
+                'feedback_enabled': False,
+                'feedback_gain': 0.001,
                 'feedback_alpha': 0.1,
-                'feedback_max_offset': 1.5,
+                'feedback_max_offset': MAX_AMP_RAD,
 
-                # per i sweep
-                'amp_min_rad': 0.3,
-                'amp_max_rad': 1.5,
-                'freq_min_hz': 0.5,   
-                'freq_max_hz': 1.5,  
+                # sweep: amp entro la semiampiezza massima
+                'amp_min_rad': 0.1,
+                'amp_max_rad': MAX_AMP_RAD,
+                'freq_min_hz': 0.5,
+                'freq_max_hz': 1.0,
+
+                # turning combined
+                'turning_bias_amp_rad': 0.2,
+                'turning_bias_freq_hz': 0.08,
             }]
         ),
         Node(
@@ -48,10 +66,17 @@ def generate_launch_description():
                 'baudrate': 115200,
                 'dxl_id': 1,
                 'protocol_version': 2.0,
-                'tail_min_rad': -1.5, 
-                'tail_max_rad': 1.5,
-                'profile_velocity': 500, 
-                'profile_acceleration':400,
+
+                # limiti assoluti in radianti 
+                'tail_min_rad': TAIL_MIN_RAD,
+                'tail_max_rad': TAIL_MAX_RAD,
+
+                # limiti assoluti in tick 
+                'min_position_tick': 2299,
+                'max_position_tick': 2975,
+
+                'profile_velocity': 500,
+                'profile_acceleration': 400,
             }]
         ),
         Node(
@@ -63,4 +88,3 @@ def generate_launch_description():
             }]
         ),
     ])
-

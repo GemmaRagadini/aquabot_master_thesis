@@ -58,6 +58,7 @@ class FishDataset(Dataset):
         parsed = series.apply(parse_one)
         return np.array(parsed.tolist(), dtype=np.float32)
 
+
     def _process_episode(self, df: pd.DataFrame, window: int, h_out: int):
         # --- sensori ---
         sensors = self._parse_sensor_values(df["sensor_values"])
@@ -70,6 +71,7 @@ class FishDataset(Dataset):
         sensor_diff_cal = sensor_diff - offset
         sensor_mean_cal = sensor_mean - offset_mean
 
+        # SI CHIAMA V_FLOW MA È CORRENTE MOTORE
         # v_flow: proxy corrente motore finché non c'è il sensore di flusso
         v_flow = df["present_current_ma"].values.astype(np.float32)
 

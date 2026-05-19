@@ -18,6 +18,16 @@ def clamp(x: float, lo: float, hi: float):
 
 
 class MasterNode(Node):
+
+    # Limiti meccanici misurati empiricamente con Dynamixel Wizard
+    # Tick 2299 => +0.385 rad   Tick 2975 => +1.422 rad
+    # Centro di oscillazione: (0.385 + 1.422) / 2 = 0.903 rad
+    # Semiampiezza massima:   (1.422 - 0.385) / 2 = 0.519 rad
+    TAIL_MIN_RAD  = 0.385
+    TAIL_MAX_RAD  = 1.422
+    TAIL_BIAS_RAD = 0.903
+    MAX_AMP_RAD   = 0.519
+
     def __init__(self):
         super().__init__('master_node')
         self.get_logger().info('master_node started.')
@@ -26,11 +36,11 @@ class MasterNode(Node):
         self.declare_parameter('target_topic', '/aquabot/dynamixel/target_position')
         self.declare_parameter('sensor_topic', '/sensor_reading')
         self.declare_parameter('mode', 'amp_sweep')
-        self.declare_parameter('tail_bias_rad', 0.0)
-        self.declare_parameter('tail_amp_rad', 0.4)
-        self.declare_parameter('tail_freq_hz', 0.5)
-        self.declare_parameter('tail_min_rad', -1.5)
-        self.declare_parameter('tail_max_rad', 1.5)
+        self.declare_parameter('tail_bias_rad',  self.TAIL_BIAS_RAD)
+        self.declare_parameter('tail_amp_rad',   0.4)
+        self.declare_parameter('tail_freq_hz',   0.5)
+        self.declare_parameter('tail_min_rad',   self.TAIL_MIN_RAD)
+        self.declare_parameter('tail_max_rad',   self.TAIL_MAX_RAD)
         self.declare_parameter('control_rate_hz', 10.0)
         self.declare_parameter('log_rate_hz', 20.0)
         self.declare_parameter('log_dir', 'logs')
@@ -40,13 +50,13 @@ class MasterNode(Node):
         self.declare_parameter('freq_min_hz', 0.5)
         self.declare_parameter('freq_max_hz', 1.5)
         self.declare_parameter('amp_min_rad', 0.1)
-        self.declare_parameter('amp_max_rad', 0.6)
+        self.declare_parameter('amp_max_rad', self.MAX_AMP_RAD)
 
         # collegamento sensori -> motore
         self.declare_parameter("feedback_enabled", False)
         self.declare_parameter("feedback_gain", 0.0)
         self.declare_parameter("feedback_alpha", 0.1)
-        self.declare_parameter("feedback_max_offset", 0.5)
+        self.declare_parameter("feedback_max_offset", self.MAX_AMP_RAD)
 
         # parametri per turning (variazione sinusoidale del centro di oscillazione)
         self.declare_parameter("turning_bias_amp_rad", 0.4)
@@ -96,9 +106,8 @@ class MasterNode(Node):
 
         self.srv_trial = self.create_service(SetBool, 'trial', self.trial_callback)
         self.control_timer = self.create_timer(1.0 / self.control_rate, self.control_step)
-        # self.log_timer = self.create_timer(1.0 / self.log_rate, self.log_step)
         self.log_counter = 0
-        self.log_every = max(1, int(round(self.control_rate / self.log_rate)))  # 50/20=2, 50/50=1
+        self.log_every = max(1, int(round(self.control_rate / self.log_rate)))
 
         self.phase_acc = 0.0
         self.last_control_time = None
@@ -109,14 +118,11 @@ class MasterNode(Node):
         self.sensor_diff_offset = 0.0
         self.calibration_samples = []
         self.calibration_done = False
-        self.calibration_n = 50  # numero di campioni per la calibrazione
-        # per lettura dal motore
+        self.calibration_n = 50
         self.present_position = 0.0
         self.present_current = 0.0
 
-        # aggiornamento parametri a runtime senza riavviare il nodo
         self.add_on_set_parameters_callback(self.parameter_callback)
-
 
     def parameter_callback(self, params):
         from rcl_interfaces.msg import SetParametersResult
@@ -128,12 +134,12 @@ class MasterNode(Node):
                 self.freq = float(p.value)
                 self.current_freq = self.freq
             elif p.name == 'tail_amp_rad':
-                self.amp = float(p.value)
+                self.amp = clamp(float(p.value), 0.0, self.MAX_AMP_RAD)
                 self.current_amp = self.amp
             elif p.name == 'amp_min_rad':
-                self.amp_min = float(p.value)
+                self.amp_min = clamp(float(p.value), 0.0, self.MAX_AMP_RAD)
             elif p.name == 'amp_max_rad':
-                self.amp_max = float(p.value)
+                self.amp_max = clamp(float(p.value), 0.0, self.MAX_AMP_RAD)
             elif p.name == 'freq_min_hz':
                 self.freq_min = float(p.value)
             elif p.name == 'freq_max_hz':
@@ -141,7 +147,7 @@ class MasterNode(Node):
             elif p.name == 'trial_duration_sec':
                 self.trial_duration = float(p.value)
             elif p.name == 'tail_bias_rad':
-                self.bias = float(p.value)
+                self.bias = clamp(float(p.value), self.TAIL_MIN_RAD, self.TAIL_MAX_RAD)
             elif p.name == 'feedback_enabled':
                 self.feedback_enabled = bool(p.value)
             elif p.name == 'feedback_gain':
@@ -153,15 +159,12 @@ class MasterNode(Node):
         return SetParametersResult(successful=True)
 
     def sensor_callback(self, msg: Float32MultiArray):
-        
         self.last_sensor = list(msg.data)
         self.last_sensor_time = self.get_clock().now()
-        # calibrazione automatica all'avvio
         if not self.calibration_done:
             if len(self.last_sensor) >= 2:
                 diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
                 self.calibration_samples.append(diff)
-
                 if len(self.calibration_samples) >= self.calibration_n:
                     self.sensor_diff_offset = sum(self.calibration_samples) / len(self.calibration_samples)
                     self.calibration_done = True
@@ -202,14 +205,14 @@ class MasterNode(Node):
             "t_ros_sec",
             "t_rel_sec",
             "tail_target_rad",
-            "tail_bias_rad",         # bias fisso dal parametro
-            "tail_bias_offset_rad",  # contributo del feedback
+            "tail_bias_rad",
+            "tail_bias_offset_rad",
             "tail_amp_rad",
             "tail_freq_hz",
             "phase_rad",
             "cycle_idx",
-            "present_position_rad",   
-            "present_current_ma",     
+            "present_position_rad",
+            "present_current_ma",
             "sensor_len",
             "sensor_values"
         ])
@@ -217,7 +220,7 @@ class MasterNode(Node):
         self.t0 = self.get_clock().now()
         self.last_control_time = self.t0
         self.phase_acc = 0.0
-        self.current_bias_offset = 0.0  # reset offset ad ogni trial
+        self.current_bias_offset = 0.0
         self.recording = True
         self.get_logger().info(f"Started trial -> {filename}")
 
@@ -283,7 +286,7 @@ class MasterNode(Node):
             self.phase_acc += 2.0 * math.pi * freq_t * dt
             bias_offset = self.compute_bias_offset()
             theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)  
+            return clamp(theta, self.tail_min, self.tail_max)
 
         elif self.mode == 'amp_sweep':
             alpha = self.triangular_profile(t_rel, self.trial_duration)
@@ -295,10 +298,8 @@ class MasterNode(Node):
             bias_offset = self.compute_bias_offset()
             theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
             return clamp(theta, self.tail_min, self.tail_max)
-        
+
         elif self.mode == 'combined_sweep':
-            # amp e freq variano con profili triangolari a periodi incommensurabili
-            # (rapporto aureo) => esplorazione scorrelata dello spazio (amp, freq)
             PHI = 1.6180339887
             alpha_amp  = self.triangular_profile(t_rel, self.trial_duration)
             alpha_freq = self.triangular_profile(t_rel, self.trial_duration / PHI)
@@ -312,8 +313,6 @@ class MasterNode(Node):
             return clamp(theta, self.tail_min, self.tail_max)
 
         elif self.mode == 'turning_combined':
-            # amp e freq variano (profili triangolari incommensurabili) +
-            # centro di oscillazione varia sinusoidalmente
             PHI = 1.6180339887
             alpha_amp  = self.triangular_profile(t_rel, self.trial_duration)
             alpha_freq = self.triangular_profile(t_rel, self.trial_duration / PHI)
@@ -330,20 +329,15 @@ class MasterNode(Node):
             return clamp(theta, self.tail_min, self.tail_max)
 
         elif self.mode == '1to1':
-            # la posizione target segue direttamente i sensori
             if self.last_sensor is None or len(self.last_sensor) < 2:
                 return clamp(self.bias, self.tail_min, self.tail_max)
-            
             sensor_diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
             sensor_diff_calibrated = sensor_diff - self.sensor_diff_offset
-
-            # conversione in radianti            
             theta = self.bias + self.feedback_gain * sensor_diff_calibrated
-            
             self.current_amp = 0.0
             self.current_freq = 0.0
             return clamp(theta, self.tail_min, self.tail_max)
-        
+
         # fallback
         bias_offset = self.compute_bias_offset()
         return clamp(self.bias + bias_offset, self.tail_min, self.tail_max)
@@ -366,16 +360,13 @@ class MasterNode(Node):
             return 0.0
 
         sensor_diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
-        # sottrai l'offset a riposo per centrare il feedback a zero
         sensor_diff_calibrated = sensor_diff - self.sensor_diff_offset
         target_offset = self.feedback_gain * sensor_diff_calibrated
 
-        # filtro passa-basso
         self.current_bias_offset = (
             (1.0 - self.feedback_alpha) * self.current_bias_offset
             + self.feedback_alpha * target_offset
         )
-        # clamp di sicurezza
         self.current_bias_offset = clamp(
             self.current_bias_offset,
             -self.feedback_max_offset,
@@ -404,14 +395,14 @@ class MasterNode(Node):
             t_ros_sec,
             t_rel,
             float(self.latest_target),
-            float(self.bias),                    # bias fisso
-            float(self.current_bias_offset),     # offset feedback
+            float(self.bias),
+            float(self.current_bias_offset),
             float(self.current_amp),
             float(self.current_freq),
             float(phase),
             cycle_idx,
-            float(self.present_position),   
-            float(self.present_current),    
+            float(self.present_position),
+            float(self.present_current),
             sensor_len,
             sensor_values
         ])

@@ -30,7 +30,6 @@ ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
 
 
 ## Data collection 
-ATTENZIONE: vanno cambiati i parametri di frequenza e n.ripetizioni , sono bassi per semplificare temporaneamente! 
 
 src/aquabot_bringup/launch/collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il pretraining. 4 a freq fissa e amp_sweep , 3 viceversa. 
 NB. prima va lanciato system_launch.py
@@ -49,3 +48,5 @@ python3 src/net/train_inverse.py --log_dir ./logs --checkpoint_dir ./checkpoints
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 - la rete funziona? 
 - fare le slide con la rete nuova -  sistemare grafici e formule loss ecc.. 
+- si chiama ancora v_flow ma nel codice è corrente motore, cambiare quando siamo sicuri
+- ATTENZIONE l'ultima volta i sensori non hanno letto niente! CONtrolla 

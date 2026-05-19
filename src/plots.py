@@ -146,7 +146,7 @@ def plot_combined_sweep(csv_path):
     plt.show()
 
 
-CSV = 'logs/trial_20260511_113913.csv'
+CSV = 'logs/trial_20260519_143409.csv'
 
 plot_motor(CSV)
 # plot_tail_amplitude(CSV)
