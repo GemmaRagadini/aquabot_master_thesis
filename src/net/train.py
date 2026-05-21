@@ -9,8 +9,7 @@ from model   import FishSensorEstimator
 from dataset import FishDataset
 
 # peso della testa futuro nella loss combinata
-# λ > 1 dà più importanza all'anticipazione rispetto alla ricostruzione della storia
-LAMBDA_FUTURE = 2.0
+LAMBDA_FUTURE = 1.0
 
 
 def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
@@ -83,7 +82,7 @@ def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir',        default='../../logs')
+    parser.add_argument('--log_dir',        default='../../logs/ds')
     parser.add_argument('--checkpoint_dir', default='checkpoints/')
     parser.add_argument('--epochs',         type=int,   default=100)
     parser.add_argument('--lr',             type=float, default=1e-3)

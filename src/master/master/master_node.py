@@ -94,8 +94,7 @@ class MasterNode(Node):
         self.create_subscription(Float64, '/aquabot/dynamixel/present_position',
             self.position_callback, 10)
         self.create_subscription(Float64, '/aquabot/dynamixel/present_current',
-            self.current_callback, 10)  # loggata come present_current_ma; usata come proxy v_flow nel dataset
-
+            self.current_callback, 10) 
         self.last_sensor = None
         self.last_sensor_time = None
         self.t0 = None

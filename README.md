@@ -48,5 +48,4 @@ python3 src/net/train_inverse.py --log_dir ./logs --checkpoint_dir ./checkpoints
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 - la rete funziona? 
 - fare le slide con la rete nuova -  sistemare grafici e formule loss ecc.. 
-- si chiama ancora v_flow ma nel codice è corrente motore, cambiare quando siamo sicuri
-- ATTENZIONE l'ultima volta i sensori non hanno letto niente! CONtrolla 
+- cambiare tutto inverse di conseguenza (anche nome v_flow)
