@@ -44,8 +44,12 @@ python3 src/net/train.py --log_dir ./logs --checkpoint_dir ./checkpoints
 python3 src/net/dataset_inverse.py ./logs --checkpoint_dir checkpoints/
 python3 src/net/train_inverse.py --log_dir ./logs --checkpoint_dir ./checkpoints
 
+# Tuning dei parametri 
+python3 src/net/tune.py --log_dir logs/ds
+python3 src/net/tune_inverse.py --log_dir logs/ds
+
 # Cosa fare ora
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- la rete funziona? 
-- fare le slide con la rete nuova -  sistemare grafici e formule loss ecc.. 
-- cambiare tutto inverse di conseguenza (anche nome v_flow)
+- fare le slide con la rete inverse nuova 
+- non sto usando amp  e freq nella rete . ok?
+- scegliere gli iperparametri

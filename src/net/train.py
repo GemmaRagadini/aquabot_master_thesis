@@ -12,7 +12,7 @@ from dataset import FishDataset
 LAMBDA_FUTURE = 1.0
 
 
-def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
+def train(model, dataset, epochs=100, lr=1e-2, checkpoint_dir="checkpoints/"):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
     train_ds, val_ds = random_split(dataset, [n_train, n_val])

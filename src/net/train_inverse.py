@@ -9,11 +9,10 @@ from model_inverse   import FishInverseEstimator
 from dataset_inverse import FishInverseDataset
 
 # peso della testa futuro nella loss combinata
-# λ > 1 dà più importanza all'anticipazione — cruciale per il controllo a runtime
-LAMBDA_FUTURE = 2.0
+LAMBDA_FUTURE = 1.0
 
 
-def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
+def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inverse/"):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
     train_ds, val_ds = random_split(dataset, [n_train, n_val])
@@ -32,13 +31,13 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
         # --- training ---
         model.train()
         train_loss = 0.0
-        for seq, t_hist, t_fut in train_loader:
-            cmd_history, cmd_future, _ = model(seq)
+        for seq, t_hist, t_fut, _ in train_loader:
+            pred_history, pred_future, _ = model(seq)
 
-            # loss storia:  (batch, h_out) vs (batch, h_out)
-            loss_history = mse(cmd_history, t_hist)
-            # loss futuro:  (batch,)       vs (batch,)
-            loss_future  = mse(cmd_future,  t_fut.squeeze(1))
+            # loss storia:  (batch, h_out, 1) vs (batch, h_out, 1)
+            loss_history = mse(pred_history, t_hist)
+            # loss futuro:  (batch, 1)        vs (batch, 1)
+            loss_future  = mse(pred_future,  t_fut)
             loss = loss_history + LAMBDA_FUTURE * loss_future
 
             optimizer.zero_grad()
@@ -51,10 +50,10 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for seq, t_hist, t_fut in val_loader:
-                cmd_history, cmd_future, _ = model(seq)
-                loss_history = mse(cmd_history, t_hist)
-                loss_future  = mse(cmd_future,  t_fut.squeeze(1))
+            for seq, t_hist, t_fut, _ in val_loader:
+                pred_history, pred_future, _ = model(seq)
+                loss_history = mse(pred_history, t_hist)
+                loss_future  = mse(pred_future,  t_fut)
                 val_loss += (loss_history + LAMBDA_FUTURE * loss_future).item()
 
         train_loss /= len(train_loader)
@@ -69,7 +68,7 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints/"):
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            save_checkpoint(model, dataset.norm_stats, checkpoint_dir, name="best_inverse.pt")
+            save_checkpoint(model, dataset.norm_stats, checkpoint_dir, name="best.pt")
 
     print(f"\nTraining completato. Best val loss: {best_val_loss:.4f}")
     return model, train_losses, val_losses
@@ -83,8 +82,8 @@ def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir',        default='../../logs')
-    parser.add_argument('--checkpoint_dir', default='checkpoints/')
+    parser.add_argument('--log_dir',        default='../../logs/ds')
+    parser.add_argument('--checkpoint_dir', default='checkpoints_inverse/')
     parser.add_argument('--epochs',         type=int,   default=100)
     parser.add_argument('--lr',             type=float, default=1e-3)
     args = parser.parse_args()
@@ -129,7 +128,7 @@ if __name__ == '__main__':
     ax.grid(True)
     plt.tight_layout()
 
-    plot_path = os.path.join(args.checkpoint_dir, "loss_curve_inverse.png")
+    plot_path = os.path.join(args.checkpoint_dir, "loss_curve.png")
     plt.savefig(plot_path, dpi=150)
     print(f"Loss curve salvata in {plot_path}")
     plt.show()

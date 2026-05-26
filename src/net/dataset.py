@@ -136,3 +136,11 @@ if __name__ == '__main__':
     print(f"target_future shape:  {t_fut.shape}")    # (3,)
     print(f"label shape:          {label.shape}")    # (2,)
     print(f"norm_stats:           {ds.norm_stats}")
+    print("\n--- 5 samples ---")
+    for i in range(5):
+        seq, t_hist, t_fut, label = ds[i]
+        print(f"\n[Sample {i}]")
+        print(f"  INPUT  seq (h_out,1)       -> shape {seq.shape} | first cmd: {seq[0,0]:.3f}  last cmd: {seq[-1,0]:.3f}")
+        print(f"  TARGET history (h_out,3)   -> shape {t_hist.shape} | first timestep: sd={t_hist[0,0]:.3f}  sm={t_hist[0,1]:.3f}  cur={t_hist[0,2]:.3f}")
+        print(f"  TARGET future  (3,)        -> shape {t_fut.shape}  | sd={t_fut[0]:.3f}  sm={t_fut[1]:.3f}  cur={t_fut[2]:.3f}")
+        print(f"  LABEL  (amp, freq)         -> amp={label[0]:.3f}  freq={label[1]:.3f}")
