@@ -3,10 +3,15 @@ import os
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import random
+import numpy as np
 from torch.utils.data import DataLoader, random_split
-
 from model   import FishSensorEstimator
 from dataset import FishDataset
+
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
 
 # peso della testa futuro nella loss combinata
 LAMBDA_FUTURE = 1.0

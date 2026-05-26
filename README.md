@@ -50,6 +50,9 @@ python3 src/net/tune_inverse.py --log_dir logs/ds
 
 # Cosa fare ora
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- fare le slide con la rete inverse nuova 
+- sistemare le slide con le reti. (vedi foglio)
+- MODEL SELECTION: 
+      - tenere tutto fisso , variare solo gru_hidden e mlp_hidden scegliendo dei range 
+      - aumentare molto il numero di parametri ma testando poche combinazioni 
+      - optuna finale
 - non sto usando amp  e freq nella rete . ok?
-- scegliere gli iperparametri
