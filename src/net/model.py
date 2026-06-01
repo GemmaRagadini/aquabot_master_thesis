@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 
-# H_OUT: quanti istanti passati predice la testa storia
+# H: quanti istanti passati predice la testa storia
 # a 20 Hz, 20 timestep = 1 secondo = un ciclo completo a 1 Hz
-H_OUT = 20
+H = 20
 
 
 class FishSensorEstimator(nn.Module):
-	def __init__(self, input_size=1, gru_hidden=64, mlp_hidden=128, h_out=H_OUT):
+	def __init__(self, input_size=1, gru_hidden=512, mlp_hidden=32, h=H):
 		"""
 		Stimatore: data una finestra temporale di comandi motore,
 		predice la risposta sensoriale attesa.
@@ -15,14 +15,14 @@ class FishSensorEstimator(nn.Module):
 		input_size:  numero di canali in ingresso (1 => tail_target_rad normalizzato)
 		gru_hidden:  dimensione hidden state GRU
 		mlp_hidden:  dimensione hidden layer MLP
-		h_out:       quanti istanti predice la testa storia (= lunghezza finestra input)
+		h:       quanti istanti predice la testa storia (= lunghezza finestra input)
 		"""
 		super().__init__()
-		self.h_out = h_out
+		self.h = h
 
 		# Stadio 1: GRU — encoder temporale
-		# input:  (batch, h_out, 1)        => storia dei comandi motore (tail_target_rad)
-		# output: tutti gli hidden state   (batch, h_out, gru_hidden)
+		# input:  (batch, h, 1)        => storia dei comandi motore (tail_target_rad)
+		# output: tutti gli hidden state   (batch, h, gru_hidden)
 		#         + ultimo hidden state    (1, batch, gru_hidden)
 		self.gru = nn.GRU(
 			input_size=input_size,
@@ -40,8 +40,8 @@ class FishSensorEstimator(nn.Module):
 			nn.ReLU(),
 		)
 
-		# Testa storia: applicata su tutti gli h_out hidden state
-		# (batch, h_out, gru_hidden) -> (batch, h_out, 3)
+		# Testa storia: applicata su tutti gli h hidden state
+		# (batch, h, gru_hidden) -> (batch, h, 3)
 		# predice [sensor_diff, sensor_mean, current] per ogni istante passato
 		self.head_history = nn.Linear(gru_hidden, 3)
 
@@ -51,20 +51,20 @@ class FishSensorEstimator(nn.Module):
 
 	def forward(self, seq):
 		"""
-		seq:     (batch, h_out, 1)   => storia comandi motore normalizzati (tail_target_rad)
+		seq:     (batch, h, 1)   => storia comandi motore normalizzati (tail_target_rad)
 
 		returns:
-			pred_history  (batch, h_out, 3)   => sensori agli ultimi h_out istanti passati
+			pred_history  (batch, h, 3)   => sensori agli ultimi h istanti passati
 			pred_future   (batch, 3)           => sensori al timestep t+1
 			h             (batch, gru_hidden)  => contesto temporale
 		"""
-		# all_h: (batch, h_out, gru_hidden) — tutti gli hidden state
+		# all_h: (batch, h, gru_hidden) — tutti gli hidden state
 		# h_n:   (1, batch, gru_hidden)     — solo l'ultimo
 		all_h, h_n = self.gru(seq)
 		h = h_n.squeeze(0)   # (batch, gru_hidden)
 
-		# testa storia: tutti gli h_out hidden state -> sensori passati
-		pred_history = self.head_history(all_h)          # (batch, h_out, 3)
+		# testa storia: tutti gli h hidden state -> sensori passati
+		pred_history = self.head_history(all_h)          # (batch, h, 3)
 
 		# testa futuro: ultimo hidden state -> MLP -> sensori t+1
 		x = self.mlp(h)

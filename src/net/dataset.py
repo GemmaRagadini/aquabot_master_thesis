@@ -5,20 +5,20 @@ import torch
 from torch.utils.data import Dataset
 from pathlib import Path
 
-# H_OUT: quanti istanti passati sono nel target storia
+# H: quanti istanti passati sono nel target storia
 # a 20Hz, 20 timestep = 1 secondo = un ciclo completo a 1 Hz
-H_OUT = 20
+H = 20
 
 
 class FishDataset(Dataset):
-    def __init__(self, log_dir: str, h_out: int = H_OUT):
+    def __init__(self, log_dir: str, h: int = H):
         self.sequences       = []
-        self.targets_history = []   # (h_out, 3)  sensori passati
+        self.targets_history = []   # (h, 3)  sensori passati
         self.targets_future  = []   # (3,)        sensori al t+1
         self.labels          = []
 
         self.norm_stats = {}
-        self.h_out = h_out
+        self.h = h
 
         csv_files = list(Path(log_dir).glob("trial_*.csv"))
         if not csv_files:
@@ -29,7 +29,7 @@ class FishDataset(Dataset):
         for csv_path in csv_files:
             try:
                 df = pd.read_csv(csv_path)
-                self._process_episode(df, h_out)
+                self._process_episode(df, h)
             except Exception as e:
                 print(f"  Skipped {csv_path.name}: {e}")
 
@@ -53,7 +53,7 @@ class FishDataset(Dataset):
         parsed = series.apply(parse_one)
         return np.array(parsed.tolist(), dtype=np.float32)
 
-    def _process_episode(self, df: pd.DataFrame, h_out: int):
+    def _process_episode(self, df: pd.DataFrame, h: int):
         # --- sensori ---
         sensors = self._parse_sensor_values(df["sensor_values"])
         sensor_diff = sensors[:, 0] - sensors[:, 1]
@@ -92,15 +92,15 @@ class FishDataset(Dataset):
 
         # --- finestre scorrevoli ---
         # il loop finisce a len(df)-1 perché serve il campione t+1 per il target futuro
-        for i in range(h_out, len(df) - 1):
-            # input: storia degli ultimi h_out comandi motore  →  (h_out, 1)
-            seq = cmd_n[i - h_out:i].reshape(-1, 1)
+        for i in range(h, len(df) - 1):
+            # input: storia degli ultimi h comandi motore  →  (h, 1)
+            seq = cmd_n[i - h:i].reshape(-1, 1)
 
-            # target storia: ultimi h_out valori sensoriali  →  (h_out, 3)
+            # target storia: ultimi h valori sensoriali  →  (h, 3)
             target_history = np.stack([
-                sd_n[i - h_out:i],
-                sm_n[i - h_out:i],
-                vf_n[i - h_out:i],
+                sd_n[i - h:i],
+                sm_n[i - h:i],
+                vf_n[i - h:i],
             ], axis=1)
 
             # target futuro: sensori al timestep t+1  →  (3,)
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     for i in range(5):
         seq, t_hist, t_fut, label = ds[i]
         print(f"\n[Sample {i}]")
-        print(f"  INPUT  seq (h_out,1)       -> shape {seq.shape} | first cmd: {seq[0,0]:.3f}  last cmd: {seq[-1,0]:.3f}")
-        print(f"  TARGET history (h_out,3)   -> shape {t_hist.shape} | first timestep: sd={t_hist[0,0]:.3f}  sm={t_hist[0,1]:.3f}  cur={t_hist[0,2]:.3f}")
+        print(f"  INPUT  seq (h,1)       -> shape {seq.shape} | first cmd: {seq[0,0]:.3f}  last cmd: {seq[-1,0]:.3f}")
+        print(f"  TARGET history (h,3)   -> shape {t_hist.shape} | first timestep: sd={t_hist[0,0]:.3f}  sm={t_hist[0,1]:.3f}  cur={t_hist[0,2]:.3f}")
         print(f"  TARGET future  (3,)        -> shape {t_fut.shape}  | sd={t_fut[0]:.3f}  sm={t_fut[1]:.3f}  cur={t_fut[2]:.3f}")
         print(f"  LABEL  (amp, freq)         -> amp={label[0]:.3f}  freq={label[1]:.3f}")

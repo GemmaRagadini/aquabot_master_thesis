@@ -40,7 +40,7 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inver
         for seq, t_hist, t_fut, _ in train_loader:
             pred_history, pred_future, _ = model(seq)
 
-            # loss storia:  (batch, h_out, 1) vs (batch, h_out, 1)
+            # loss storia:  (batch, h, 1) vs (batch, h, 1)
             loss_history = mse(pred_history, t_hist)
             # loss futuro:  (batch, 1)        vs (batch, 1)
             loss_future  = mse(pred_future,  t_fut)

@@ -14,16 +14,18 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 # peso della testa futuro nella loss combinata
-LAMBDA_FUTURE = 1.0
+LAMBDA_FUTURE = 0.10206261356081058
 
 
-def train(model, dataset, epochs=100, lr=1e-2, checkpoint_dir="checkpoints/"):
+def train(model, dataset, epochs, lr, checkpoint_dir):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
-    train_ds, val_ds = random_split(dataset, [n_train, n_val])
-
-    train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
-    val_loader   = DataLoader(val_ds,   batch_size=64)
+    train_ds, val_ds = random_split(
+        dataset, [n_train, n_val],
+        generator=torch.Generator().manual_seed(42)
+    )
+    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
+    val_loader   = DataLoader(val_ds,   batch_size=32)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
@@ -39,7 +41,7 @@ def train(model, dataset, epochs=100, lr=1e-2, checkpoint_dir="checkpoints/"):
         for seq, t_hist, t_fut, _ in train_loader:
             pred_history, pred_future, _ = model(seq)
 
-            # loss storia:  (batch, h_out, 3) vs (batch, h_out, 3)
+            # loss storia:  (batch, h, 3) vs (batch, h, 3)
             loss_history = mse(pred_history, t_hist)
             # loss futuro:  (batch, 3)        vs (batch, 3)
             loss_future  = mse(pred_future,  t_fut)
@@ -68,8 +70,7 @@ def train(model, dataset, epochs=100, lr=1e-2, checkpoint_dir="checkpoints/"):
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
-        if epoch % 10 == 0:
-            print(f"Epoch {epoch:3d} | train {train_loss:.4f} | val {val_loss:.4f}")
+        print(f"Epoch {epoch:3d} | train {train_loss:.4f} | val {val_loss:.4f}")
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -90,7 +91,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_dir',        default='../../logs/ds')
     parser.add_argument('--checkpoint_dir', default='checkpoints/')
     parser.add_argument('--epochs',         type=int,   default=100)
-    parser.add_argument('--lr',             type=float, default=1e-3)
+    parser.add_argument('--lr',             type=float, default=0.0035796261186095872)
     args = parser.parse_args()
 
     print("Caricamento dataset...")

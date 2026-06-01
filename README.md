@@ -37,16 +37,23 @@ NB. prima va lanciato system_launch.py
 
 # Rete
 
-python3 src/net/dataset.py ./logs --checkpoint_dir checkpoints/
-python3 src/net/train.py --log_dir ./logs --checkpoint_dir ./checkpoints
+python3 src/net/dataset.py ./logs/ds --checkpoint_dir checkpoints/
+python3 src/net/train.py --log_dir ./logs/ds --checkpoint_dir ./checkpoints
 
 ## Inversa 
-python3 src/net/dataset_inverse.py ./logs --checkpoint_dir checkpoints/
-python3 src/net/train_inverse.py --log_dir ./logs --checkpoint_dir ./checkpoints
+python3 src/net/dataset_inverse.py ./logs/ds --checkpoint_dir checkpoints/
+python3 src/net/train_inverse.py --log_dir ./logs/ds --checkpoint_dir ./checkpoints
 
 # Tuning dei parametri 
-python3 src/net/tune.py --log_dir logs/ds
-python3 src/net/tune_inverse.py --log_dir logs/ds
+
+## Fase 1 – griglia architetture 
+python3 src/net/tune.py --phase 1 --storage sqlite:///tuning_results/optuna_fish.db
+
+## Fase 2 – esplorazione sparsa parametri training 
+python3 src/net/tune.py --phase 2 --storage sqlite:///tuning_results/optuna_fish.db
+
+## Fase 3 – tuning finale di tutto 
+python3 src/net/tune.py --phase 3 --storage sqlite:///tuning_results/optuna_fish.db
 
 # Cosa fare ora
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
@@ -56,3 +63,5 @@ python3 src/net/tune_inverse.py --log_dir logs/ds
       - aumentare molto il numero di parametri ma testando poche combinazioni 
       - optuna finale
 - non sto usando amp  e freq nella rete . ok?
+- specificare il dataset nelle slide  
+- una volta che il modello allenato in fase di test fare un check per vedere se il valore nel futuro coincide con quello che effettivamente arriverà a t+1

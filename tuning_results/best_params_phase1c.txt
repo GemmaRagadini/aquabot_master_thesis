@@ -1,0 +1,17 @@
+=== Fase 1 === 
+
+lr: 1e-3 (fisso)
+batch_size: 64 (fisso)
+lambda_future: 1.0 (fisso)
+
+1.  gru_hidden: 512
+    mlp_hidden: 32
+    loss: 0.3361 
+
+2. gru_hidden: 512 
+   mlp_hidden: 64
+   loss: 0.3365 
+
+3. gru_hidden: 256
+   mlp: 64
+   loss: 0.3368

@@ -1,8 +1,0 @@
-study: fish_forward
-best val loss: 0.2060
-
-gru_hidden: 32
-mlp_hidden: 64
-lr: 0.0019830168937949866
-batch_size: 32
-lambda_future: 0.10247137306383233
