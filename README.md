@@ -36,7 +36,6 @@ NB. prima va lanciato system_launch.py
 
 
 # Rete
-
 python3 src/net/dataset.py ./logs/ds --checkpoint_dir checkpoints/
 python3 src/net/train.py --log_dir ./logs/ds --checkpoint_dir ./checkpoints
 
@@ -65,3 +64,6 @@ python3 src/net/tune.py --phase 3 --storage sqlite:///tuning_results/optuna_fish
 - non sto usando amp  e freq nella rete . ok?
 - specificare il dataset nelle slide  
 - una volta che il modello allenato in fase di test fare un check per vedere se il valore nel futuro coincide con quello che effettivamente arriverà a t+1
+
+# Requirements 
+uv pip install -r requirements.txt

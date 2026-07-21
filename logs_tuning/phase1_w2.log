@@ -1,0 +1,139 @@
+Device: cuda | threads: 4
+=== FASE 1 | 4 trial (questo worker) | 30 epoche ===
+
+Caricamento dataset...
+Trovati 34 trial.
+  [trial_20260519_151133.csv] attenzione: calibrazione a riposo su 37 campioni (< 50)
+Dataset: 27290 campioni da 34 trial.
+[I 2026-07-20 13:56:46,278] Using an existing study with name 'fish_forward_phase1' instead of creating a new one.
+  Trial 1 | Epoch  0 | val 0.4872
+  Trial 1 | Epoch  1 | val 0.4405
+  Trial 1 | Epoch  2 | val 0.4084
+  Trial 1 | Epoch  3 | val 0.3949
+  Trial 1 | Epoch  4 | val 0.3921
+  Trial 1 | Epoch  5 | val 0.3860
+  Trial 1 | Epoch  6 | val 0.3763
+  Trial 1 | Epoch  7 | val 0.3760
+  Trial 1 | Epoch  8 | val 0.3695
+  Trial 1 | Epoch  9 | val 0.3694
+  Trial 1 | Epoch 10 | val 0.3656
+  Trial 1 | Epoch 11 | val 0.3704
+  Trial 1 | Epoch 12 | val 0.3630
+  Trial 1 | Epoch 13 | val 0.3630
+  Trial 1 | Epoch 14 | val 0.3714
+  Trial 1 | Epoch 15 | val 0.3631
+  Trial 1 | Epoch 16 | val 0.3630
+  Trial 1 | Epoch 17 | val 0.3613
+  Trial 1 | Epoch 18 | val 0.3594
+  Trial 1 | Epoch 19 | val 0.3593
+  Trial 1 | Epoch 20 | val 0.3596
+  Trial 1 | Epoch 21 | val 0.3610
+  Trial 1 | Epoch 22 | val 0.3585
+  Trial 1 | Epoch 23 | val 0.3583
+  Trial 1 | Epoch 24 | val 0.3581
+  Trial 1 | Epoch 25 | val 0.3585
+  Trial 1 | Epoch 26 | val 0.3575
+  Trial 1 | Epoch 27 | val 0.3559
+  Trial 1 | Epoch 28 | val 0.3575
+  Trial 1 | Epoch 29 | val 0.3560
+[I 2026-07-20 13:57:41,556] Trial 1 finished with value: 0.35590962424527767 and parameters: {'gru_hidden': 128, 'mlp_hidden': 128}. Best is trial 1 with value: 0.35590962424527767.
+  Trial 4 | Epoch  0 | val 0.4481
+  Trial 4 | Epoch  1 | val 0.4012
+  Trial 4 | Epoch  2 | val 0.3856
+  Trial 4 | Epoch  3 | val 0.3849
+  Trial 4 | Epoch  4 | val 0.3738
+  Trial 4 | Epoch  5 | val 0.3693
+  Trial 4 | Epoch  6 | val 0.3677
+  Trial 4 | Epoch  7 | val 0.3687
+  Trial 4 | Epoch  8 | val 0.3611
+  Trial 4 | Epoch  9 | val 0.3586
+  Trial 4 | Epoch 10 | val 0.3609
+  Trial 4 | Epoch 11 | val 0.3567
+  Trial 4 | Epoch 12 | val 0.3581
+  Trial 4 | Epoch 13 | val 0.3599
+  Trial 4 | Epoch 14 | val 0.3592
+  Trial 4 | Epoch 15 | val 0.3576
+  Trial 4 | Epoch 16 | val 0.3583
+  Trial 4 | Epoch 17 | val 0.3543
+  Trial 4 | Epoch 18 | val 0.3546
+  Trial 4 | Epoch 19 | val 0.3560
+  Trial 4 | Epoch 20 | val 0.3558
+  Trial 4 | Epoch 21 | val 0.3554
+  Trial 4 | Epoch 22 | val 0.3540
+  Trial 4 | Epoch 23 | val 0.3525
+  Trial 4 | Epoch 24 | val 0.3529
+  Trial 4 | Epoch 25 | val 0.3505
+  Trial 4 | Epoch 26 | val 0.3518
+  Trial 4 | Epoch 27 | val 0.3513
+  Trial 4 | Epoch 28 | val 0.3516
+  Trial 4 | Epoch 29 | val 0.3493
+[I 2026-07-20 13:58:39,739] Trial 4 finished with value: 0.34934927193924437 and parameters: {'gru_hidden': 512, 'mlp_hidden': 64}. Best is trial 4 with value: 0.34934927193924437.
+  Trial 8 | Epoch  0 | val 0.4659
+  Trial 8 | Epoch  1 | val 0.4147
+  Trial 8 | Epoch  2 | val 0.3941
+  Trial 8 | Epoch  3 | val 0.3826
+  Trial 8 | Epoch  4 | val 0.3769
+  Trial 8 | Epoch  5 | val 0.3775
+  Trial 8 | Epoch  6 | val 0.3710
+  Trial 8 | Epoch  7 | val 0.3685
+  Trial 8 | Epoch  8 | val 0.3687
+  Trial 8 | Epoch  9 | val 0.3705
+  Trial 8 | Epoch 10 | val 0.3604
+  Trial 8 | Epoch 11 | val 0.3648
+  Trial 8 | Epoch 12 | val 0.3654
+  Trial 8 | Epoch 13 | val 0.3604
+  Trial 8 | Epoch 14 | val 0.3621
+  Trial 8 | Epoch 15 | val 0.3609
+  Trial 8 | Epoch 16 | val 0.3588
+  Trial 8 | Epoch 17 | val 0.3566
+  Trial 8 | Epoch 18 | val 0.3602
+  Trial 8 | Epoch 19 | val 0.3544
+  Trial 8 | Epoch 20 | val 0.3580
+  Trial 8 | Epoch 21 | val 0.3542
+  Trial 8 | Epoch 22 | val 0.3558
+  Trial 8 | Epoch 23 | val 0.3579
+  Trial 8 | Epoch 24 | val 0.3560
+  Trial 8 | Epoch 25 | val 0.3555
+  Trial 8 | Epoch 26 | val 0.3546
+  Trial 8 | Epoch 27 | val 0.3525
+  Trial 8 | Epoch 28 | val 0.3539
+  Trial 8 | Epoch 29 | val 0.3533
+[I 2026-07-20 13:59:43,136] Trial 8 finished with value: 0.35248196419588357 and parameters: {'gru_hidden': 256, 'mlp_hidden': 128}. Best is trial 4 with value: 0.34934927193924437.
+  Trial 12 | Epoch  0 | val 0.4994
+  Trial 12 | Epoch  1 | val 0.4497
+  Trial 12 | Epoch  2 | val 0.4268
+  Trial 12 | Epoch  3 | val 0.4117
+  Trial 12 | Epoch  4 | val 0.4214
+  Trial 12 | Epoch  5 | val 0.3984
+  Trial 12 | Epoch  6 | val 0.3897
+  Trial 12 | Epoch  7 | val 0.3857
+  Trial 12 | Epoch  8 | val 0.3827
+  Trial 12 | Epoch  9 | val 0.3858
+  Trial 12 | Epoch 10 | val 0.3776
+  Trial 12 | Epoch 11 | val 0.3761
+  Trial 12 | Epoch 12 | val 0.3744
+  Trial 12 | Epoch 13 | val 0.3733
+  Trial 12 | Epoch 14 | val 0.3718
+  Trial 12 | Epoch 15 | val 0.3702
+  Trial 12 | Epoch 16 | val 0.3674
+  Trial 12 | Epoch 17 | val 0.3662
+  Trial 12 | Epoch 18 | val 0.3681
+  Trial 12 | Epoch 19 | val 0.3657
+  Trial 12 | Epoch 20 | val 0.3638
+  Trial 12 | Epoch 21 | val 0.3626
+  Trial 12 | Epoch 22 | val 0.3635
+  Trial 12 | Epoch 23 | val 0.3627
+  Trial 12 | Epoch 24 | val 0.3616
+  Trial 12 | Epoch 25 | val 0.3658
+  Trial 12 | Epoch 26 | val 0.3613
+  Trial 12 | Epoch 27 | val 0.3609
+  Trial 12 | Epoch 28 | val 0.3609
+  Trial 12 | Epoch 29 | val 0.3587
+[I 2026-07-20 14:00:38,922] Trial 12 finished with value: 0.35870321164297503 and parameters: {'gru_hidden': 64, 'mlp_hidden': 256}. Best is trial 4 with value: 0.34934927193924437.
+
+=== Migliori iperparametri - Fase 1 ===
+  gru_hidden: 512
+  mlp_hidden: 64
+  best val loss: 0.3493
+
+Risultati salvati in tuning_results/best_params_phase1.txt

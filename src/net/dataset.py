@@ -9,12 +9,14 @@ from pathlib import Path
 # a 20Hz, 20 timestep = 1 secondo = un ciclo completo a 1 Hz
 H = 20
 
+NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
+
 
 class FishDataset(Dataset):
     def __init__(self, log_dir: str, h: int = H):
         self.sequences       = []
         self.targets_history = []   # (h, 3)  sensori passati
-        self.targets_future  = []   # (3,)        sensori al t+1
+        self.targets_future  = []   # (3,)    sensori al t+1
         self.labels          = []
 
         self.norm_stats = {}
@@ -29,7 +31,7 @@ class FishDataset(Dataset):
         for csv_path in csv_files:
             try:
                 df = pd.read_csv(csv_path)
-                self._process_episode(df, h)
+                self._process_episode(df, h, csv_path.name)
             except Exception as e:
                 print(f"  Skipped {csv_path.name}: {e}")
 
@@ -38,7 +40,22 @@ class FishDataset(Dataset):
         self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
         self.labels          = torch.tensor(np.array(self.labels),          dtype=torch.float32)
 
+        # --- guardia finale: nessun NaN/Inf deve arrivare al training ---
+        for name, t in [("sequences", self.sequences),
+                        ("targets_history", self.targets_history),
+                        ("targets_future", self.targets_future)]:
+            if not torch.isfinite(t).all():
+                raise ValueError(f"NaN/Inf residui in {name}: controlla i CSV con check_nan.py")
+
         print(f"Dataset: {len(self)} campioni da {len(csv_files)} trial.")
+
+    def to(self, device):
+        """Sposta tutti i tensori sul device (es. GPU) una volta sola."""
+        self.sequences       = self.sequences.to(device)
+        self.targets_history = self.targets_history.to(device)
+        self.targets_future  = self.targets_future.to(device)
+        self.labels          = self.labels.to(device)
+        return self
 
     def _parse_sensor_values(self, series: pd.Series):
         def parse_one(s):
@@ -46,16 +63,52 @@ class FishDataset(Dataset):
                 vals = ast.literal_eval(str(s))
                 if len(vals) < 2:
                     return [0.0, 0.0]
-                return [float(v) for v in vals]
+                out = [float(v) for v in vals[:2]]
+                if not all(np.isfinite(out)):
+                    return [np.nan, np.nan]   # marcato, poi interpolato
+                return out
             except Exception:
-                return [0.0, 0.0]
+                return [np.nan, np.nan]
 
         parsed = series.apply(parse_one)
         return np.array(parsed.tolist(), dtype=np.float32)
 
-    def _process_episode(self, df: pd.DataFrame, h: int):
-        # --- sensori ---
+    def _process_episode(self, df: pd.DataFrame, h: int, fname: str = ""):
+        # nessun filtro sulla lunghezza: sotto h+2 righe non esiste però
+        # alcuna finestra costruibile, quindi si salta solo quel caso limite
+        if len(df) < h + 2:
+            raise ValueError(f"impossibile costruire finestre ({len(df)} righe < {h + 2})")
+        if len(df) < 50:
+            print(f"  [{fname}] attenzione: calibrazione a riposo su {len(df)} campioni (< 50)")
+
+        # --- coercizione numerica + interpolazione dei NaN ---
+        df = df.copy()
+        for c in NEEDED_COLS:
+            if c not in df.columns:
+                raise ValueError(f"colonna mancante: {c}")
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+
+        n_nan = int(df[NEEDED_COLS].isna().sum().sum())
+        if n_nan:
+            frac = n_nan / (len(df) * len(NEEDED_COLS))
+            if frac > 0.05:
+                raise ValueError(f"troppi NaN ({n_nan}, {frac:.1%})")
+            print(f"  [{fname}] {n_nan} NaN interpolati")
+            df[NEEDED_COLS] = df[NEEDED_COLS].interpolate(limit_direction="both")
+
+        # --- sensori (righe non parsabili -> NaN -> interpolazione) ---
         sensors = self._parse_sensor_values(df["sensor_values"])
+        if np.isnan(sensors).any():
+            n_bad = int(np.isnan(sensors[:, 0]).sum())
+            if n_bad / len(sensors) > 0.05:
+                raise ValueError(f"troppe righe sensor_values invalide ({n_bad})")
+            for k in range(sensors.shape[1]):
+                col = sensors[:, k]
+                mask = np.isnan(col)
+                col[mask] = np.interp(np.flatnonzero(mask),
+                                      np.flatnonzero(~mask), col[~mask])
+                sensors[:, k] = col
+
         sensor_diff = sensors[:, 0] - sensors[:, 1]
         sensor_mean = (sensors[:, 0] + sensors[:, 1]) / 2.0
 
@@ -72,16 +125,15 @@ class FishDataset(Dataset):
         amp_des   = df["tail_amp_rad"].values.astype(np.float32)
         freq_des  = df["tail_freq_hz"].values.astype(np.float32)
 
-        # --- normalizzazione per-episodio ---
-        sd_mean,  sd_std  = sensor_diff_cal.mean(), sensor_diff_cal.std() + 1e-6
-        sm_mean,  sm_std  = sensor_mean_cal.mean(), sensor_mean_cal.std() + 1e-6
-        cmd_mean, cmd_std = cmd_servo.mean(),        cmd_servo.std()       + 1e-6
-        vf_mean,  vf_std  = current.mean(),           current.std()          + 1e-6
+        # --- normalizzazione per-episodio (std con floor, non solo +eps) ---
+        def _norm(x):
+            m, s = x.mean(), max(float(x.std()), 1e-3)
+            return (x - m) / s, m, s
 
-        sd_n  = (sensor_diff_cal - sd_mean) / sd_std
-        sm_n  = (sensor_mean_cal - sm_mean) / sm_std
-        cmd_n = (cmd_servo       - cmd_mean) / cmd_std
-        vf_n  = (current          - vf_mean)  / vf_std
+        sd_n,  sd_mean,  sd_std  = _norm(sensor_diff_cal)
+        sm_n,  sm_mean,  sm_std  = _norm(sensor_mean_cal)
+        cmd_n, cmd_mean, cmd_std = _norm(cmd_servo)
+        vf_n,  vf_mean,  vf_std  = _norm(current)
 
         self.norm_stats = {
             "sd_mean":  float(sd_mean),  "sd_std":  float(sd_std),
@@ -93,20 +145,15 @@ class FishDataset(Dataset):
         # --- finestre scorrevoli ---
         # il loop finisce a len(df)-1 perché serve il campione t+1 per il target futuro
         for i in range(h, len(df) - 1):
-            # input: storia degli ultimi h comandi motore  →  (h, 1)
             seq = cmd_n[i - h:i].reshape(-1, 1)
 
-            # target storia: ultimi h valori sensoriali  →  (h, 3)
             target_history = np.stack([
                 sd_n[i - h:i],
                 sm_n[i - h:i],
                 vf_n[i - h:i],
             ], axis=1)
 
-            # target futuro: sensori al timestep t+1  →  (3,)
             target_future = np.array([sd_n[i + 1], sm_n[i + 1], vf_n[i + 1]], dtype=np.float32)
-
-            # label invariata (amp, freq desiderati)
             label = np.array([amp_des[i], freq_des[i]], dtype=np.float32)
 
             self.sequences.append(seq)
@@ -131,16 +178,8 @@ if __name__ == '__main__':
     log_dir = sys.argv[1] if len(sys.argv) > 1 else "../../logs/ds"
     ds = FishDataset(log_dir)
     seq, t_hist, t_fut, label = ds[0]
-    print(f"seq shape:            {seq.shape}")      # (20, 1)
-    print(f"target_history shape: {t_hist.shape}")   # (20, 3)
-    print(f"target_future shape:  {t_fut.shape}")    # (3,)
-    print(f"label shape:          {label.shape}")    # (2,)
+    print(f"seq shape:            {seq.shape}")
+    print(f"target_history shape: {t_hist.shape}")
+    print(f"target_future shape:  {t_fut.shape}")
+    print(f"label shape:          {label.shape}")
     print(f"norm_stats:           {ds.norm_stats}")
-    print("\n--- 5 samples ---")
-    for i in range(5):
-        seq, t_hist, t_fut, label = ds[i]
-        print(f"\n[Sample {i}]")
-        print(f"  INPUT  seq (h,1)       -> shape {seq.shape} | first cmd: {seq[0,0]:.3f}  last cmd: {seq[-1,0]:.3f}")
-        print(f"  TARGET history (h,3)   -> shape {t_hist.shape} | first timestep: sd={t_hist[0,0]:.3f}  sm={t_hist[0,1]:.3f}  cur={t_hist[0,2]:.3f}")
-        print(f"  TARGET future  (3,)        -> shape {t_fut.shape}  | sd={t_fut[0]:.3f}  sm={t_fut[1]:.3f}  cur={t_fut[2]:.3f}")
-        print(f"  LABEL  (amp, freq)         -> amp={label[0]:.3f}  freq={label[1]:.3f}")

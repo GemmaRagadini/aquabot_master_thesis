@@ -30,3 +30,19 @@
     lr: 0.002471071651428156
     batch_size: 32
     lambda_future: 0.1099128123768686
+
+=== Fase 3 - tuning finale (top 2) ===
+
+  #1  val_loss=0.1892
+    gru_hidden: 512
+    mlp_hidden: 128
+    lr: 0.0038139114562008637
+    batch_size: 32
+    lambda_future: 0.053076977868201876
+
+  #2  val_loss=0.1900
+    gru_hidden: 512
+    mlp_hidden: 256
+    lr: 0.004134864492129567
+    batch_size: 128
+    lambda_future: 0.05665429192005397
