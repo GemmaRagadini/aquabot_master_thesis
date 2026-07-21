@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 
-from model import FishSensorEstimator
-from dataset import FishDataset
+from net.SensorEstimator.model import FishSensorEstimator
+from net.SensorEstimator.dataset import FishDataset
 
 CHANNELS = ["sensor_diff", "sensor_mean", "current"]
 
