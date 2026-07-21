@@ -36,6 +36,7 @@ NB. prima va lanciato system_launch.py
 
 
 # Rete
+source .venv/bin/activate
 python3 src/net/dataset.py ./logs/ds --checkpoint_dir checkpoints/
 python3 src/net/train.py --log_dir ./logs/ds --checkpoint_dir ./checkpoints
 
@@ -56,14 +57,18 @@ python3 src/net/tune.py --phase 3 --storage sqlite:///tuning_results/optuna_fish
 
 # Cosa fare ora
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- sistemare le slide con le reti. (vedi foglio)
-- MODEL SELECTION: 
-      - tenere tutto fisso , variare solo gru_hidden e mlp_hidden scegliendo dei range 
-      - aumentare molto il numero di parametri ma testando poche combinazioni 
-      - optuna finale
+- la normalizzazione al momento è fatta per ogni csv, è meglio fare un dataset unico e normalizzarlo insieme?
+- sistemare le slide 
 - non sto usando amp  e freq nella rete . ok?
-- specificare il dataset nelle slide  
 - una volta che il modello allenato in fase di test fare un check per vedere se il valore nel futuro coincide con quello che effettivamente arriverà a t+1
 
 # Requirements 
 uv pip install -r requirements.txt
+
+# Iperparametri tuning finale 
+  #1  val_loss=0.1892
+    gru_hidden: 512
+    mlp_hidden: 128
+    lr: 0.0038139114562008637
+    batch_size: 32
+    lambda_future: 0.053076977868201876

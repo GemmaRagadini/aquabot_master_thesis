@@ -1,8 +1,6 @@
 import argparse
-import math
 import os
 import random
-
 import matplotlib
 matplotlib.use("Agg")  
 import matplotlib.pyplot as plt
@@ -18,13 +16,10 @@ random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
 
-# peso della testa futuro nella loss combinata (da inserire DOPO tuning fase 3)
-LAMBDA_FUTURE = 0.10206261356081058
-
 DEVICE = torch.device("cpu")
 
 
-def train(model, dataset, epochs, lr, batch_size, checkpoint_dir):
+def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
     train_ds, val_ds = random_split(
@@ -51,7 +46,7 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir):
 
             loss_history = mse(pred_history, t_hist)
             loss_future  = mse(pred_future,  t_fut)
-            loss = loss_history + LAMBDA_FUTURE * loss_future
+            loss = loss_history + lambda_future * loss_future
 
             if not torch.isfinite(loss):
                 raise RuntimeError(
@@ -73,7 +68,7 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir):
                 pred_history, pred_future, _ = model(seq)
                 loss_history = mse(pred_history, t_hist)
                 loss_future  = mse(pred_future,  t_fut)
-                val_loss += (loss_history + LAMBDA_FUTURE * loss_future).item()
+                val_loss += (loss_history + lambda_future * loss_future).item()
 
         train_loss /= len(train_loader)
         val_loss   /= len(val_loader)
@@ -106,11 +101,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir',        default='../../logs/ds')
     parser.add_argument('--checkpoint_dir', default='checkpoints/')
-    parser.add_argument('--epochs',         type=int,   default=100)
-    parser.add_argument('--lr',             type=float, default=0.0035796261186095872)
+    parser.add_argument('--epochs',         type=int,   default=150)
+    parser.add_argument('--lr',             type=float, default=0.0038139114562008637)
     parser.add_argument('--batch_size',     type=int,   default=32)
     parser.add_argument('--gru_hidden',     type=int,   default=512)
-    parser.add_argument('--mlp_hidden',     type=int,   default=32)
+    parser.add_argument('--mlp_hidden',     type=int,   default=128)
+    parser.add_argument('--lambda_future', type=float, default=0.053076977868201876,
+                        help='peso della loss sulla testa "future" nella loss combinata')
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
     args = parser.parse_args()
@@ -138,6 +135,7 @@ if __name__ == '__main__':
         lr=args.lr,
         batch_size=args.batch_size,
         checkpoint_dir=args.checkpoint_dir,
+        lambda_future=args.lambda_future,
     )
 
     # salvataggio finale (su CPU, ricaricabile ovunque)

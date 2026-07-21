@@ -7,7 +7,7 @@ H = 20
 
 
 class FishSensorEstimator(nn.Module):
-	def __init__(self, input_size=1, gru_hidden=512, mlp_hidden=32, h=H):
+	def __init__(self, input_size=1, gru_hidden=512, mlp_hidden=128, h=H):
 		"""
 		Stimatore: data una finestra temporale di comandi motore,
 		predice la risposta sensoriale attesa.
