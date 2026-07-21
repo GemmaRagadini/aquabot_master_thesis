@@ -1,10 +1,12 @@
 import argparse
 import os
+import random
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
-import random 
-import numpy as np
 from torch.utils.data import DataLoader, random_split
 
 from model_inverse   import FishInverseEstimator
@@ -14,17 +16,19 @@ random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
 
-# peso della testa futuro nella loss combinata
-LAMBDA_FUTURE = 1.0
+DEVICE = torch.device("cpu")
 
 
-def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inverse/"):
+def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future):
     n_val   = int(0.2 * len(dataset))
     n_train = len(dataset) - n_val
-    train_ds, val_ds = random_split(dataset, [n_train, n_val])
+    train_ds, val_ds = random_split(
+        dataset, [n_train, n_val],
+        generator=torch.Generator().manual_seed(42)
+    )
 
-    train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
-    val_loader   = DataLoader(val_ds,   batch_size=64)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    val_loader   = DataLoader(val_ds,   batch_size=batch_size)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
@@ -40,11 +44,15 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inver
         for seq, t_hist, t_fut, _ in train_loader:
             pred_history, pred_future, _ = model(seq)
 
-            # loss storia:  (batch, h, 1) vs (batch, h, 1)
             loss_history = mse(pred_history, t_hist)
-            # loss futuro:  (batch, 1)        vs (batch, 1)
             loss_future  = mse(pred_future,  t_fut)
-            loss = loss_history + LAMBDA_FUTURE * loss_future
+            loss = loss_history + lambda_future * loss_future
+
+            if not torch.isfinite(loss):
+                raise RuntimeError(
+                    f"Loss non finita a epoch {epoch}: training divergente "
+                    f"(riduci lr) o dati sporchi (esegui check_nan.py)"
+                )
 
             optimizer.zero_grad()
             loss.backward()
@@ -60,7 +68,7 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inver
                 pred_history, pred_future, _ = model(seq)
                 loss_history = mse(pred_history, t_hist)
                 loss_future  = mse(pred_future,  t_fut)
-                val_loss += (loss_history + LAMBDA_FUTURE * loss_future).item()
+                val_loss += (loss_history + lambda_future * loss_future).item()
 
         train_loss /= len(train_loader)
         val_loss   /= len(val_loader)
@@ -69,8 +77,8 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inver
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
-        if epoch % 10 == 0:
-            print(f"Epoch {epoch:3d} | train {train_loss:.4f} | val {val_loss:.4f}")
+        print(f"Epoch {epoch:3d} | train {train_loss:.4f} | val {val_loss:.4f} "
+              f"| lr {optimizer.param_groups[0]['lr']:.2e}")
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -83,21 +91,40 @@ def train(model, dataset, epochs=100, lr=1e-3, checkpoint_dir="checkpoints_inver
 def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
     os.makedirs(checkpoint_dir, exist_ok=True)
     path = os.path.join(checkpoint_dir, name)
-    torch.save({"model_state": model.state_dict(), "norm_stats": norm_stats}, path)
+    # state_dict portato su CPU: il checkpoint si ricarica ovunque
+    # (anche sul robot, senza GPU)
+    state_cpu = {k: v.cpu() for k, v in model.state_dict().items()}
+    torch.save({"model_state": state_cpu, "norm_stats": norm_stats}, path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir',        default='../../logs/ds')
+    parser.add_argument('--dataset_dir',        default='./src/net/dataset')
     parser.add_argument('--checkpoint_dir', default='checkpoints_inverse/')
-    parser.add_argument('--epochs',         type=int,   default=100)
+    parser.add_argument('--epochs',         type=int,   default=150)
     parser.add_argument('--lr',             type=float, default=1e-3)
+    parser.add_argument('--batch_size',     type=int,   default=64)
+    parser.add_argument('--gru_hidden',     type=int,   default=64)
+    parser.add_argument('--mlp_hidden',     type=int,   default=128)
+    parser.add_argument('--lambda_future',  type=float, default=1.0,
+                        help='peso della loss sulla testa "future" nella loss combinata')
+    parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
+    parser.add_argument('--threads',        type=int,   default=8)
     args = parser.parse_args()
 
-    print("Caricamento dataset...")
-    dataset = FishInverseDataset(args.log_dir)
+    torch.set_num_threads(args.threads)
+    DEVICE = torch.device(args.device)
+    if DEVICE.type == "cuda":
+        torch.backends.cudnn.benchmark = True
+    print(f"Device: {DEVICE} | threads: {args.threads}")
 
-    model = FishInverseEstimator()
+    print("Caricamento dataset...")
+    dataset = FishInverseDataset(args.dataset_dir).to(DEVICE)   # tutto in VRAM una volta sola
+
+    model = FishInverseEstimator(
+        gru_hidden=args.gru_hidden,
+        mlp_hidden=args.mlp_hidden,
+    ).to(DEVICE)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"Parametri della rete: {n_params}")
 
@@ -106,16 +133,18 @@ if __name__ == '__main__':
         model, dataset,
         epochs=args.epochs,
         lr=args.lr,
+        batch_size=args.batch_size,
         checkpoint_dir=args.checkpoint_dir,
+        lambda_future=args.lambda_future,
     )
 
-    # salvataggio finale
+    # salvataggio finale (su CPU, ricaricabile ovunque)
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     final_path = os.path.join(args.checkpoint_dir, "fish_inverse_estimator.pt")
     torch.save({
-        "model_state": model.state_dict(),
+        "model_state": {k: v.cpu() for k, v in model.state_dict().items()},
         "norm_stats":  dataset.norm_stats,
-        "theta_star":  {n: p.clone() for n, p in model.named_parameters()},
+        "theta_star":  {n: p.detach().cpu().clone() for n, p in model.named_parameters()},
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path}")
 
@@ -137,4 +166,3 @@ if __name__ == '__main__':
     plot_path = os.path.join(args.checkpoint_dir, "loss_curve.png")
     plt.savefig(plot_path, dpi=150)
     print(f"Loss curve salvata in {plot_path}")
-    plt.show()

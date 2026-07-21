@@ -99,8 +99,8 @@ def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir',        default='../../logs/ds')
-    parser.add_argument('--checkpoint_dir', default='checkpoints/')
+    parser.add_argument('--dataset_dir',        default='./src/net/dataset')
+    parser.add_argument('--checkpoint_dir', default='./src/net/SensorEstimator/checkpoints')
     parser.add_argument('--epochs',         type=int,   default=150)
     parser.add_argument('--lr',             type=float, default=0.0038139114562008637)
     parser.add_argument('--batch_size',     type=int,   default=32)
@@ -110,6 +110,9 @@ if __name__ == '__main__':
                         help='peso della loss sulla testa "future" nella loss combinata')
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
+    parser.add_argument('--scaler_path',    default='./src/net/scaler/scalers.pkl',
+                        help='normalizzatore fisso: se esiste lo carica e lo riusa, '
+                             'altrimenti lo fitta sui CSV e lo salva qui')
     args = parser.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -119,7 +122,10 @@ if __name__ == '__main__':
     print(f"Device: {DEVICE} | threads: {args.threads}")
 
     print("Caricamento dataset...")
-    dataset = FishDataset(args.log_dir).to(DEVICE)   # tutto in VRAM una volta sola
+    os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
+    # normalizzatore fisso: alla prima esecuzione viene fittato e salvato,
+    # nelle successive viene ricaricato dallo stesso file (nessun refit)
+    dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
 
     model = FishSensorEstimator(
         gru_hidden=args.gru_hidden,
@@ -138,7 +144,7 @@ if __name__ == '__main__':
         lambda_future=args.lambda_future,
     )
 
-    # salvataggio finale (su CPU, ricaricabile ovunque)
+    # salvataggio finale
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     final_path = os.path.join(args.checkpoint_dir, "fish_sensor_estimator.pt")
     torch.save({
@@ -147,6 +153,8 @@ if __name__ == '__main__':
         "theta_star":  {n: p.detach().cpu().clone() for n, p in model.named_parameters()},
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path}")
+    # nota: il normalizzatore è già salvato in args.scaler_path (gestito dal
+    # dataset all'avvio) e le sue statistiche sono dentro norm_stats nel .pt
 
     # plot loss curves
     best_epoch = val_losses.index(min(val_losses)) + 1

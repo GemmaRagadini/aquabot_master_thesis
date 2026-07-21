@@ -34,26 +34,34 @@ ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
 src/aquabot_bringup/launch/collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il pretraining. 4 a freq fissa e amp_sweep , 3 viceversa. 
 NB. prima va lanciato system_launch.py
 
+root in aquabot
 
 # Rete
 source .venv/bin/activate
-python3 src/net/dataset.py ./logs/ds --checkpoint_dir checkpoints/
-python3 src/net/train.py --log_dir ./logs/ds --checkpoint_dir ./checkpoints
+python3 src/net/SensorEstimator/dataset.py ./src/net/dataset ./src/net/scaler/scalers.pkl
+PYTHONPATH=src python3 -m net.SensorEstimator.train (--dataset_dir 'dataset_path' --checkpoint_dir 'estimator checkpoints path') 
 
-## Inversa 
-python3 src/net/dataset_inverse.py ./logs/ds --checkpoint_dir checkpoints/
-python3 src/net/train_inverse.py --log_dir ./logs/ds --checkpoint_dir ./checkpoints
+## Tuning dei parametri 
+./run_tuning.sh <fase> [n_worker]
 
-# Tuning dei parametri 
-
-## Fase 1 – griglia architetture 
+<!-- ### Fase 1 – griglia architetture 
 python3 src/net/tune.py --phase 1 --storage sqlite:///tuning_results/optuna_fish.db
 
-## Fase 2 – esplorazione sparsa parametri training 
+### Fase 2 – esplorazione sparsa parametri training 
 python3 src/net/tune.py --phase 2 --storage sqlite:///tuning_results/optuna_fish.db
 
-## Fase 3 – tuning finale di tutto 
-python3 src/net/tune.py --phase 3 --storage sqlite:///tuning_results/optuna_fish.db
+### Fase 3 – tuning finale di tutto 
+python3 src/net/tune.py --phase 3 --storage sqlite:///tuning_results/optuna_fish.db -->
+
+## Inversa 
+python3 -m net.InverseEstimator.dataset_inverse ./src/net/dataset --checkpoint_dir checkpoints/
+python3 src/net/train_inverse.py --dataset_dir ./src/net/dataset --checkpoint_dir ./checkpoints
+
+## Tuning parametri  
+# Fase i 
+./run_tuning_inverse.sh i
+
+
 
 # Cosa fare ora
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 

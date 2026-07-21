@@ -1,18 +1,14 @@
 """
 Test diagnostico delle correlazioni per capire perche' sensor_mean
 si apprende peggio di sensor_diff.
-
-Ricalcola i canali ESATTAMENTE come dataset.py (stesso parsing dei
-sensor_values, stessa calibrazione offset sui primi 50 campioni), poi
-stampa per ogni trial e in aggregato:
-
+Calcola:
     corr(cmd_servo, sensor_diff)   -> atteso ALTO  (il comando pilota diff)
     corr(cmd_servo, sensor_mean)   -> atteso BASSO (il comando si cancella)
     corr(L, R)                     -> se ~ -1 : controfase pura, mean ~ rumore
                                       se mista: c'e' struttura comune recuperabile
 
 Uso:
-    python corr_test.py --log_dir logs/ds
+    python corr_test.py --dataset_dir ./src/net/dataset
 """
 import argparse
 import ast
@@ -85,12 +81,12 @@ def safe_corr(a, b):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--log_dir", default="logs/ds")
+    ap.add_argument("--dataset_dir", default="./src/net/dataset")
     args = ap.parse_args()
 
-    csv_files = sorted(Path(args.log_dir).glob("trial_*.csv"))
+    csv_files = sorted(Path(args.dataset_dir).glob("trial_*.csv"))
     if not csv_files:
-        raise FileNotFoundError(f"Nessun trial_*.csv in {args.log_dir}")
+        raise FileNotFoundError(f"Nessun trial_*.csv in {args.dataset_dir}")
 
     print(f"Trovati {len(csv_files)} trial.\n")
     print(f"{'trial':<22}{'corr(cmd,diff)':>16}{'corr(cmd,mean)':>16}{'corr(L,R)':>12}")

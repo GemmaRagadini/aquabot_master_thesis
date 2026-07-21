@@ -175,5 +175,5 @@ done
 
 echo ""
 echo "================================================"
-echo "  Dataset completo: ${TOTAL_TRIALS} trial in ./logs"
+echo "  Dataset completo: ${TOTAL_TRIALS} trial in ./src/net/dataset"
 echo "================================================"

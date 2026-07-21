@@ -1,7 +1,7 @@
 """
 Loss per canale sul validation set
 Uso:
-  python channel_loss.py --checkpoint checkpoints/best.pt --log_dir logs/ds \
+  python channel_loss.py --checkpoint checkpoints/best.pt --dataset_dir ./src/net/dataset \
       --gru_hidden 512 --mlp_hidden 128
 """
 import argparse
@@ -15,8 +15,8 @@ from net.SensorEstimator.dataset import FishDataset
 CHANNELS = ["sensor_diff", "sensor_mean", "current"]
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", default="checkpoints/best.pt")
-parser.add_argument("--log_dir",    default="logs/ds")
+parser.add_argument("--checkpoint", default="../checkpoints/best.pt")
+parser.add_argument("--dataset_dir",    default="./src/net/dataset")
 parser.add_argument("--gru_hidden", type=int, default=512)
 parser.add_argument("--mlp_hidden", type=int, default=128)
 parser.add_argument("--device",     default="cuda" if torch.cuda.is_available() else "cpu")
@@ -24,7 +24,7 @@ args = parser.parse_args()
 
 device = torch.device(args.device)
 
-dataset = FishDataset(args.log_dir)
+dataset = FishDataset(args.dataset_dir)
 
 # stesso split del training
 n_val   = int(0.2 * len(dataset))

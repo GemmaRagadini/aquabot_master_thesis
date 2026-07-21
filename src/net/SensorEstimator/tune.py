@@ -217,8 +217,8 @@ if __name__ == "__main__":
         description="Staged Optuna tuning per FishSensorEstimator"
     )
     parser.add_argument("--phase", type=int, required=True, choices=[1, 2, 3])
-    parser.add_argument("--log_dir", default="logs/ds")
-    parser.add_argument("--storage", default="sqlite:///tuning_results/optuna_fish.db")
+    parser.add_argument("--dataset_dir", default="./src/net/dataset")
+    parser.add_argument("--storage", default="sqlite:///src/net/SensorEstimator/tuning_results/optuna_fish.db")
     parser.add_argument("--n_trials", type=int, default=None,
                         help="Trial eseguiti DA QUESTO worker (dividi il totale "
                              "per il numero di worker paralleli)")
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     print(f"=== FASE {args.phase} | {n_trials} trial (questo worker) | {n_epochs} epoche ===\n")
 
     print("Caricamento dataset...")
-    dataset = FishDataset(args.log_dir).to(DEVICE)   
+    dataset = FishDataset(args.dataset_dir).to(DEVICE)   
 
     study_name = f"fish_forward_phase{args.phase}"
 
