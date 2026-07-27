@@ -12,6 +12,9 @@ H = 20
 
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
 
+# numero di feature in input alla rete per ogni timestep della finestra.
+# ORA: [cmd_servo, amp, freq]  (prima era solo cmd_servo -> 1)
+N_INPUT_FEATURES = 3
 
 class FishDataset(Dataset):
     def __init__(self, log_dir: str, h: int = H, scaler_path: str = None):
@@ -20,13 +23,19 @@ class FishDataset(Dataset):
           - se il file esiste       -> lo carica e lo riusa (nessun refit);
           - se non esiste           -> fitta gli scaler sui CSV e li salva lì;
           - se None                 -> fitta e non salva (comportamento volatile).
-        In questo modo, fissando un percorso, il normalizzatore viene calcolato
-        una volta sola e poi riutilizzato in ogni training successivo.
+
+        NB: aggiungendo amp/freq all'input le chiavi degli scaler sono cambiate
+        (ora includono 'amp' e 'freq'). Uno scalers.pkl vecchio NON e' compatibile:
+        cancellalo o usa un nuovo path, cosi' viene rifittato con le nuove feature.
         """
         self.sequences       = []
         self.targets_history = []   # (h, 3)  sensori passati
         self.targets_future  = []   # (3,)    sensori al t+1
         self.labels          = []
+
+        # --- provenienza: da quale trial viene ogni finestra ---
+        self.window_trial = []
+        self.trial_names  = []
 
         self.norm_stats = {}
         self.scalers    = {}
@@ -44,6 +53,7 @@ class FishDataset(Dataset):
             try:
                 df = pd.read_csv(csv_path)
                 ep = self._extract_signals(df, h, csv_path.name)
+                ep["name"] = csv_path.name
                 episodes.append(ep)
             except Exception as e:
                 print(f"  Skipped {csv_path.name}: {e}")
@@ -54,35 +64,43 @@ class FishDataset(Dataset):
         # --- normalizzatore: carica se esiste, altrimenti fitta (e salva) ---
         if scaler_path is not None and Path(scaler_path).exists():
             self.scalers = self.load_scalers(scaler_path)
+            # guardia: se il pkl e' vecchio (senza amp/freq) fermati con messaggio chiaro
+            missing = [k for k in ("amp", "freq") if k not in self.scalers]
+            if missing:
+                raise ValueError(
+                    f"Lo scalers.pkl in {scaler_path} non contiene {missing}: e' un "
+                    f"normalizzatore della versione precedente (senza amp/freq in input). "
+                    f"Cancellalo o usa un nuovo --scaler_path per rifittarlo."
+                )
             self._sync_norm_stats()
             print(f"Normalizzatore caricato da {scaler_path} (nessun refit).")
         else:
-            # fit sulle statistiche GLOBALI (tutti gli episodi concatenati)
             self._fit_scalers(episodes)
             if scaler_path is not None:
                 self.save_scalers(scaler_path)
                 print(f"Normalizzatore fittato e salvato in {scaler_path}.")
 
-        # --- PASSATA 2: normalizza con gli scaler globali e costruisci le finestre ---
-        for ep in episodes:
-            self._build_windows(ep, h)
+        # --- PASSATA 2: normalizza e costruisci le finestre ---
+        for trial_idx, ep in enumerate(episodes):
+            self.trial_names.append(ep["name"])
+            self._build_windows(ep, h, trial_idx)
 
         self.sequences       = torch.tensor(np.array(self.sequences),       dtype=torch.float32)
         self.targets_history = torch.tensor(np.array(self.targets_history), dtype=torch.float32)
         self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
         self.labels          = torch.tensor(np.array(self.labels),          dtype=torch.float32)
+        self.window_trial    = np.asarray(self.window_trial, dtype=np.int64)
 
-        # --- guardia finale: nessun NaN/Inf deve arrivare al training ---
         for name, t in [("sequences", self.sequences),
                         ("targets_history", self.targets_history),
                         ("targets_future", self.targets_future)]:
             if not torch.isfinite(t).all():
                 raise ValueError(f"NaN/Inf residui in {name}: controlla i CSV con check_nan.py")
 
-        print(f"Dataset: {len(self)} campioni da {len(episodes)} trial.")
+        print(f"Dataset: {len(self)} campioni da {len(episodes)} trial. "
+              f"seq feature/timestep = {self.sequences.shape[-1]}")
 
     def to(self, device):
-        """Sposta tutti i tensori sul device (es. GPU) una volta sola."""
         self.sequences       = self.sequences.to(device)
         self.targets_history = self.targets_history.to(device)
         self.targets_future  = self.targets_future.to(device)
@@ -97,7 +115,7 @@ class FishDataset(Dataset):
                     return [0.0, 0.0]
                 out = [float(v) for v in vals[:2]]
                 if not all(np.isfinite(out)):
-                    return [np.nan, np.nan]   # marcato, poi interpolato
+                    return [np.nan, np.nan]
                 return out
             except Exception:
                 return [np.nan, np.nan]
@@ -106,17 +124,11 @@ class FishDataset(Dataset):
         return np.array(parsed.tolist(), dtype=np.float32)
 
     def _extract_signals(self, df: pd.DataFrame, h: int, fname: str = ""):
-        """Pulizia, calibrazione a riposo (per-episodio) ed estrazione dei
-        segnali GREZZI (non normalizzati). La normalizzazione avviene dopo,
-        con statistiche globali, in _build_windows."""
-        # nessun filtro sulla lunghezza: sotto h+2 righe non esiste però
-        # alcuna finestra costruibile, quindi si salta solo quel caso limite
         if len(df) < h + 2:
             raise ValueError(f"impossibile costruire finestre ({len(df)} righe < {h + 2})")
         if len(df) < 50:
             print(f"  [{fname}] attenzione: calibrazione a riposo su {len(df)} campioni (< 50)")
 
-        # --- coercizione numerica + interpolazione dei NaN ---
         df = df.copy()
         for c in NEEDED_COLS:
             if c not in df.columns:
@@ -131,7 +143,6 @@ class FishDataset(Dataset):
             print(f"  [{fname}] {n_nan} NaN interpolati")
             df[NEEDED_COLS] = df[NEEDED_COLS].interpolate(limit_direction="both")
 
-        # --- sensori (righe non parsabili -> NaN -> interpolazione) ---
         sensors = self._parse_sensor_values(df["sensor_values"])
         if np.isnan(sensors).any():
             n_bad = int(np.isnan(sensors[:, 0]).sum())
@@ -147,8 +158,6 @@ class FishDataset(Dataset):
         sensor_diff = sensors[:, 0] - sensors[:, 1]
         sensor_mean = (sensors[:, 0] + sensors[:, 1]) / 2.0
 
-        # offset a riposo: media dei primi 50 campioni (come fa master_node).
-        # Resta PER-EPISODIO: è lo zero fisico di quel singolo trial.
         offset      = sensor_diff[:50].mean()
         offset_mean = sensor_mean[:50].mean()
         sensor_diff_cal = sensor_diff - offset
@@ -156,7 +165,6 @@ class FishDataset(Dataset):
 
         current = df["present_current_ma"].values.astype(np.float32)
 
-        # --- ground truth ---
         cmd_servo = df["tail_target_rad"].values.astype(np.float32)
         amp_des   = df["tail_amp_rad"].values.astype(np.float32)
         freq_des  = df["tail_freq_hz"].values.astype(np.float32)
@@ -168,61 +176,73 @@ class FishDataset(Dataset):
             "current":         current,
             "amp_des":         amp_des,
             "freq_des":        freq_des,
+            "offset_diff":     float(offset),
+            "offset_mean":     float(offset_mean),
         }
 
     def _fit_scalers(self, episodes):
-        """Fit di uno StandardScaler per ciascun segnale sulle statistiche
-        globali (tutti gli episodi concatenati). Esporta anche norm_stats come
-        dizionario di media/std, così l'inference sul robot non richiede
-        scikit-learn."""
-        all_sd  = np.concatenate([e["sensor_diff_cal"] for e in episodes]).reshape(-1, 1)
-        all_sm  = np.concatenate([e["sensor_mean_cal"] for e in episodes]).reshape(-1, 1)
-        all_cmd = np.concatenate([e["cmd_servo"]       for e in episodes]).reshape(-1, 1)
-        all_vf  = np.concatenate([e["current"]         for e in episodes]).reshape(-1, 1)
+        """Fit di uno StandardScaler per ciascun segnale sulle statistiche globali.
+        ORA include anche amp e freq, perche' entrano nell'input della rete."""
+        all_sd   = np.concatenate([e["sensor_diff_cal"] for e in episodes]).reshape(-1, 1)
+        all_sm   = np.concatenate([e["sensor_mean_cal"] for e in episodes]).reshape(-1, 1)
+        all_cmd  = np.concatenate([e["cmd_servo"]       for e in episodes]).reshape(-1, 1)
+        all_vf   = np.concatenate([e["current"]         for e in episodes]).reshape(-1, 1)
+        all_amp  = np.concatenate([e["amp_des"]         for e in episodes]).reshape(-1, 1)
+        all_freq = np.concatenate([e["freq_des"]        for e in episodes]).reshape(-1, 1)
 
         self.scalers = {
-            "sd":  StandardScaler().fit(all_sd),
-            "sm":  StandardScaler().fit(all_sm),
-            "cmd": StandardScaler().fit(all_cmd),
-            "vf":  StandardScaler().fit(all_vf),
+            "sd":   StandardScaler().fit(all_sd),
+            "sm":   StandardScaler().fit(all_sm),
+            "cmd":  StandardScaler().fit(all_cmd),
+            "vf":   StandardScaler().fit(all_vf),
+            "amp":  StandardScaler().fit(all_amp),
+            "freq": StandardScaler().fit(all_freq),
         }
 
-        # floor sullo std, come nella vecchia normalizzazione manuale
-        # (evita divisioni per std minuscoli su segnali quasi costanti)
+        # floor sullo std: amp/freq possono essere quasi costanti dentro un trial,
+        # il floor evita divisioni per std minuscoli
         for sc in self.scalers.values():
             sc.scale_ = np.maximum(sc.scale_, 1e-3)
 
         self._sync_norm_stats()
 
     def _sync_norm_stats(self):
-        """Deriva norm_stats (numeri semplici, ricaricabile ovunque) dagli scaler."""
         self.norm_stats = {
-            "sd_mean":  float(self.scalers["sd"].mean_[0]),
-            "sd_std":   float(self.scalers["sd"].scale_[0]),
-            "sm_mean":  float(self.scalers["sm"].mean_[0]),
-            "sm_std":   float(self.scalers["sm"].scale_[0]),
-            "cmd_mean": float(self.scalers["cmd"].mean_[0]),
-            "cmd_std":  float(self.scalers["cmd"].scale_[0]),
-            "vf_mean":  float(self.scalers["vf"].mean_[0]),
-            "vf_std":   float(self.scalers["vf"].scale_[0]),
+            "sd_mean":   float(self.scalers["sd"].mean_[0]),
+            "sd_std":    float(self.scalers["sd"].scale_[0]),
+            "sm_mean":   float(self.scalers["sm"].mean_[0]),
+            "sm_std":    float(self.scalers["sm"].scale_[0]),
+            "cmd_mean":  float(self.scalers["cmd"].mean_[0]),
+            "cmd_std":   float(self.scalers["cmd"].scale_[0]),
+            "vf_mean":   float(self.scalers["vf"].mean_[0]),
+            "vf_std":    float(self.scalers["vf"].scale_[0]),
+            "amp_mean":  float(self.scalers["amp"].mean_[0]),
+            "amp_std":   float(self.scalers["amp"].scale_[0]),
+            "freq_mean": float(self.scalers["freq"].mean_[0]),
+            "freq_std":  float(self.scalers["freq"].scale_[0]),
         }
 
-    def _build_windows(self, ep, h):
-        """Normalizza i segnali dell'episodio con gli scaler globali e costruisce
-        le finestre scorrevoli."""
+    def _build_windows(self, ep, h, trial_idx):
         sc = self.scalers
-        sd_n  = sc["sd"].transform(ep["sensor_diff_cal"].reshape(-1, 1)).ravel()
-        sm_n  = sc["sm"].transform(ep["sensor_mean_cal"].reshape(-1, 1)).ravel()
-        cmd_n = sc["cmd"].transform(ep["cmd_servo"].reshape(-1, 1)).ravel()
-        vf_n  = sc["vf"].transform(ep["current"].reshape(-1, 1)).ravel()
+        sd_n   = sc["sd"].transform(ep["sensor_diff_cal"].reshape(-1, 1)).ravel()
+        sm_n   = sc["sm"].transform(ep["sensor_mean_cal"].reshape(-1, 1)).ravel()
+        cmd_n  = sc["cmd"].transform(ep["cmd_servo"].reshape(-1, 1)).ravel()
+        vf_n   = sc["vf"].transform(ep["current"].reshape(-1, 1)).ravel()
+        amp_n  = sc["amp"].transform(ep["amp_des"].reshape(-1, 1)).ravel()
+        freq_n = sc["freq"].transform(ep["freq_des"].reshape(-1, 1)).ravel()
 
+        # label NON normalizzate (restano i valori fisici come prima)
         amp_des  = ep["amp_des"]
         freq_des = ep["freq_des"]
         n = len(cmd_n)
 
-        # il loop finisce a n-1 perché serve il campione t+1 per il target futuro
         for i in range(h, n - 1):
-            seq = cmd_n[i - h:i].reshape(-1, 1)
+            # input: storia di [cmd_servo, amp, freq] -> (h, 3)
+            seq = np.stack([
+                cmd_n[i - h:i],
+                amp_n[i - h:i],
+                freq_n[i - h:i],
+            ], axis=1)
 
             target_history = np.stack([
                 sd_n[i - h:i],
@@ -237,9 +257,9 @@ class FishDataset(Dataset):
             self.targets_history.append(target_history)
             self.targets_future.append(target_future)
             self.labels.append(label)
+            self.window_trial.append(trial_idx)
 
     def save_scalers(self, path):
-        """Salva gli scaler scikit-learn (utile se vuoi ricaricarli con .transform)."""
         import joblib
         joblib.dump(self.scalers, path)
 
@@ -262,15 +282,13 @@ class FishDataset(Dataset):
 
 if __name__ == '__main__':
     import sys
-    # uso: python dataset.py [log_dir] [scaler_path]
-    #   scaler_path assente -> salva accanto ai log come 'scalers.pkl'
     log_dir     = sys.argv[1] if len(sys.argv) > 1 else "../../logs/ds"
     scaler_path = sys.argv[2] if len(sys.argv) > 2 else str(Path(log_dir) / "scalers.pkl")
 
     ds = FishDataset(log_dir, scaler_path=scaler_path)
     seq, t_hist, t_fut, label = ds[0]
-    print(f"seq shape:            {seq.shape}")
+    print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [cmd, amp, freq]")
     print(f"target_history shape: {t_hist.shape}")
     print(f"target_future shape:  {t_fut.shape}")
     print(f"label shape:          {label.shape}")
-    print(f"norm_stats:           {ds.norm_stats}")
+    print(f"norm_stats keys:      {list(ds.norm_stats.keys())}")

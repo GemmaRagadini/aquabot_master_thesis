@@ -2,12 +2,23 @@
 Loss per canale sul validation set
 Uso:
   python channel_loss.py --checkpoint checkpoints/best.pt --dataset_dir ./src/net/dataset \
-      --gru_hidden 512 --mlp_hidden 128
+      --gru_hidden 512 --mlp_hidden 32
 """
 import argparse
+import os
+import sys
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
+
+# directory di questo script (src/net/SensorEstimator) e root del repo (tre livelli sopra):
+# i default sotto SensorEstimator sono ancorati a SCRIPT_DIR, quelli fuori a REPO_ROOT
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+
+# rende importabile il package 'net' (che vive in src/) senza dover settare PYTHONPATH
+sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.SensorEstimator.model import FishSensorEstimator
 from net.SensorEstimator.dataset import FishDataset
@@ -15,16 +26,20 @@ from net.SensorEstimator.dataset import FishDataset
 CHANNELS = ["sensor_diff", "sensor_mean", "current"]
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", default="../checkpoints/best.pt")
-parser.add_argument("--dataset_dir",    default="./src/net/dataset")
+parser.add_argument("--checkpoint", default=os.path.join(SCRIPT_DIR, "checkpoints", "best.pt"))
+parser.add_argument("--dataset_dir",    default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
+parser.add_argument("--scaler_path",    default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers.pkl"),
+                    help="normalizzatore da riusare: DEVE essere lo stesso del training")
 parser.add_argument("--gru_hidden", type=int, default=512)
-parser.add_argument("--mlp_hidden", type=int, default=128)
+parser.add_argument("--mlp_hidden", type=int, default=32)
 parser.add_argument("--device",     default="cuda" if torch.cuda.is_available() else "cpu")
 args = parser.parse_args()
 
 device = torch.device(args.device)
 
-dataset = FishDataset(args.dataset_dir)
+# passo scaler_path: cosi' la valutazione usa la STESSA normalizzazione del training
+# (senza, il dataset rifitterebbe gli scaler e i numeri non sarebbero confrontabili)
+dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path)
 
 # stesso split del training
 n_val   = int(0.2 * len(dataset))
@@ -36,7 +51,13 @@ _, val_ds = random_split(
 val_loader = DataLoader(val_ds, batch_size=256)
 
 ckpt = torch.load(args.checkpoint, map_location=device)
-model = FishSensorEstimator(gru_hidden=args.gru_hidden,
+# input_size dal checkpoint (ora e' 3: storia di [cmd, amp, freq]).
+# fallback alle feature del dataset se un vecchio checkpoint non lo contiene.
+input_size = ckpt.get("input_size", dataset.sequences.shape[-1])
+print(f"input_size del modello: {input_size}")
+
+model = FishSensorEstimator(input_size=input_size,
+                            gru_hidden=args.gru_hidden,
                             mlp_hidden=args.mlp_hidden, h=dataset.h).to(device)
 model.load_state_dict(ckpt["model_state"])
 model.eval()

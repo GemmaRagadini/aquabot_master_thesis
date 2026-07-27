@@ -39,10 +39,16 @@ root in aquabot
 # Rete
 source .venv/bin/activate
 python3 src/net/SensorEstimator/dataset.py ./src/net/dataset ./src/net/scaler/scalers.pkl
-PYTHONPATH=src python3 -m net.SensorEstimator.train (--dataset_dir 'dataset_path' --checkpoint_dir 'estimator checkpoints path') 
+python3 src/net/SensorEstimator/train.py
 
+
+python src/net/SensorEstimator/channel_loss.py
+ 
+ 
 ## Tuning dei parametri 
-./run_tuning.sh <fase> [n_worker]
+./src/net/SensorEstimator/run_tuning.sh <fase> [n_worker]
+
+python3 src/net/SensorEstimator/tuning_status.py --watch
 
 <!-- ### Fase 1 – griglia architetture 
 python3 src/net/tune.py --phase 1 --storage sqlite:///tuning_results/optuna_fish.db

@@ -3,12 +3,17 @@ Uso:  python tuning_status.py [--storage sqlite:///tuning_results/optuna_fish.db
 """
 import argparse
 import math
+import os
 import subprocess
 import time
+
 import optuna
 from optuna.trial import TrialState
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+# directory di questo script -> il default dello storage e' ancorato qui
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TOTALS = {  # trial attesi per studio (per sapere quanto manca)
     "fish_forward_phase1":       16,
@@ -62,7 +67,7 @@ def show(storage_url):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--storage", default="sqlite:///tuning_results/optuna_fish.db")
+    parser.add_argument("--storage", default=f"sqlite:///{os.path.join(SCRIPT_DIR, 'tuning_results', 'optuna_fish.db')}")
     parser.add_argument("--watch", action="store_true",
                         help="aggiorna ogni 30 secondi (Ctrl-C per uscire)")
     args = parser.parse_args()

@@ -1,13 +1,21 @@
 import argparse
 import os
+import sys
 import random
 import matplotlib
-matplotlib.use("Agg")  
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
+
+# !! LAMBDA FUTURE TEMPORANEAMENTE A 0
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+
+sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.SensorEstimator.model import FishSensorEstimator
 from net.SensorEstimator.dataset import FishDataset
@@ -43,7 +51,6 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future)
         train_loss = 0.0
         for seq, t_hist, t_fut, _ in train_loader:
             pred_history, pred_future, _ = model(seq)
-
             loss_history = mse(pred_history, t_hist)
             loss_future  = mse(pred_future,  t_fut)
             loss = loss_history + lambda_future * loss_future
@@ -91,28 +98,33 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future)
 def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
     os.makedirs(checkpoint_dir, exist_ok=True)
     path = os.path.join(checkpoint_dir, name)
-    # state_dict portato su CPU: il checkpoint si ricarica ovunque
-    # (anche sul robot, senza GPU)
     state_cpu = {k: v.cpu() for k, v in model.state_dict().items()}
-    torch.save({"model_state": state_cpu, "norm_stats": norm_stats}, path)
+    # salvo anche input_size: serve a ricostruire il modello in inference/overlay
+    torch.save({
+        "model_state": state_cpu,
+        "norm_stats":  norm_stats,
+        "input_size":  model.gru.input_size,
+    }, path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_dir',        default='./src/net/dataset')
-    parser.add_argument('--checkpoint_dir', default='./src/net/SensorEstimator/checkpoints')
-    parser.add_argument('--epochs',         type=int,   default=150)
-    parser.add_argument('--lr',             type=float, default=0.0038139114562008637)
-    parser.add_argument('--batch_size',     type=int,   default=32)
+    parser.add_argument('--dataset_dir',        default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
+    parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints'))
+    parser.add_argument('--epochs',         type=int,   default=100)
+    parser.add_argument('--lr',             type=float, default=0.0035657123233896765)
+    parser.add_argument('--batch_size',     type=int,   default=64)
     parser.add_argument('--gru_hidden',     type=int,   default=512)
-    parser.add_argument('--mlp_hidden',     type=int,   default=128)
-    parser.add_argument('--lambda_future', type=float, default=0.053076977868201876,
-                        help='peso della loss sulla testa "future" nella loss combinata')
+    parser.add_argument('--mlp_hidden',     type=int,   default=32)
+    parser.add_argument('--lambda_future', type=float, default=0, 
+                        help='peso della loss sulla testa "future" nella loss combinata') # poi rimetti quella del tuning
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
-    parser.add_argument('--scaler_path',    default='./src/net/scaler/scalers.pkl',
+    parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers.pkl'),
                         help='normalizzatore fisso: se esiste lo carica e lo riusa, '
-                             'altrimenti lo fitta sui CSV e lo salva qui')
+                             'altrimenti lo fitta sui CSV e lo salva qui. '
+                             'ATTENZIONE: con amp/freq in input il vecchio pkl non e\' '
+                             'compatibile, cancellalo o usa un nuovo path.')
     args = parser.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -123,11 +135,15 @@ if __name__ == '__main__':
 
     print("Caricamento dataset...")
     os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
-    # normalizzatore fisso: alla prima esecuzione viene fittato e salvato,
-    # nelle successive viene ricaricato dallo stesso file (nessun refit)
     dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
 
+    # numero di feature in input letto DIRETTAMENTE dal dataset:
+    # cosi' se cambi le feature non devi aggiornare nulla qui a mano
+    input_size = dataset.sequences.shape[-1]
+    print(f"Feature in input per timestep: {input_size}  (storia di [cmd, amp, freq])")
+
     model = FishSensorEstimator(
+        input_size=input_size,
         gru_hidden=args.gru_hidden,
         mlp_hidden=args.mlp_hidden,
     ).to(DEVICE)
@@ -144,19 +160,16 @@ if __name__ == '__main__':
         lambda_future=args.lambda_future,
     )
 
-    # salvataggio finale
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     final_path = os.path.join(args.checkpoint_dir, "fish_sensor_estimator.pt")
     torch.save({
         "model_state": {k: v.cpu() for k, v in model.state_dict().items()},
         "norm_stats":  dataset.norm_stats,
+        "input_size":  model.gru.input_size,
         "theta_star":  {n: p.detach().cpu().clone() for n, p in model.named_parameters()},
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path}")
-    # nota: il normalizzatore è già salvato in args.scaler_path (gestito dal
-    # dataset all'avvio) e le sue statistiche sono dentro norm_stats nel .pt
 
-    # plot loss curves
     best_epoch = val_losses.index(min(val_losses)) + 1
 
     fig, ax = plt.subplots(figsize=(10, 5))

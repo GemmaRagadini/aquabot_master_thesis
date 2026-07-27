@@ -12,6 +12,9 @@ from torch.utils.data import DataLoader, random_split
 from net.SensorEstimator.model import FishSensorEstimator
 from net.SensorEstimator.dataset import FishDataset
 
+# directory di questo script -> tutti i path relativi sono ancorati qui
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Epoche per fase
 EPOCHS_PER_PHASE = {1: 30, 2: 30, 3: 50}
 
@@ -218,7 +221,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--phase", type=int, required=True, choices=[1, 2, 3])
     parser.add_argument("--dataset_dir", default="./src/net/dataset")
-    parser.add_argument("--storage", default="sqlite:///src/net/SensorEstimator/tuning_results/optuna_fish.db")
+    parser.add_argument("--storage", default=f"sqlite:///{os.path.join(SCRIPT_DIR, 'tuning_results', 'optuna_fish.db')}")
     parser.add_argument("--n_trials", type=int, default=None,
                         help="Trial eseguiti DA QUESTO worker (dividi il totale "
                              "per il numero di worker paralleli)")
@@ -246,7 +249,7 @@ if __name__ == "__main__":
     n_trials = args.n_trials if args.n_trials is not None else default_trials[args.phase]
     n_epochs = EPOCHS_PER_PHASE[args.phase]
 
-    os.makedirs("tuning_results", exist_ok=True)
+    os.makedirs(os.path.join(SCRIPT_DIR, "tuning_results"), exist_ok=True)
     storage = make_storage(args.storage)
 
     print(f"=== FASE {args.phase} | {n_trials} trial (questo worker) | {n_epochs} epoche ===\n")
@@ -337,7 +340,7 @@ if __name__ == "__main__":
         print(f"  {k}: {v}")
     print(f"  best val loss: {study.best_value:.4f}")
 
-    results_path = f"tuning_results/best_params_phase{args.phase}.txt"
+    results_path = os.path.join(SCRIPT_DIR, "tuning_results", f"best_params_phase{args.phase}.txt")
     with open(results_path, "w") as f:
         p1_study = optuna.load_study(study_name="fish_forward_phase1", storage=storage)
         f.write("=== Fase 1 - architettura (top 2) ===\n")
