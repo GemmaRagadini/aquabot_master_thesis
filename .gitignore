@@ -21,3 +21,10 @@ __pycache__/
 *.pt
 
 *venv
+
+# Net Tuning 
+net/SensorEstimator/logs_tuning 
+net/SensorEstimator/tuning_results
+net/SensorEstimator/channel_loss.py 
+net/SensorEstimator/chech_offset.py  
+net/SensorEstimator/overlay.py 

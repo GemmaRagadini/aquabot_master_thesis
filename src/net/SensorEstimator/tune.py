@@ -21,6 +21,11 @@ EPOCHS_PER_PHASE = {1: 30, 2: 30, 3: 50}
 # device globale (impostato nel main)
 DEVICE = torch.device("cpu")
 
+# lambda_future FISSO a 0: in questa fase alleniamo solo la testa 'history'.
+# Quando riattiverai la testa future, rimetti questo a >0 (o rendilo di nuovo
+# un parametro di ricerca nelle fasi 2/3).
+LAMBDA_FUTURE = 0.0
+
 
 # ---------------------------------------------------------------- search space
 
@@ -33,26 +38,27 @@ def suggest_phase1(trial):
         mlp_hidden=mlp_hidden,
         lr=1e-3,
         batch_size=64,
-        lambda_future=1.0,
+        lambda_future=LAMBDA_FUTURE,
     )
 
 
 def suggest_phase2(trial, best_arch):
-    """Fase 2 - lr, batch_size, lambda_future con TPE, architettura fissa."""
+    """Fase 2 - lr, batch_size con TPE, architettura fissa.
+    lambda_future non e' piu' cercato: e' fisso a 0."""
     lr            = trial.suggest_float("lr", 1e-4, 5e-3, log=True)
     batch_size    = trial.suggest_categorical("batch_size", [32, 64, 128])
-    lambda_future = trial.suggest_float("lambda_future", 0.1, 2.0)
     return dict(
         gru_hidden=best_arch["gru_hidden"],
         mlp_hidden=best_arch["mlp_hidden"],
         lr=lr,
         batch_size=batch_size,
-        lambda_future=lambda_future,
+        lambda_future=LAMBDA_FUTURE,
     )
 
 
 def suggest_phase3(trial, best_arch, best_training):
-    """Fase 3 - tuning finale attorno ai best delle fasi precedenti."""
+    """Fase 3 - tuning finale attorno ai best delle fasi precedenti.
+    lambda_future resta fisso a 0."""
     arch_choices_gru = _neighbourhood([64, 128, 256, 512], best_arch["gru_hidden"])
     arch_choices_mlp = _neighbourhood([32, 64, 128, 256],  best_arch["mlp_hidden"])
     gru_hidden = trial.suggest_categorical("gru_hidden", arch_choices_gru)
@@ -61,16 +67,12 @@ def suggest_phase3(trial, best_arch, best_training):
     lr_center = best_training["lr"]
     lr         = trial.suggest_float("lr", lr_center / 5, lr_center * 5, log=True)
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
-    lf_center  = best_training["lambda_future"]
-    lambda_future = trial.suggest_float(
-        "lambda_future", max(0.05, lf_center - 0.5), lf_center + 0.5
-    )
     return dict(
         gru_hidden=gru_hidden,
         mlp_hidden=mlp_hidden,
         lr=lr,
         batch_size=batch_size,
-        lambda_future=lambda_future,
+        lambda_future=LAMBDA_FUTURE,
     )
 
 
@@ -88,7 +90,7 @@ def _neighbourhood(choices, best):
 
 # -------------------------------------------------------------- training loop
 
-def run_trial(trial, params, dataset, n_epochs):
+def run_trial(trial, params, dataset, n_epochs, input_size):
     gru_hidden    = params["gru_hidden"]
     mlp_hidden    = params["mlp_hidden"]
     lr            = params["lr"]
@@ -107,6 +109,7 @@ def run_trial(trial, params, dataset, n_epochs):
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
 
     model = FishSensorEstimator(
+        input_size=input_size,          # <-- ora 3: storia di [cmd, amp, freq]
         gru_hidden=gru_hidden,
         mlp_hidden=mlp_hidden,
         h=dataset.h,
@@ -221,6 +224,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--phase", type=int, required=True, choices=[1, 2, 3])
     parser.add_argument("--dataset_dir", default="./src/net/dataset")
+    parser.add_argument("--scaler_path",
+                        default=os.path.join(SCRIPT_DIR, "..", "..", "..",
+                                             "src", "net", "scaler", "scalers.pkl"),
+                        help="normalizzatore fisso: riusa lo stesso del training, "
+                             "cosi' i risultati del tuning sono confrontabili. "
+                             "DEVE contenere amp/freq (versione nuova del dataset).")
     parser.add_argument("--storage", default=f"sqlite:///{os.path.join(SCRIPT_DIR, 'tuning_results', 'optuna_fish.db')}")
     parser.add_argument("--n_trials", type=int, default=None,
                         help="Trial eseguiti DA QUESTO worker (dividi il totale "
@@ -244,6 +253,7 @@ if __name__ == "__main__":
     if DEVICE.type == "cuda":
         torch.backends.cudnn.benchmark = True
     print(f"Device: {DEVICE} | threads: {args.threads}")
+    print(f"lambda_future FISSO a {LAMBDA_FUTURE} (solo testa history)")
 
     default_trials = {1: 16, 2: 30, 3: 50}
     n_trials = args.n_trials if args.n_trials is not None else default_trials[args.phase]
@@ -255,7 +265,10 @@ if __name__ == "__main__":
     print(f"=== FASE {args.phase} | {n_trials} trial (questo worker) | {n_epochs} epoche ===\n")
 
     print("Caricamento dataset...")
-    dataset = FishDataset(args.dataset_dir).to(DEVICE)   
+    # passo scaler_path: stessa normalizzazione del training (con amp/freq)
+    dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
+    input_size = dataset.sequences.shape[-1]
+    print(f"Feature in input per timestep: {input_size}")
 
     study_name = f"fish_forward_phase{args.phase}"
 
@@ -279,7 +292,7 @@ if __name__ == "__main__":
 
         def objective_p1(trial):
             params = suggest_phase1(trial)
-            return run_trial(trial, params, dataset, n_epochs)
+            return run_trial(trial, params, dataset, n_epochs, input_size)
 
         study.optimize(objective_p1, n_trials=n_trials, n_jobs=4)
 
@@ -304,7 +317,7 @@ if __name__ == "__main__":
             def make_objective(arch):
                 def objective(trial):
                     params = suggest_phase2(trial, arch)
-                    return run_trial(trial, params, dataset, n_epochs)
+                    return run_trial(trial, params, dataset, n_epochs, input_size)
                 return objective
 
             study.optimize(make_objective(best_arch), n_trials=n_trials)
@@ -315,8 +328,7 @@ if __name__ == "__main__":
         print(f"Best arch (fase 1/2):   gru_hidden={best_arch['gru_hidden']}, "
               f"mlp_hidden={best_arch['mlp_hidden']}")
         print(f"Best training (fase 2): lr={best_training['lr']:.2e}, "
-              f"batch_size={best_training['batch_size']}, "
-              f"lambda_future={best_training['lambda_future']:.3f} "
+              f"batch_size={best_training['batch_size']} "
               f"(val {p2_val:.4f})\n")
 
         study = optuna.create_study(
@@ -330,7 +342,7 @@ if __name__ == "__main__":
 
         def objective_p3(trial):
             params = suggest_phase3(trial, best_arch, best_training)
-            return run_trial(trial, params, dataset, n_epochs)
+            return run_trial(trial, params, dataset, n_epochs, input_size)
 
         study.optimize(objective_p3, n_trials=n_trials)
 
@@ -342,9 +354,10 @@ if __name__ == "__main__":
 
     results_path = os.path.join(SCRIPT_DIR, "tuning_results", f"best_params_phase{args.phase}.txt")
     with open(results_path, "w") as f:
+        f.write(f"(lambda_future FISSO a {LAMBDA_FUTURE} - solo testa history)\n")
         p1_study = optuna.load_study(study_name="fish_forward_phase1", storage=storage)
         f.write("=== Fase 1 - architettura (top 2) ===\n")
-        f.write("  (lr: 1e-3, batch_size: 64, lambda_future: 1.0 - fissi)\n")
+        f.write("  (lr: 1e-3, batch_size: 64 - fissi)\n")
         p1_top = sorted(finite_trials(p1_study), key=lambda t: t.value)[:2]
         for i, t in enumerate(p1_top):
             f.write(f"\n  #{i+1}  val_loss={t.value:.4f}\n")
