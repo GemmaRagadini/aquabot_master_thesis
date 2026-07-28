@@ -356,3 +356,8 @@ Best training (fase 2): lr=2.50e-03, batch_size=32 (val 0.1823)
   Trial 47 | Epoch 22 | val 0.1898
   Trial 47 | Epoch 23 | val 0.1866
   Trial 47 | Epoch 24 | val 0.1872
+  Trial 47 | Epoch 25 | val 0.1846
+  Trial 47 | Epoch 26 | val 0.1850
+  Trial 47 | Epoch 27 | val 0.1849
+  Trial 47 | Epoch 28 | val 0.1856
+  Trial 47 | Epoch 29 | val 0.1884

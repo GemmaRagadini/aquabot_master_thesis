@@ -368,3 +368,19 @@ Best training (fase 2): lr=2.50e-03, batch_size=32 (val 0.1823)
   Trial 51 | Epoch  0 | val 0.2264
   Trial 51 | Epoch  1 | val 0.2130
   Trial 51 | Epoch  2 | val 0.2092
+  Trial 51 | Epoch  3 | val 0.2051
+  Trial 51 | Epoch  4 | val 0.2074
+  Trial 51 | Epoch  5 | val 0.2040
+  Trial 51 | Epoch  6 | val 0.2018
+  Trial 51 | Epoch  7 | val 0.2014
+  Trial 51 | Epoch  8 | val 0.2014
+[I 2026-07-28 11:39:14,141] Trial 51 pruned. 
+
+=== Migliori iperparametri - Fase 3 ===
+  gru_hidden: 512
+  mlp_hidden: 64
+  lr: 0.0025015178399816706
+  batch_size: 32
+  best val loss: 0.1709
+
+Risultati salvati in /home/gemma/tesi/aquabot/src/net/SensorEstimator/tuning_results/best_params_phase3.txt
