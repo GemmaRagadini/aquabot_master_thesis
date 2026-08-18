@@ -7,7 +7,7 @@ import numpy as np
 import optuna
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
 from net.SensorEstimator.model import FishSensorEstimator
 from net.SensorEstimator.dataset import FishDataset
@@ -21,10 +21,11 @@ EPOCHS_PER_PHASE = {1: 30, 2: 30, 3: 50}
 # device globale (impostato nel main)
 DEVICE = torch.device("cpu")
 
-# lambda_future FISSO a 0: in questa fase alleniamo solo la testa 'history'.
-# Quando riattiverai la testa future, rimetti questo a >0 (o rendilo di nuovo
-# un parametro di ricerca nelle fasi 2/3).
-LAMBDA_FUTURE = 0.0
+# In fase 1 si cerca solo l'architettura: lambda_future e' tenuto fisso a un
+# valore ragionevole per non confondere il confronto tra architetture.
+# Nelle fasi 2 e 3 lambda_future torna a essere un parametro di ricerca
+# (range log 1e-3 -> 1.0), cosi' il tuning decide quanto pesa la testa future.
+LAMBDA_FUTURE_PHASE1 = 0.5
 
 
 # ---------------------------------------------------------------- search space
@@ -38,27 +39,27 @@ def suggest_phase1(trial):
         mlp_hidden=mlp_hidden,
         lr=1e-3,
         batch_size=64,
-        lambda_future=LAMBDA_FUTURE,
+        lambda_future=LAMBDA_FUTURE_PHASE1,
     )
 
 
 def suggest_phase2(trial, best_arch):
-    """Fase 2 - lr, batch_size con TPE, architettura fissa.
-    lambda_future non e' piu' cercato: e' fisso a 0."""
+    """Fase 2 - lr, batch_size e lambda_future con TPE, architettura fissa."""
     lr            = trial.suggest_float("lr", 1e-4, 5e-3, log=True)
     batch_size    = trial.suggest_categorical("batch_size", [32, 64, 128])
+    lambda_future = trial.suggest_float("lambda_future", 1e-3, 1.0, log=True)
     return dict(
         gru_hidden=best_arch["gru_hidden"],
         mlp_hidden=best_arch["mlp_hidden"],
         lr=lr,
         batch_size=batch_size,
-        lambda_future=LAMBDA_FUTURE,
+        lambda_future=lambda_future,
     )
 
 
 def suggest_phase3(trial, best_arch, best_training):
     """Fase 3 - tuning finale attorno ai best delle fasi precedenti.
-    lambda_future resta fisso a 0."""
+    lambda_future viene raffinato attorno al best di fase 2."""
     arch_choices_gru = _neighbourhood([64, 128, 256, 512], best_arch["gru_hidden"])
     arch_choices_mlp = _neighbourhood([32, 64, 128, 256],  best_arch["mlp_hidden"])
     gru_hidden = trial.suggest_categorical("gru_hidden", arch_choices_gru)
@@ -67,12 +68,21 @@ def suggest_phase3(trial, best_arch, best_training):
     lr_center = best_training["lr"]
     lr         = trial.suggest_float("lr", lr_center / 5, lr_center * 5, log=True)
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
+
+    # lambda raffinato attorno al best di fase 2, con clamp entro [1e-3, 1.0]
+    lf_center = best_training.get("lambda_future", LAMBDA_FUTURE_PHASE1)
+    lf_lo = max(1e-3, lf_center / 5)
+    lf_hi = min(1.0,  lf_center * 5)
+    if lf_lo >= lf_hi:            # centro agli estremi del range: evita lo/hi invertiti
+        lf_lo, lf_hi = 1e-3, 1.0
+    lambda_future = trial.suggest_float("lambda_future", lf_lo, lf_hi, log=True)
+
     return dict(
         gru_hidden=gru_hidden,
         mlp_hidden=mlp_hidden,
         lr=lr,
         batch_size=batch_size,
-        lambda_future=LAMBDA_FUTURE,
+        lambda_future=lambda_future,
     )
 
 
@@ -97,13 +107,10 @@ def run_trial(trial, params, dataset, n_epochs, input_size):
     batch_size    = params["batch_size"]
     lambda_future = params["lambda_future"]
 
-    # split train/val (stesso seed -> stesso split per tutti i trial)
-    n_val   = int(0.2 * len(dataset))
-    n_train = len(dataset) - n_val
-    train_ds, val_ds = random_split(
-        dataset, [n_train, n_val],
-        generator=torch.Generator().manual_seed(42),
-    )
+    # split a livello di trial (stesso seed -> stesso split per tutti i trial
+    # Optuna, cosi' i val_loss sono confrontabili). Niente leak da finestre
+    # sovrapposte come con random_split.
+    train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     # dataset già in VRAM -> num_workers=0, nessun pin_memory
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
@@ -253,7 +260,8 @@ if __name__ == "__main__":
     if DEVICE.type == "cuda":
         torch.backends.cudnn.benchmark = True
     print(f"Device: {DEVICE} | threads: {args.threads}")
-    print(f"lambda_future FISSO a {LAMBDA_FUTURE} (solo testa history)")
+    print(f"lambda_future: fisso a {LAMBDA_FUTURE_PHASE1} in fase 1, "
+          f"cercato in [1e-3, 1.0] (log) nelle fasi 2/3")
 
     default_trials = {1: 16, 2: 30, 3: 50}
     n_trials = args.n_trials if args.n_trials is not None else default_trials[args.phase]
@@ -354,7 +362,8 @@ if __name__ == "__main__":
 
     results_path = os.path.join(SCRIPT_DIR, "tuning_results", f"best_params_phase{args.phase}.txt")
     with open(results_path, "w") as f:
-        f.write(f"(lambda_future FISSO a {LAMBDA_FUTURE} - solo testa history)\n")
+        f.write(f"(lambda_future: fisso a {LAMBDA_FUTURE_PHASE1} in fase 1, "
+                f"cercato in [1e-3, 1.0] log nelle fasi 2/3)\n")
         p1_study = optuna.load_study(study_name="fish_forward_phase1", storage=storage)
         f.write("=== Fase 1 - architettura (top 2) ===\n")
         f.write("  (lr: 1e-3, batch_size: 64 - fissi)\n")

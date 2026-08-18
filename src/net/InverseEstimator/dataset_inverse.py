@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
+from sklearn.preprocessing import StandardScaler
 
 # H: quanti istanti passati sono nel target storia
 # a 20Hz, 20 timestep = 1 secondo = un ciclo completo a 1 Hz
@@ -11,34 +12,89 @@ H = 20
 
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
 
+# numero di feature in input alla rete per ogni timestep della finestra.
+# INVERSE: [sensor_diff, sensor_mean, current]  (i sensori) -> 3
+# NB: a differenza della rete diretta, qui amp/freq NON entrano in input.
+N_INPUT_FEATURES = 3
+
 
 class FishInverseDataset(Dataset):
-    def __init__(self, dataset_dir: str, h: int = H):
+    def __init__(self, log_dir: str, h: int = H, scaler_path: str = None):
+        """
+        Stimatore inverso: input = storia sensoriale (3 canali), output = comando (1).
+
+        scaler_path: percorso del normalizzatore (.pkl).
+          - se il file esiste       -> lo carica e lo riusa (nessun refit);
+          - se non esiste           -> fitta gli scaler sui CSV e li salva li';
+          - se None                 -> fitta e non salva (comportamento volatile).
+
+        NB: questo scaler e' DISTINTO da quello della rete diretta (schema identico,
+        file separato). Coerenza garantita dallo stesso metodo di fit globale, senza
+        accoppiare i due training su un unico file .pkl.
+        """
         self.sequences       = []   # (h, 3)  storia sensoriale in ingresso
         self.targets_history = []   # (h, 1)  comandi passati
-        self.targets_future  = []   # (1,)    comando al t+1
+        self.targets_future  = []   # (1,)        comando al t+1
         self.labels          = []
 
+        # --- provenienza: da quale trial viene ogni finestra ---
+        self.window_trial = []
+        self.trial_names  = []
+
         self.norm_stats = {}
+        self.scalers    = {}
         self.h = h
 
-        csv_files = list(Path(dataset_dir).glob("trial_*.csv"))
+        csv_files = list(Path(log_dir).glob("trial_*.csv"))
         if not csv_files:
-            raise FileNotFoundError(f"Nessun csv in {dataset_dir}")
+            raise FileNotFoundError(f"Nessun csv in {log_dir}")
 
         print(f"Trovati {len(csv_files)} trial.")
 
+        # --- PASSATA 1: estrai i segnali grezzi (calibrati) da ogni episodio ---
+        episodes = []
         for csv_path in csv_files:
             try:
                 df = pd.read_csv(csv_path)
-                self._process_episode(df, h, csv_path.name)
+                ep = self._extract_signals(df, h, csv_path.name)
+                ep["name"] = csv_path.name
+                episodes.append(ep)
             except Exception as e:
                 print(f"  Skipped {csv_path.name}: {e}")
+
+        if not episodes:
+            raise ValueError("Nessun episodio valido dopo il parsing dei CSV.")
+
+        # --- normalizzatore: carica se esiste, altrimenti fitta (e salva) ---
+        if scaler_path is not None and Path(scaler_path).exists():
+            self.scalers = self.load_scalers(scaler_path)
+            # guardia: chiavi attese per l'inverse
+            needed = {"sd", "sm", "cmd", "vf"}
+            missing = [k for k in needed if k not in self.scalers]
+            if missing:
+                raise ValueError(
+                    f"Lo scalers.pkl in {scaler_path} non contiene {missing}: e' "
+                    f"incompatibile con questa versione dell'inverse. "
+                    f"Cancellalo o usa un nuovo --scaler_path per rifittarlo."
+                )
+            self._sync_norm_stats()
+            print(f"Normalizzatore caricato da {scaler_path} (nessun refit).")
+        else:
+            self._fit_scalers(episodes)
+            if scaler_path is not None:
+                self.save_scalers(scaler_path)
+                print(f"Normalizzatore fittato e salvato in {scaler_path}.")
+
+        # --- PASSATA 2: normalizza e costruisci le finestre ---
+        for trial_idx, ep in enumerate(episodes):
+            self.trial_names.append(ep["name"])
+            self._build_windows(ep, h, trial_idx)
 
         self.sequences       = torch.tensor(np.array(self.sequences),       dtype=torch.float32)
         self.targets_history = torch.tensor(np.array(self.targets_history), dtype=torch.float32)
         self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
         self.labels          = torch.tensor(np.array(self.labels),          dtype=torch.float32)
+        self.window_trial    = np.asarray(self.window_trial, dtype=np.int64)
 
         # --- guardia finale: nessun NaN/Inf deve arrivare al training ---
         for name, t in [("sequences", self.sequences),
@@ -47,7 +103,8 @@ class FishInverseDataset(Dataset):
             if not torch.isfinite(t).all():
                 raise ValueError(f"NaN/Inf residui in {name}: controlla i CSV con check_nan.py")
 
-        print(f"Dataset: {len(self)} campioni da {len(csv_files)} trial.")
+        print(f"Dataset: {len(self)} campioni da {len(episodes)} trial. "
+              f"seq feature/timestep = {self.sequences.shape[-1]}")
 
     def to(self, device):
         """Sposta tutti i tensori sul device (es. GPU) una volta sola."""
@@ -73,9 +130,7 @@ class FishInverseDataset(Dataset):
         parsed = series.apply(parse_one)
         return np.array(parsed.tolist(), dtype=np.float32)
 
-    def _process_episode(self, df: pd.DataFrame, h: int, fname: str = ""):
-        # nessun filtro sulla lunghezza: sotto h+2 righe non esiste però
-        # alcuna finestra costruibile, quindi si salta solo quel caso limite
+    def _extract_signals(self, df: pd.DataFrame, h: int, fname: str = ""):
         if len(df) < h + 2:
             raise ValueError(f"impossibile costruire finestre ({len(df)} righe < {h + 2})")
         if len(df) < 50:
@@ -121,30 +176,70 @@ class FishInverseDataset(Dataset):
         current   = df["present_current_ma"].values.astype(np.float32)
         cmd_servo = df["tail_target_rad"].values.astype(np.float32)
 
-        # label invariata (amp, freq desiderati)
+        # label invariata (amp, freq desiderati) - restano valori fisici
         amp_des  = df["tail_amp_rad"].values.astype(np.float32)
         freq_des = df["tail_freq_hz"].values.astype(np.float32)
 
-        # --- normalizzazione per-episodio (std con floor, non solo +eps) ---
-        def _norm(x):
-            m, s = x.mean(), max(float(x.std()), 1e-3)
-            return (x - m) / s, m, s
-
-        sd_n,  sd_mean,  sd_std  = _norm(sensor_diff_cal)
-        sm_n,  sm_mean,  sm_std  = _norm(sensor_mean_cal)
-        cmd_n, cmd_mean, cmd_std = _norm(cmd_servo)
-        vf_n,  vf_mean,  vf_std  = _norm(current)
-
-        self.norm_stats = {
-            "sd_mean":  float(sd_mean),  "sd_std":  float(sd_std),
-            "sm_mean":  float(sm_mean),  "sm_std":  float(sm_std),
-            "cmd_mean": float(cmd_mean), "cmd_std": float(cmd_std),
-            "vf_mean":  float(vf_mean),  "vf_std":  float(vf_std),
+        return {
+            "sensor_diff_cal": sensor_diff_cal.astype(np.float32),
+            "sensor_mean_cal": sensor_mean_cal.astype(np.float32),
+            "cmd_servo":       cmd_servo,
+            "current":         current,
+            "amp_des":         amp_des,
+            "freq_des":        freq_des,
+            "offset_diff":     float(offset),
+            "offset_mean":     float(offset_mean),
         }
 
+    def _fit_scalers(self, episodes):
+        """Fit di uno StandardScaler per ciascun segnale sulle statistiche globali.
+        INVERSE: solo i segnali che servono (sd, sm, vf in input; cmd in output).
+        amp/freq NON vengono normalizzati perche' restano solo come label fisiche."""
+        all_sd  = np.concatenate([e["sensor_diff_cal"] for e in episodes]).reshape(-1, 1)
+        all_sm  = np.concatenate([e["sensor_mean_cal"] for e in episodes]).reshape(-1, 1)
+        all_cmd = np.concatenate([e["cmd_servo"]       for e in episodes]).reshape(-1, 1)
+        all_vf  = np.concatenate([e["current"]         for e in episodes]).reshape(-1, 1)
+
+        self.scalers = {
+            "sd":  StandardScaler().fit(all_sd),
+            "sm":  StandardScaler().fit(all_sm),
+            "cmd": StandardScaler().fit(all_cmd),
+            "vf":  StandardScaler().fit(all_vf),
+        }
+
+        # floor sullo std: evita divisioni per std minuscoli su segnali quasi costanti
+        for sc in self.scalers.values():
+            sc.scale_ = np.maximum(sc.scale_, 1e-3)
+
+        self._sync_norm_stats()
+
+    def _sync_norm_stats(self):
+        self.norm_stats = {
+            "sd_mean":  float(self.scalers["sd"].mean_[0]),
+            "sd_std":   float(self.scalers["sd"].scale_[0]),
+            "sm_mean":  float(self.scalers["sm"].mean_[0]),
+            "sm_std":   float(self.scalers["sm"].scale_[0]),
+            "cmd_mean": float(self.scalers["cmd"].mean_[0]),
+            "cmd_std":  float(self.scalers["cmd"].scale_[0]),
+            "vf_mean":  float(self.scalers["vf"].mean_[0]),
+            "vf_std":   float(self.scalers["vf"].scale_[0]),
+        }
+
+    def _build_windows(self, ep, h, trial_idx):
+        sc = self.scalers
+        sd_n  = sc["sd"].transform(ep["sensor_diff_cal"].reshape(-1, 1)).ravel()
+        sm_n  = sc["sm"].transform(ep["sensor_mean_cal"].reshape(-1, 1)).ravel()
+        cmd_n = sc["cmd"].transform(ep["cmd_servo"].reshape(-1, 1)).ravel()
+        vf_n  = sc["vf"].transform(ep["current"].reshape(-1, 1)).ravel()
+
+        # label NON normalizzate (restano i valori fisici come prima)
+        amp_des  = ep["amp_des"]
+        freq_des = ep["freq_des"]
+        n = len(cmd_n)
+
         # --- finestre scorrevoli ---
-        # il loop finisce a len(df)-1 perché serve il campione t+1 per il target futuro
-        for i in range(h, len(df) - 1):
+        # il loop finisce a n-1 perche' serve il campione t+1 per il target futuro
+        for i in range(h, n - 1):
             # input: storia degli ultimi h valori sensoriali  ->  (h, 3)
             seq = np.stack([
                 sd_n[i - h:i],
@@ -165,6 +260,16 @@ class FishInverseDataset(Dataset):
             self.targets_history.append(target_history)
             self.targets_future.append(target_future)
             self.labels.append(label)
+            self.window_trial.append(trial_idx)
+
+    def save_scalers(self, path):
+        import joblib
+        joblib.dump(self.scalers, path)
+
+    @staticmethod
+    def load_scalers(path):
+        import joblib
+        return joblib.load(path)
 
     def __len__(self):
         return len(self.sequences)
@@ -180,11 +285,13 @@ class FishInverseDataset(Dataset):
 
 if __name__ == '__main__':
     import sys
-    dataset_dir = sys.argv[1] if len(sys.argv) > 1 else "./src/net/dataset"
-    ds = FishInverseDataset(dataset_dir)
+    log_dir     = sys.argv[1] if len(sys.argv) > 1 else "../../logs/ds"
+    scaler_path = sys.argv[2] if len(sys.argv) > 2 else str(Path(log_dir) / "scalers_inverse.pkl")
+
+    ds = FishInverseDataset(log_dir, scaler_path=scaler_path)
     seq, t_hist, t_fut, label = ds[0]
-    print(f"seq shape:            {seq.shape}")      # (20, 3)
+    print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [sd, sm, vf]")
     print(f"target_history shape: {t_hist.shape}")   # (20, 1)
     print(f"target_future shape:  {t_fut.shape}")    # (1,)
     print(f"label shape:          {label.shape}")    # (2,)
-    print(f"norm_stats:           {ds.norm_stats}")
+    print(f"norm_stats keys:      {list(ds.norm_stats.keys())}")

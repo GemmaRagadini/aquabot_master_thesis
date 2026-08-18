@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+import sys
 import random
 
 import numpy as np
@@ -8,9 +9,15 @@ import optuna
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
+from pathlib import Path
 
-from model_inverse   import FishInverseEstimator
-from dataset_inverse import FishInverseDataset
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+
+sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+
+from net.InverseEstimator.model_inverse   import FishInverseEstimator
+from net.InverseEstimator.dataset_inverse import FishInverseDataset
 
 # Epoche per fase
 EPOCHS_PER_PHASE = {1: 30, 2: 30, 3: 50}
@@ -99,11 +106,12 @@ def run_trial(trial, params, dataset, n_epochs):
         dataset, [n_train, n_val],
         generator=torch.Generator().manual_seed(42),
     )
-    # dataset già in VRAM -> num_workers=0, nessun pin_memory
+    # dataset gia' in VRAM -> num_workers=0, nessun pin_memory
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
 
     model = FishInverseEstimator(
+        input_size=dataset.sequences.shape[-1],
         gru_hidden=gru_hidden,
         mlp_hidden=mlp_hidden,
         h=dataset.h,
@@ -159,7 +167,7 @@ def run_trial(trial, params, dataset, n_epochs):
 # ------------------------------------------------------------------- utilities
 
 def make_storage(url):
-    """RDBStorage con timeout lungo: necessario con più worker su sqlite."""
+    """RDBStorage con timeout lungo: necessario con piu' worker su sqlite."""
     if url.startswith("sqlite"):
         return optuna.storages.RDBStorage(
             url=url,
@@ -216,9 +224,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Staged Optuna tuning per FishInverseEstimator"
     )
+    # Cartella base assoluta: sempre accanto a questo script, indipendentemente
+    # dalla directory da cui viene lanciato il comando.
+    script_dir  = Path(__file__).resolve().parent
+    results_dir = script_dir / "tuning_results_inverse"
+    db_path     = results_dir / "optuna_fish_inverse.db"
+
     parser.add_argument("--phase", type=int, required=True, choices=[1, 2, 3])
-    parser.add_argument("--dataset_dir", default="./src/net/dataset")
-    parser.add_argument("--storage", default="sqlite:///net/InverseEstimator/tuning_results_inverse/optuna_fish_inverse.db")
+    parser.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
+    parser.add_argument("--storage", default=f"sqlite:///{db_path}")
+    parser.add_argument("--scaler_path",
+                        default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_inverse.pkl"),
+                        help="normalizzatore dell'inverse (distinto da quello diretto)")
     parser.add_argument("--n_trials", type=int, default=None,
                         help="Trial eseguiti DA QUESTO worker (dividi il totale "
                              "per il numero di worker paralleli)")
@@ -230,7 +247,7 @@ if __name__ == "__main__":
                              "paralleli, altrimenti campionano tutti gli stessi punti!")
     args = parser.parse_args()
 
-    # seed di torch/numpy per riproducibilità dello split; il sampler TPE
+    # seed di torch/numpy per riproducibilita' dello split; il sampler TPE
     # invece usa args.seed (None di default, vedi sopra)
     random.seed(42)
     np.random.seed(42)
@@ -246,13 +263,15 @@ if __name__ == "__main__":
     n_trials = args.n_trials if args.n_trials is not None else default_trials[args.phase]
     n_epochs = EPOCHS_PER_PHASE[args.phase]
 
-    os.makedirs("tuning_results", exist_ok=True)
+    # crea la cartella base (per db e report) se non esiste
+    results_dir.mkdir(parents=True, exist_ok=True)
     storage = make_storage(args.storage)
 
     print(f"=== FASE {args.phase} | {n_trials} trial (questo worker) | {n_epochs} epoche ===\n")
 
     print("Caricamento dataset...")
-    dataset = FishInverseDataset(args.dataset_dir).to(DEVICE)
+    os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
+    dataset = FishInverseDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
 
     study_name = f"fish_inverse_phase{args.phase}"
 
@@ -278,7 +297,10 @@ if __name__ == "__main__":
             params = suggest_phase1(trial)
             return run_trial(trial, params, dataset, n_epochs)
 
-        study.optimize(objective_p1, n_trials=n_trials, n_jobs=4)
+        # NB: niente n_jobs>1 qui. Con GridSampler su storage sqlite condiviso
+        # il parallelismo a thread puo' campionare combinazioni duplicate della
+        # griglia. Il parallelismo lo fanno i worker-processo (run_tuning_inverse.sh).
+        study.optimize(objective_p1, n_trials=n_trials)
 
     # ------------------------------------- Fase 2 - TPE per le top-2 arch
     elif args.phase == 2:
@@ -337,7 +359,7 @@ if __name__ == "__main__":
         print(f"  {k}: {v}")
     print(f"  best val loss: {study.best_value:.4f}")
 
-    results_path = f"tuning_results/best_params_inverse_phase{args.phase}.txt"
+    results_path = results_dir / f"best_params_inverse_phase{args.phase}.txt"
     with open(results_path, "w") as f:
         p1_study = optuna.load_study(study_name="fish_inverse_phase1", storage=storage)
         f.write("=== Fase 1 - architettura (top 2) ===\n")

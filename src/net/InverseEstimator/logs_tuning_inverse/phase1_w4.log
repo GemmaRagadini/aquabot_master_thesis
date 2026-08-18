@@ -1,0 +1,140 @@
+Device: cuda | threads: 4
+=== FASE 1 | 4 trial (questo worker) | 30 epoche ===
+
+Caricamento dataset...
+Trovati 34 trial.
+  [trial_20260519_151133.csv] attenzione: calibrazione a riposo su 37 campioni (< 50)
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_inverse.pkl (nessun refit).
+Dataset: 27290 campioni da 34 trial. seq feature/timestep = 3
+[I 2026-08-13 11:19:40,078] Using an existing study with name 'fish_inverse_phase1' instead of creating a new one.
+  Trial 3 | Epoch  0 | val 0.2423
+  Trial 3 | Epoch  1 | val 0.1812
+  Trial 3 | Epoch  2 | val 0.1378
+  Trial 3 | Epoch  3 | val 0.1199
+  Trial 3 | Epoch  4 | val 0.1175
+  Trial 3 | Epoch  5 | val 0.1122
+  Trial 3 | Epoch  6 | val 0.1057
+  Trial 3 | Epoch  7 | val 0.0960
+  Trial 3 | Epoch  8 | val 0.0954
+  Trial 3 | Epoch  9 | val 0.0891
+  Trial 3 | Epoch 10 | val 0.0843
+  Trial 3 | Epoch 11 | val 0.0828
+  Trial 3 | Epoch 12 | val 0.0816
+  Trial 3 | Epoch 13 | val 0.0794
+  Trial 3 | Epoch 14 | val 0.0724
+  Trial 3 | Epoch 15 | val 0.0708
+  Trial 3 | Epoch 16 | val 0.0691
+  Trial 3 | Epoch 17 | val 0.0663
+  Trial 3 | Epoch 18 | val 0.0670
+  Trial 3 | Epoch 19 | val 0.0708
+  Trial 3 | Epoch 20 | val 0.0620
+  Trial 3 | Epoch 21 | val 0.0649
+  Trial 3 | Epoch 22 | val 0.0628
+  Trial 3 | Epoch 23 | val 0.0589
+  Trial 3 | Epoch 24 | val 0.0573
+  Trial 3 | Epoch 25 | val 0.0569
+  Trial 3 | Epoch 26 | val 0.0535
+  Trial 3 | Epoch 27 | val 0.0546
+  Trial 3 | Epoch 28 | val 0.0541
+  Trial 3 | Epoch 29 | val 0.0526
+[I 2026-08-13 11:21:14,525] Trial 3 finished with value: 0.052621889816120614 and parameters: {'gru_hidden': 256, 'mlp_hidden': 64}. Best is trial 3 with value: 0.052621889816120614.
+  Trial 7 | Epoch  0 | val 0.1952
+  Trial 7 | Epoch  1 | val 0.1548
+  Trial 7 | Epoch  2 | val 0.1251
+  Trial 7 | Epoch  3 | val 0.1090
+  Trial 7 | Epoch  4 | val 0.1015
+  Trial 7 | Epoch  5 | val 0.0994
+  Trial 7 | Epoch  6 | val 0.0914
+  Trial 7 | Epoch  7 | val 0.0824
+  Trial 7 | Epoch  8 | val 0.0813
+  Trial 7 | Epoch  9 | val 0.0785
+  Trial 7 | Epoch 10 | val 0.0738
+  Trial 7 | Epoch 11 | val 0.0728
+  Trial 7 | Epoch 12 | val 0.0670
+  Trial 7 | Epoch 13 | val 0.0669
+  Trial 7 | Epoch 14 | val 0.0681
+  Trial 7 | Epoch 15 | val 0.0626
+  Trial 7 | Epoch 16 | val 0.0631
+  Trial 7 | Epoch 17 | val 0.0574
+  Trial 7 | Epoch 18 | val 0.0599
+  Trial 7 | Epoch 19 | val 0.0573
+  Trial 7 | Epoch 20 | val 0.0538
+  Trial 7 | Epoch 21 | val 0.0511
+  Trial 7 | Epoch 22 | val 0.0506
+  Trial 7 | Epoch 23 | val 0.0503
+  Trial 7 | Epoch 24 | val 0.0483
+  Trial 7 | Epoch 25 | val 0.0492
+  Trial 7 | Epoch 26 | val 0.0466
+  Trial 7 | Epoch 27 | val 0.0464
+  Trial 7 | Epoch 28 | val 0.0462
+  Trial 7 | Epoch 29 | val 0.0464
+[I 2026-08-13 11:23:29,601] Trial 7 finished with value: 0.04623889979408231 and parameters: {'gru_hidden': 512, 'mlp_hidden': 128}. Best is trial 4 with value: 0.04616763291144094.
+  Trial 11 | Epoch  0 | val 0.2118
+  Trial 11 | Epoch  1 | val 0.1867
+  Trial 11 | Epoch  2 | val 0.1603
+  Trial 11 | Epoch  3 | val 0.1248
+  Trial 11 | Epoch  4 | val 0.1178
+  Trial 11 | Epoch  5 | val 0.1011
+  Trial 11 | Epoch  6 | val 0.1059
+  Trial 11 | Epoch  7 | val 0.0962
+  Trial 11 | Epoch  8 | val 0.0924
+  Trial 11 | Epoch  9 | val 0.0860
+  Trial 11 | Epoch 10 | val 0.0811
+  Trial 11 | Epoch 11 | val 0.0851
+  Trial 11 | Epoch 12 | val 0.0887
+  Trial 11 | Epoch 13 | val 0.0730
+  Trial 11 | Epoch 14 | val 0.0703
+  Trial 11 | Epoch 15 | val 0.0754
+  Trial 11 | Epoch 16 | val 0.0669
+  Trial 11 | Epoch 17 | val 0.0665
+  Trial 11 | Epoch 18 | val 0.0640
+  Trial 11 | Epoch 19 | val 0.0643
+  Trial 11 | Epoch 20 | val 0.0678
+  Trial 11 | Epoch 21 | val 0.0694
+  Trial 11 | Epoch 22 | val 0.0582
+  Trial 11 | Epoch 23 | val 0.0564
+  Trial 11 | Epoch 24 | val 0.0577
+  Trial 11 | Epoch 25 | val 0.0554
+  Trial 11 | Epoch 26 | val 0.0547
+  Trial 11 | Epoch 27 | val 0.0546
+  Trial 11 | Epoch 28 | val 0.0582
+  Trial 11 | Epoch 29 | val 0.0620
+[I 2026-08-13 11:26:15,531] Trial 11 finished with value: 0.054617264286376706 and parameters: {'gru_hidden': 256, 'mlp_hidden': 256}. Best is trial 10 with value: 0.0444185147711704.
+  Trial 15 | Epoch  0 | val 0.2273
+  Trial 15 | Epoch  1 | val 0.1667
+  Trial 15 | Epoch  2 | val 0.1266
+  Trial 15 | Epoch  3 | val 0.1138
+  Trial 15 | Epoch  4 | val 0.1075
+  Trial 15 | Epoch  5 | val 0.1060
+  Trial 15 | Epoch  6 | val 0.0902
+  Trial 15 | Epoch  7 | val 0.0866
+  Trial 15 | Epoch  8 | val 0.0792
+  Trial 15 | Epoch  9 | val 0.0861
+  Trial 15 | Epoch 10 | val 0.0703
+  Trial 15 | Epoch 11 | val 0.0704
+  Trial 15 | Epoch 12 | val 0.0672
+  Trial 15 | Epoch 13 | val 0.0652
+  Trial 15 | Epoch 14 | val 0.0663
+  Trial 15 | Epoch 15 | val 0.0609
+  Trial 15 | Epoch 16 | val 0.0579
+  Trial 15 | Epoch 17 | val 0.0607
+  Trial 15 | Epoch 18 | val 0.0555
+  Trial 15 | Epoch 19 | val 0.0536
+  Trial 15 | Epoch 20 | val 0.0526
+  Trial 15 | Epoch 21 | val 0.0543
+  Trial 15 | Epoch 22 | val 0.0500
+  Trial 15 | Epoch 23 | val 0.0522
+  Trial 15 | Epoch 24 | val 0.0504
+  Trial 15 | Epoch 25 | val 0.0500
+  Trial 15 | Epoch 26 | val 0.0475
+  Trial 15 | Epoch 27 | val 0.0485
+  Trial 15 | Epoch 28 | val 0.0449
+  Trial 15 | Epoch 29 | val 0.0453
+[I 2026-08-13 11:28:42,018] Trial 15 finished with value: 0.04491842598762623 and parameters: {'gru_hidden': 512, 'mlp_hidden': 32}. Best is trial 10 with value: 0.0444185147711704.
+
+=== Migliori iperparametri - Fase 1 ===
+  gru_hidden: 512
+  mlp_hidden: 256
+  best val loss: 0.0444
+
+Risultati salvati in /home/gemma/tesi/aquabot/src/net/InverseEstimator/tuning_results_inverse/best_params_inverse_phase1.txt

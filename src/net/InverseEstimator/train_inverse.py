@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import random
 import matplotlib
 matplotlib.use("Agg")
@@ -7,10 +8,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
-from model_inverse   import FishInverseEstimator
-from dataset_inverse import FishInverseDataset
+# !! LAMBDA FUTURE TEMPORANEAMENTE A 0 (coerente con la rete diretta)
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+
+sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+
+from net.InverseEstimator.model_inverse   import FishInverseEstimator
+from net.InverseEstimator.dataset_inverse import FishInverseDataset
+import net.utils
 
 random.seed(42)
 np.random.seed(42)
@@ -20,12 +29,7 @@ DEVICE = torch.device("cpu")
 
 
 def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future):
-    n_val   = int(0.2 * len(dataset))
-    n_train = len(dataset) - n_val
-    train_ds, val_ds = random_split(
-        dataset, [n_train, n_val],
-        generator=torch.Generator().manual_seed(42)
-    )
+    train_ds, val_ds = net.utils.split_by_trial(dataset, val_frac=0.2, seed=42)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
@@ -44,7 +48,9 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future)
         for seq, t_hist, t_fut, _ in train_loader:
             pred_history, pred_future, _ = model(seq)
 
+            # loss storia:  (batch, h, 1) vs (batch, h, 1)
             loss_history = mse(pred_history, t_hist)
+            # loss futuro:  (batch, 1)        vs (batch, 1)
             loss_future  = mse(pred_future,  t_fut)
             loss = loss_history + lambda_future * loss_future
 
@@ -94,22 +100,31 @@ def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
     # state_dict portato su CPU: il checkpoint si ricarica ovunque
     # (anche sul robot, senza GPU)
     state_cpu = {k: v.cpu() for k, v in model.state_dict().items()}
-    torch.save({"model_state": state_cpu, "norm_stats": norm_stats}, path)
+    # salvo anche input_size: serve a ricostruire il modello in inference/overlay
+    torch.save({
+        "model_state": state_cpu,
+        "norm_stats":  norm_stats,
+        "input_size":  model.gru.input_size,
+    }, path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_dir',        default='./src/net/dataset')
-    parser.add_argument('--checkpoint_dir', default='checkpoints_inverse/')
+    parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
+    parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_inverse'))
     parser.add_argument('--epochs',         type=int,   default=150)
-    parser.add_argument('--lr',             type=float, default=1e-3)
-    parser.add_argument('--batch_size',     type=int,   default=64)
-    parser.add_argument('--gru_hidden',     type=int,   default=64)
-    parser.add_argument('--mlp_hidden',     type=int,   default=128)
-    parser.add_argument('--lambda_future',  type=float, default=1.0,
-                        help='peso della loss sulla testa "future" nella loss combinata')
+    parser.add_argument('--lr',             type=float, default=0.002850448958297498)
+    parser.add_argument('--batch_size',     type=int,   default=32)
+    parser.add_argument('--gru_hidden',     type=int,   default=512)
+    parser.add_argument('--mlp_hidden',     type=int,   default=32)
+    parser.add_argument('--lambda_future', type=float, default=0.1780455782986389,
+                        help='peso della loss sulla testa "future" nella loss combinata') # poi rimetti quella del tuning
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
+    parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers_inverse.pkl'),
+                        help='normalizzatore fisso dell\'inverse (DISTINTO da quello della '
+                             'rete diretta): se esiste lo carica e lo riusa, altrimenti lo '
+                             'fitta sui CSV e lo salva qui.')
     args = parser.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -119,9 +134,15 @@ if __name__ == '__main__':
     print(f"Device: {DEVICE} | threads: {args.threads}")
 
     print("Caricamento dataset...")
-    dataset = FishInverseDataset(args.dataset_dir).to(DEVICE)   # tutto in VRAM una volta sola
+    os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
+    dataset = FishInverseDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
+
+    # numero di feature in input letto DIRETTAMENTE dal dataset
+    input_size = dataset.sequences.shape[-1]
+    print(f"Feature in input per timestep: {input_size}  (storia di [sd, sm, vf])")
 
     model = FishInverseEstimator(
+        input_size=input_size,
         gru_hidden=args.gru_hidden,
         mlp_hidden=args.mlp_hidden,
     ).to(DEVICE)
@@ -138,12 +159,13 @@ if __name__ == '__main__':
         lambda_future=args.lambda_future,
     )
 
-    # salvataggio finale (su CPU, ricaricabile ovunque)
+    # salvataggio finale
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     final_path = os.path.join(args.checkpoint_dir, "fish_inverse_estimator.pt")
     torch.save({
         "model_state": {k: v.cpu() for k, v in model.state_dict().items()},
         "norm_stats":  dataset.norm_stats,
+        "input_size":  model.gru.input_size,
         "theta_star":  {n: p.detach().cpu().clone() for n, p in model.named_parameters()},
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path}")

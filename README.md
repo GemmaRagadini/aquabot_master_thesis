@@ -46,43 +46,56 @@ python src/net/SensorEstimator/channel_loss.py
  
  
 ## Tuning dei parametri 
-./src/net/SensorEstimator/run_tuning.sh <fase> [n_worker]
-
+./src/net/SensorEstimator/run_tuning.sh <fase 1 - 2 - 3> [n_worker]
 python3 src/net/SensorEstimator/tuning_status.py --watch
 
-<!-- ### Fase 1 – griglia architetture 
-python3 src/net/tune.py --phase 1 --storage sqlite:///tuning_results/optuna_fish.db
-
-### Fase 2 – esplorazione sparsa parametri training 
-python3 src/net/tune.py --phase 2 --storage sqlite:///tuning_results/optuna_fish.db
-
-### Fase 3 – tuning finale di tutto 
-python3 src/net/tune.py --phase 3 --storage sqlite:///tuning_results/optuna_fish.db -->
 
 ## Inversa 
-python3 -m net.InverseEstimator.dataset_inverse ./src/net/dataset --checkpoint_dir checkpoints/
+python3 src/net/InverseEstimator/dataset_inverse.py ./src/net/dataset ./src/net/scaler/scalers_inverse.pkl
 python3 src/net/train_inverse.py --dataset_dir ./src/net/dataset --checkpoint_dir ./checkpoints
 
 ## Tuning parametri  
-# Fase i 
-./run_tuning_inverse.sh i
+./src/net/InverseEstimator/run_tuning_inverse.sh <fase 1 - 2 - 3> [n_worker]
+python3 src/net/InverseEstimator/tuning_status_inverse.py --watch
 
+# Check loss 
+python3 src/net/SensorEstimator/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimator/checkpoints/channel_loss.json
 
+# Real values 
+python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimatos/checkpoints/channel_loss.json
 
 # Cosa fare ora
+- RIPARTIRE DA : 
+-*tuning fase 2*
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- la normalizzazione al momento è fatta per ogni csv, è meglio fare un dataset unico e normalizzarlo insieme?
-- sistemare le slide 
-- non sto usando amp  e freq nella rete . ok?
-- una volta che il modello allenato in fase di test fare un check per vedere se il valore nel futuro coincide con quello che effettivamente arriverà a t+1
+- sistemare le slide (adesso amp e freq sono parte dell'input)
 
 # Requirements 
 uv pip install -r requirements.txt
 
 # Iperparametri tuning finale 
-  #1  val_loss=0.1892
-    gru_hidden: 512
-    mlp_hidden: 128
-    lr: 0.0038139114562008637
-    batch_size: 32
-    lambda_future: 0.053076977868201876
+
+# Per tornare a 3 canali output (con anche sensor_mean)
+1. In model.py: cambia la costante in cima da N_OUTPUTS = 2 a N_OUTPUTS = 3. Basta quella riga, le due teste si adeguano da sole.
+
+2. In dataset.py, dentro _build_windows: togli il commento dalle due righe sm_n. Cioè da così:
+
+python
+target_history = np.stack([
+    sd_n[i - h:i],
+    # sm_n[i - h:i],
+    vf_n[i - h:i],
+], axis=1)
+
+target_future = np.array([sd_n[i + 1], vf_n[i + 1]], dtype=np.float32)
+
+torni a così:
+
+python
+target_history = np.stack([
+    sd_n[i - h:i],
+    sm_n[i - h:i],
+    vf_n[i - h:i],
+], axis=1)
+
+target_future = np.array([sd_n[i + 1], sm_n[i + 1], vf_n[i + 1]], dtype=np.float32)

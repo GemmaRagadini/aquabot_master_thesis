@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
-
-# !! LAMBDA FUTURE TEMPORANEAMENTE A 0
+from torch.utils.data import DataLoader
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
@@ -28,12 +26,9 @@ DEVICE = torch.device("cpu")
 
 
 def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future):
-    n_val   = int(0.2 * len(dataset))
-    n_train = len(dataset) - n_val
-    train_ds, val_ds = random_split(
-        dataset, [n_train, n_val],
-        generator=torch.Generator().manual_seed(42)
-    )
+    # split a livello di trial (niente leak da finestre sovrapposte)
+    train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
+    print(f"Split per-trial: {len(train_ds)} finestre train | {len(val_ds)} finestre val")
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
@@ -112,12 +107,12 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir',        default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints'))
     parser.add_argument('--epochs',         type=int,   default=100)
-    parser.add_argument('--lr',             type=float, default=0.0035657123233896765)
-    parser.add_argument('--batch_size',     type=int,   default=64)
-    parser.add_argument('--gru_hidden',     type=int,   default=512)
+    parser.add_argument('--lr',             type=float, default=0.0017056448762352463)
+    parser.add_argument('--batch_size',     type=int,   default=32)
+    parser.add_argument('--gru_hidden',     type=int,   default=256)
     parser.add_argument('--mlp_hidden',     type=int,   default=32)
-    parser.add_argument('--lambda_future', type=float, default=0, 
-                        help='peso della loss sulla testa "future" nella loss combinata') # poi rimetti quella del tuning
+    parser.add_argument('--lambda_future', type=float, default=0.0010095021820975363,
+                        help='peso della loss sulla testa "future" nella loss combinata.')
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
     parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers.pkl'),

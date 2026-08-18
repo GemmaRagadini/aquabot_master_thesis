@@ -244,13 +244,17 @@ class FishDataset(Dataset):
                 freq_n[i - h:i],
             ], axis=1)
 
+            # PROVA: sensor_mean (sm_n) escluso dai target — faceva peggio della
+            # persistenza, era per lo piu' rumore. Per rimetterlo: riattiva le due
+            # righe 'sm_n' qui sotto e riporta N_OUTPUTS=3 in model.py.
             target_history = np.stack([
                 sd_n[i - h:i],
-                sm_n[i - h:i],
+                # sm_n[i - h:i],
                 vf_n[i - h:i],
             ], axis=1)
 
-            target_future = np.array([sd_n[i + 1], sm_n[i + 1], vf_n[i + 1]], dtype=np.float32)
+            target_future = np.array([sd_n[i + 1], vf_n[i + 1]], dtype=np.float32)
+            # con sensor_mean: np.array([sd_n[i+1], sm_n[i+1], vf_n[i+1]], ...)
             label = np.array([amp_des[i], freq_des[i]], dtype=np.float32)
 
             self.sequences.append(seq)
@@ -258,6 +262,40 @@ class FishDataset(Dataset):
             self.targets_future.append(target_future)
             self.labels.append(label)
             self.window_trial.append(trial_idx)
+
+    def split_by_trial(self, val_frac=0.2, seed=42):
+        """Split train/val a livello di TRIAL, non di finestra.
+
+        Le finestre consecutive si sovrappongono di h-1 timestep: splittare a
+        caso sulle finestre (random_split) mette finestre quasi identiche sia
+        in train che in val -> data leak, val loss ottimistica e inutile.
+        Qui invece si tengono interi trial da un lato o dall'altro, cosi' la
+        val misura davvero la generalizzazione a episodi mai visti.
+
+        Ritorna (train_idx, val_idx): due array di indici di finestra da usare
+        con torch.utils.data.Subset.
+        """
+        from torch.utils.data import Subset
+
+        trial_ids = np.unique(self.window_trial)
+        rng = np.random.default_rng(seed)
+        rng.shuffle(trial_ids)
+
+        n_val_trials = max(1, int(round(val_frac * len(trial_ids))))
+        val_trials   = set(trial_ids[:n_val_trials].tolist())
+
+        val_mask   = np.isin(self.window_trial, list(val_trials))
+        val_idx    = np.flatnonzero(val_mask)
+        train_idx  = np.flatnonzero(~val_mask)
+
+        if len(train_idx) == 0 or len(val_idx) == 0:
+            raise ValueError(
+                f"Split per-trial degenere: train={len(train_idx)}, "
+                f"val={len(val_idx)}. Servono piu' trial (ne hai "
+                f"{len(trial_ids)})."
+            )
+
+        return Subset(self, train_idx), Subset(self, val_idx)
 
     def save_scalers(self, path):
         import joblib

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Lancia N worker paralleli sulla stessa fase, storage sqlite condiviso.
+# Rete INVERSA (FishInverseEstimator).
 # Uso:  ./run_tuning_inverse.sh <fase> [n_worker] [trial_totali]
 set -euo pipefail
 
@@ -14,22 +15,25 @@ PER_WORKER=$(( (TOTAL + WORKERS - 1) / WORKERS ))
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
 
-mkdir -p tuning_results logs_tuning
+# rende importabile il package 'net' (che vive dentro src/)
+export PYTHONPATH="$(pwd)/src:${PYTHONPATH:-}"
+
+mkdir -p ./src/net/InverseEstimator/tuning_results ./src/net/InverseEstimator/logs_tuning_inverse
 
 echo "Fase $PHASE | $WORKERS worker x $PER_WORKER trial = ~$TOTAL trial totali"
 
 for i in $(seq 1 "$WORKERS"); do
-  nohup python -u src/net/tune_inverse.py \
-      --phase   "$PHASE" \
-      --n_trials "$PER_WORKER" \
-      --threads 4 \
-      --device  cuda \
-      > "logs_tuning/inverse_phase${PHASE}_w${i}.log" 2>&1 &
-  echo "  worker $i -> PID $!  (log: logs_tuning/inverse_phase${PHASE}_w${i}.log)"
+  nohup python -u src/net/InverseEstimator/tune_inverse.py \
+--phase   "$PHASE" \
+--n_trials "$PER_WORKER" \
+--threads 4 \
+--device  cuda \
+      > "./src/net/InverseEstimator/logs_tuning_inverse/phase${PHASE}_w${i}.log" 2>&1 &
+  echo "  worker $i -> PID $!  (log: ./src/net/InverseEstimator/logs_tuning_inverse/phase${PHASE}_w${i}.log)"
   sleep 2   # sfasa la creazione degli studi su sqlite
 done
 
 echo
-echo "Monitoraggio:  tail -f logs_tuning/inverse_phase${PHASE}_w1.log"
+echo "Monitoraggio:  tail -f ./src/net/InverseEstimator/logs_tuning_inverse/phase${PHASE}_w1.log"
 echo "GPU:           nvtop"
 echo "Attendi fine:  wait"

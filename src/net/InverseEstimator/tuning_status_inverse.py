@@ -1,10 +1,13 @@
 """Stato del tuning inverso: trial completati/in corso per ogni studio + best attuale.
-Uso:  python tuning_status_inverse.py [--storage sqlite:///tuning_results/optuna_fish_inverse.db] [--watch]
+
+Uso:  python tuning_status_inverse.py [--storage sqlite:///.../optuna_fish_inverse.db] [--watch]
 """
 import argparse
 import math
 import subprocess
 import time
+from pathlib import Path
+
 import optuna
 from optuna.trial import TrialState
 
@@ -52,7 +55,7 @@ def show(storage_url):
 
     # worker attivi
     try:
-        out = subprocess.run(["pgrep", "-af", "tune_inverse.py --phase"],
+        out = subprocess.run(["pgrep", "-af", "tuning_inverse.py --phase"],
                              capture_output=True, text=True).stdout.strip()
         n = len(out.splitlines()) if out else 0
         print(f"\nWorker attivi: {n}")
@@ -62,7 +65,12 @@ def show(storage_url):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--storage", default="sqlite:///tuning_results/optuna_fish_inverse.db")
+    # Default assoluto: stessa cartella dei risultati usata dal tuning,
+    # indipendentemente dalla directory da cui si lancia il comando.
+    script_dir  = Path(__file__).resolve().parent
+    db_path     = script_dir / "tuning_results_inverse" / "optuna_fish_inverse.db"
+
+    parser.add_argument("--storage", default=f"sqlite:///{db_path}")
     parser.add_argument("--watch", action="store_true",
                         help="aggiorna ogni 30 secondi (Ctrl-C per uscire)")
     args = parser.parse_args()
