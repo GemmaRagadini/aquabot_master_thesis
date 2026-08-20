@@ -13,15 +13,17 @@ H = 20
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
 
 # numero di feature in input alla rete per ogni timestep della finestra.
-# INVERSE: [sensor_diff, sensor_mean, current]  (i sensori) -> 3
+# INVERSE: [sensor_diff, current]  (i sensori) -> 2
+# sensor_mean escluso: speculare all'output della diretta (N_OUTPUTS=2), dove
+# sensor_mean e' stato tolto perche' per lo piu' rumore.
 # NB: a differenza della rete diretta, qui amp/freq NON entrano in input.
-N_INPUT_FEATURES = 3
+N_INPUT_FEATURES = 2
 
 
 class FishInverseDataset(Dataset):
     def __init__(self, log_dir: str, h: int = H, scaler_path: str = None):
         """
-        Stimatore inverso: input = storia sensoriale (3 canali), output = comando (1).
+        Stimatore inverso: input = storia sensoriale (2 canali), output = comando (1).
 
         scaler_path: percorso del normalizzatore (.pkl).
           - se il file esiste       -> lo carica e lo riusa (nessun refit);
@@ -31,8 +33,13 @@ class FishInverseDataset(Dataset):
         NB: questo scaler e' DISTINTO da quello della rete diretta (schema identico,
         file separato). Coerenza garantita dallo stesso metodo di fit globale, senza
         accoppiare i due training su un unico file .pkl.
+
+        NB2: da questa versione l'input e' a 2 canali (sensor_mean rimosso). Uno
+        scalers_inverse.pkl piu' vecchio (che conteneva anche 'sm') resta caricabile
+        perche' le chiavi usate ('sd','cmd','vf') ci sono comunque; per pulizia
+        conviene rigenerarlo cancellando il vecchio file.
         """
-        self.sequences       = []   # (h, 3)  storia sensoriale in ingresso
+        self.sequences       = []   # (h, 2)  storia sensoriale in ingresso
         self.targets_history = []   # (h, 1)  comandi passati
         self.targets_future  = []   # (1,)        comando al t+1
         self.labels          = []
@@ -68,8 +75,8 @@ class FishInverseDataset(Dataset):
         # --- normalizzatore: carica se esiste, altrimenti fitta (e salva) ---
         if scaler_path is not None and Path(scaler_path).exists():
             self.scalers = self.load_scalers(scaler_path)
-            # guardia: chiavi attese per l'inverse
-            needed = {"sd", "sm", "cmd", "vf"}
+            # guardia: chiavi attese per l'inverse (sm non piu' in input)
+            needed = {"sd", "cmd", "vf"}
             missing = [k for k in needed if k not in self.scalers]
             if missing:
                 raise ValueError(
@@ -168,6 +175,8 @@ class FishInverseDataset(Dataset):
         sensor_mean = (sensors[:, 0] + sensors[:, 1]) / 2.0
 
         # offset a riposo: media dei primi 50 campioni (come fa master_node)
+        # sensor_mean viene ancora calcolato e calibrato ma NON entra piu' in input:
+        # lasciato qui per non toccare la pipeline di estrazione (resta inutilizzato).
         offset      = sensor_diff[:50].mean()
         offset_mean = sensor_mean[:50].mean()
         sensor_diff_cal = sensor_diff - offset
@@ -193,16 +202,14 @@ class FishInverseDataset(Dataset):
 
     def _fit_scalers(self, episodes):
         """Fit di uno StandardScaler per ciascun segnale sulle statistiche globali.
-        INVERSE: solo i segnali che servono (sd, sm, vf in input; cmd in output).
-        amp/freq NON vengono normalizzati perche' restano solo come label fisiche."""
+        INVERSE: solo i segnali che servono (sd, vf in input; cmd in output).
+        sensor_mean escluso dall'input; amp/freq NON normalizzati (solo label fisiche)."""
         all_sd  = np.concatenate([e["sensor_diff_cal"] for e in episodes]).reshape(-1, 1)
-        all_sm  = np.concatenate([e["sensor_mean_cal"] for e in episodes]).reshape(-1, 1)
         all_cmd = np.concatenate([e["cmd_servo"]       for e in episodes]).reshape(-1, 1)
         all_vf  = np.concatenate([e["current"]         for e in episodes]).reshape(-1, 1)
 
         self.scalers = {
             "sd":  StandardScaler().fit(all_sd),
-            "sm":  StandardScaler().fit(all_sm),
             "cmd": StandardScaler().fit(all_cmd),
             "vf":  StandardScaler().fit(all_vf),
         }
@@ -217,8 +224,6 @@ class FishInverseDataset(Dataset):
         self.norm_stats = {
             "sd_mean":  float(self.scalers["sd"].mean_[0]),
             "sd_std":   float(self.scalers["sd"].scale_[0]),
-            "sm_mean":  float(self.scalers["sm"].mean_[0]),
-            "sm_std":   float(self.scalers["sm"].scale_[0]),
             "cmd_mean": float(self.scalers["cmd"].mean_[0]),
             "cmd_std":  float(self.scalers["cmd"].scale_[0]),
             "vf_mean":  float(self.scalers["vf"].mean_[0]),
@@ -228,7 +233,6 @@ class FishInverseDataset(Dataset):
     def _build_windows(self, ep, h, trial_idx):
         sc = self.scalers
         sd_n  = sc["sd"].transform(ep["sensor_diff_cal"].reshape(-1, 1)).ravel()
-        sm_n  = sc["sm"].transform(ep["sensor_mean_cal"].reshape(-1, 1)).ravel()
         cmd_n = sc["cmd"].transform(ep["cmd_servo"].reshape(-1, 1)).ravel()
         vf_n  = sc["vf"].transform(ep["current"].reshape(-1, 1)).ravel()
 
@@ -240,10 +244,10 @@ class FishInverseDataset(Dataset):
         # --- finestre scorrevoli ---
         # il loop finisce a n-1 perche' serve il campione t+1 per il target futuro
         for i in range(h, n - 1):
-            # input: storia degli ultimi h valori sensoriali  ->  (h, 3)
+            # input: storia degli ultimi h valori sensoriali  ->  (h, 2)
+            # [sensor_diff, current] — sensor_mean escluso (speculare alla diretta)
             seq = np.stack([
                 sd_n[i - h:i],
-                sm_n[i - h:i],
                 vf_n[i - h:i],
             ], axis=1)
 
@@ -290,7 +294,7 @@ if __name__ == '__main__':
 
     ds = FishInverseDataset(log_dir, scaler_path=scaler_path)
     seq, t_hist, t_fut, label = ds[0]
-    print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [sd, sm, vf]")
+    print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [sd, vf]")
     print(f"target_history shape: {t_hist.shape}")   # (20, 1)
     print(f"target_future shape:  {t_fut.shape}")    # (1,)
     print(f"label shape:          {label.shape}")    # (2,)
