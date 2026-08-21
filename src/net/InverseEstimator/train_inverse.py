@@ -112,12 +112,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_inverse'))
-    parser.add_argument('--epochs',         type=int,   default=150)
-    parser.add_argument('--lr',             type=float, default=0.002850448958297498)
-    parser.add_argument('--batch_size',     type=int,   default=32)
+    parser.add_argument('--epochs',         type=int,   default=100)
+    parser.add_argument('--lr',             type=float, default=0.003993358254431755)
+    parser.add_argument('--batch_size',     type=int,   default=64)
     parser.add_argument('--gru_hidden',     type=int,   default=512)
     parser.add_argument('--mlp_hidden',     type=int,   default=32)
-    parser.add_argument('--lambda_future', type=float, default=0.1780455782986389,
+    parser.add_argument('--lambda_future', type=float, default=0.07335107144987375,
                         help='peso della loss sulla testa "future" nella loss combinata') # poi rimetti quella del tuning
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)

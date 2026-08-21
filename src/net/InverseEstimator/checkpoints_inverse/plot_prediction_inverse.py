@@ -1,19 +1,17 @@
 """
-Disegna, per un trial reale, le VERE predizioni della rete confrontate con il
-segnale vero.
+Disegna, per un trial reale, le VERE predizioni della rete confrontate
+con il comando servo reale (tail_target_rad).
 
-Per ogni finestra i della history (i = h .. n-2) il modello predice il valore
+Per ogni finestra i della history (i = h .. n-2) il modello predice il comando
 al tempo i+1 (pred_future). Facendo scorrere i lungo tutto il trial si ottiene
-una serie temporale continua di predizioni "un passo avanti" (teacher forced:
-la history in input e' sempre quella vera, non autoregressiva), direttamente
-confrontabile punto per punto col segnale reale e con la MSE futuro che gia'
-misuri con channel_loss.py.
+una serie temporale continua di predizioni "un passo avanti", confrontabile punto per punto col comando reale e con la MSE futuro
+misurata da channel_loss_inverse.py.
+
 
 Uso:
-  python3 src/net/SensorEstimator/checkpoints/plot_prediction.py --checkpoint src/net/SensorEstimator/checkpoints/best.pt
-  python3 src/net/SensorEstimator/checkpoints/plot_prediction.py --list_trials //elenca i trial ==> sceglierne uno che è nel val
-  python3 src/net/SensorEstimator/checkpoints/plot_prediction.py --checkpoint src/net/SensorEstimator/checkpoints/best.pt --trial trial_20260519_152944.csv ==> per specificare quale trial
-  (Se non specificato prende il primo trial nel validation)
+   python3 src/net/InverseEstimator/checkpoints_inverse/plot_prediction_inverse.py [--list_trials]   # elenca i trial (sceglline uno del val)
+   python3 src/net/InverseEstimator/checkpoints_inverse/plot_prediction_inverse.py [--trial ./src/net/dataset/trial_20260519_152944.csv]
+  (Se non specificato prende il primo trial nel validation split)
 """
 import argparse
 import os
@@ -29,15 +27,16 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-from net.SensorEstimator.model import FishSensorEstimator
-from net.SensorEstimator.dataset import FishDataset
+from net.InverseEstimator.model_inverse   import FishInverseEstimator
+from net.InverseEstimator.dataset_inverse import FishInverseDataset
+import net.utils
 
-CHANNELS_ALL = ["sensor_diff", "sensor_mean", "current"]
-CHANNELS_2   = ["sensor_diff", "current"]
-CHANNEL_TO_SCALER_KEY = {"sensor_diff": "sd", "sensor_mean": "sm", "current": "vf"}
-CHANNEL_UNIT = {"sensor_diff": "unita' sensore", "sensor_mean": "unita' sensore", "current": "mA"}
+# la rete inversa predice un solo canale: il comando servo
+CHANNELS = ["cmd"]
+CHANNEL_TO_SCALER_KEY = {"cmd": "cmd"}
+CHANNEL_UNIT = {"cmd": "rad"}
 
-# --- palette (dataviz skill, ordine categorico fisso) ---
+# --- palette (dataviz skill, ordine categorico fisso) — identica alla diretta ---
 COL_SURFACE  = "#fcfcfb"
 COL_TEXT     = "#0b0b0b"
 COL_TEXT_SEC = "#52514e"
@@ -56,10 +55,10 @@ def dims_from_state_dict(sd):
 
 def pick_default_trial(dataset, val_frac=0.2, seed=42):
     """Prova a scegliere un trial dal validation split (out-of-sample), per un
-    grafico onesto. Se split_by_trial non espone .indices come ci si aspetta,
-    ripiega sul trial 0 con un avviso."""
+    grafico onesto. Se non riesce a leggere gli indici del val, ripiega sul
+    trial 0 con un avviso."""
     try:
-        _, val_ds = dataset.split_by_trial(val_frac=val_frac, seed=seed)
+        _, val_ds = net.utils.split_by_trial(dataset, val_frac=val_frac, seed=seed)
         val_trial_idxs = np.unique(dataset.window_trial[np.asarray(val_ds.indices)])
         return int(val_trial_idxs[0]), True
     except Exception as e:
@@ -130,7 +129,7 @@ def channel_panel(ax, t, true_real, pred_real, unit, title):
         ax.spines[spine].set_color(COL_BASELINE)
 
     ax.plot(t, pred_real, color=COL_MODEL, linewidth=1.6, zorder=3, label="predizione modello")
-    ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="segnale reale")
+    ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="comando reale")
 
     ax.set_title(title, color=COL_TEXT, fontsize=12, fontweight="bold", loc="left", pad=10)
     ax.set_ylabel(unit, color=COL_TEXT_SEC, fontsize=9)
@@ -142,21 +141,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default=os.path.join(SCRIPT_DIR, "best.pt"))
     parser.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
-    parser.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers.pkl"))
+    parser.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_inverse.pkl"))
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--trial", default=None,
                          help="nome (o sottostringa) o indice del trial da plottare. "
                               "Default: primo trial del validation split.")
     parser.add_argument("--list_trials", action="store_true", help="stampa i trial disponibili ed esce")
-    parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions.png"))
+    parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions_inverse.png"))
     args = parser.parse_args()
 
     device = torch.device(args.device)
-    dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path)
+    dataset = FishInverseDataset(args.dataset_dir, scaler_path=args.scaler_path)
 
     if args.list_trials:
         try:
-            _, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
+            _, val_ds = net.utils.split_by_trial(dataset, val_frac=0.2, seed=42)
             val_trial_idxs = set(np.unique(dataset.window_trial[np.asarray(val_ds.indices)]).tolist())
         except Exception as e:
             val_trial_idxs = None
@@ -174,38 +173,36 @@ def main():
     state = ckpt["model_state"]
     input_size = ckpt.get("input_size", dataset.sequences.shape[-1])
     gru_hidden, mlp_hidden = dims_from_state_dict(state)
-    model = FishSensorEstimator(input_size=input_size, gru_hidden=gru_hidden,
-                                 mlp_hidden=mlp_hidden, h=dataset.h).to(device)
+    model = FishInverseEstimator(input_size=input_size, gru_hidden=gru_hidden,
+                                  mlp_hidden=mlp_hidden, h=dataset.h).to(device)
     model.load_state_dict(state)
     model.eval()
 
     nc = dataset.targets_future.shape[-1]
-    CHANNELS = CHANNELS_2 if nc == 2 else CHANNELS_ALL
+    channels = CHANNELS[:nc]
 
     idxs, t_fut_norm, pred_fut_norm = run_model_on_trial(dataset, model, device, trial_idx)
     t_axis = real_time_axis(args.dataset_dir, trial_name, dataset.h, len(idxs))
 
-    to_plot = [c for c in ("sensor_diff", "current") if c in CHANNELS]
-    fig, axes = plt.subplots(len(to_plot), 1, figsize=(11, 3.6 * len(to_plot)), sharex=True)
-    if len(to_plot) == 1:
-        axes = [axes]
+    # un solo canale (cmd): un solo pannello
+    ch = channels[0]
+    ci = 0
+    scaler = dataset.scalers[CHANNEL_TO_SCALER_KEY[ch]]
+    true_real = scaler.inverse_transform(t_fut_norm[:, ci:ci + 1].numpy()).ravel()
+    pred_real = scaler.inverse_transform(pred_fut_norm[:, ci:ci + 1].numpy()).ravel()
+
+    rmse_model = float(np.sqrt(np.mean((pred_real - true_real) ** 2)))
+    unit = CHANNEL_UNIT[ch]
+    title = f"{ch} — RMSE modello {rmse_model:.3f} {unit}"
+
+    fig, ax = plt.subplots(1, 1, figsize=(11, 3.6))
     fig.patch.set_facecolor(COL_SURFACE)
+    channel_panel(ax, t_axis, true_real, pred_real, unit, title)
 
-    for ax, ch in zip(axes, to_plot):
-        ci = CHANNELS.index(ch)
-        scaler = dataset.scalers[CHANNEL_TO_SCALER_KEY[ch]]
-        true_real = scaler.inverse_transform(t_fut_norm[:, ci:ci + 1].numpy()).ravel()
-        pred_real = scaler.inverse_transform(pred_fut_norm[:, ci:ci + 1].numpy()).ravel()
-
-        rmse_model = float(np.sqrt(np.mean((pred_real - true_real) ** 2)))
-        unit = CHANNEL_UNIT[ch]
-        title = f"{ch} — RMSE modello {rmse_model:.1f} {unit}"
-        channel_panel(ax, t_axis, true_real, pred_real, unit, title)
-
-    axes[-1].set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
-    fig.suptitle(f"Predizioni reali del modello — trial {trial_name}",
+    ax.set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
+    fig.suptitle(f"Predizioni reali della rete inversa — trial {trial_name}",
                  color=COL_TEXT, fontsize=13, fontweight="bold", x=0.01, ha="left", y=0.995)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(args.out, dpi=160, facecolor=COL_SURFACE)
     print(f"Salvato {args.out} (trial: {trial_name}, {len(idxs)} punti)")
 
