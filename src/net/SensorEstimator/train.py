@@ -106,7 +106,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_dir',        default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints'))
-    parser.add_argument('--epochs',         type=int,   default=100)
+    parser.add_argument('--epochs',         type=int,   default=50)
     parser.add_argument('--lr',             type=float, default=0.0017056448762352463)
     parser.add_argument('--batch_size',     type=int,   default=32)
     parser.add_argument('--gru_hidden',     type=int,   default=256)

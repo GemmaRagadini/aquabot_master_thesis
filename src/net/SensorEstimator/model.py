@@ -14,12 +14,13 @@ N_OUTPUTS = 2
 
 
 class FishSensorEstimator(nn.Module):
-	def __init__(self, input_size=1, gru_hidden=512, mlp_hidden=128, h=H):
+	def __init__(self, input_size=3, gru_hidden=512, mlp_hidden=128, h=H):
 		"""
 		Stimatore: data una finestra temporale di comandi motore,
 		predice la risposta sensoriale attesa.
 
-		input_size:  numero di canali in ingresso (1 => tail_target_rad normalizzato)
+		input_size:  numero di canali in ingresso (3 => storia normalizzata di
+		             [tail_target_rad, tail_amp_rad, tail_freq_hz])
 		gru_hidden:  dimensione hidden state GRU
 		mlp_hidden:  dimensione hidden layer MLP
 		h:       quanti istanti predice la testa storia (= lunghezza finestra input)
@@ -28,7 +29,8 @@ class FishSensorEstimator(nn.Module):
 		self.h = h
 
 		# Stadio 1: GRU — encoder temporale
-		# input:  (batch, h, 1)        => storia dei comandi motore (tail_target_rad)
+		# input:  (batch, h, 3)        => storia normalizzata di
+		#                                 [tail_target_rad, tail_amp_rad, tail_freq_hz]
 		# output: tutti gli hidden state   (batch, h, gru_hidden)
 		#         + ultimo hidden state    (1, batch, gru_hidden)
 		self.gru = nn.GRU(
@@ -49,21 +51,23 @@ class FishSensorEstimator(nn.Module):
 
 		# Testa storia: applicata su tutti gli h hidden state
 		# (batch, h, gru_hidden) -> (batch, h, N_OUTPUTS)
-		# predice [sensor_diff, (sensor_mean), current] per ogni istante passato
+		# predice [sensor_diff, current] per ogni istante passato
+		# (con N_OUTPUTS=3 sarebbe [sensor_diff, sensor_mean, current])
 		self.head_history = nn.Linear(gru_hidden, N_OUTPUTS)
 
-		# Testa futuro: predice [sensor_diff, (sensor_mean), current] al timestep t+1
+		# Testa futuro: predice [sensor_diff, current] al timestep t+1
 		# (batch, mlp_hidden//2) -> (batch, N_OUTPUTS)
 		self.head_future = nn.Linear(mlp_hidden // 2, N_OUTPUTS)
 
 	def forward(self, seq):
 		"""
-		seq:     (batch, h, 1)   => storia comandi motore normalizzati (tail_target_rad)
+		seq:     (batch, h, 3)   => storia normalizzata di
+		                            [tail_target_rad, tail_amp_rad, tail_freq_hz]
 
 		returns:
-			pred_history  (batch, h, 3)   => sensori agli ultimi h istanti passati
-			pred_future   (batch, 3)           => sensori al timestep t+1
-			h             (batch, gru_hidden)  => contesto temporale
+			pred_history  (batch, h, N_OUTPUTS)   => sensori agli ultimi h istanti passati
+			pred_future   (batch, N_OUTPUTS)      => sensori al timestep t+1
+			h             (batch, gru_hidden)     => contesto temporale
 		"""
 		# all_h: (batch, h, gru_hidden) — tutti gli hidden state
 		# h_n:   (1, batch, gru_hidden)     — solo l'ultimo
@@ -71,10 +75,10 @@ class FishSensorEstimator(nn.Module):
 		h = h_n.squeeze(0)   # (batch, gru_hidden)
 
 		# testa storia: tutti gli h hidden state -> sensori passati
-		pred_history = self.head_history(all_h)          # (batch, h, 3)
+		pred_history = self.head_history(all_h)          # (batch, h, N_OUTPUTS)
 
 		# testa futuro: ultimo hidden state -> MLP -> sensori t+1
 		x = self.mlp(h)
-		pred_future = self.head_future(x)                # (batch, 3)
+		pred_future = self.head_future(x)                # (batch, N_OUTPUTS)
 
 		return pred_history, pred_future, h

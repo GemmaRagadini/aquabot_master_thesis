@@ -66,9 +66,12 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 
 # Cosa fare ora
 - RIPARTIRE DA : 
--*tuning fase 2*
+- prova a vedere cosa succede con il training senza amp e freq 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- sistemare le slide (adesso amp e freq sono parte dell'input)
+- slide 
+- entrare più nel dettaglio del training sulle slide 
+- mettere TS/VS su slide in dataset 
+
 
 # Requirements 
 uv pip install -r requirements.txt
