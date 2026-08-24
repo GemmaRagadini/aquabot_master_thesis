@@ -66,7 +66,7 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 
 # Cosa fare ora
 - RIPARTIRE DA : 
-- prova a vedere cosa succede con il training senza amp e freq 
+- **aggiorna plot_prediction**
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 - slide 
 - entrare più nel dettaglio del training sulle slide 
