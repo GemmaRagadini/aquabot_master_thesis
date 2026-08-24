@@ -107,11 +107,11 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir',        default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints'))
     parser.add_argument('--epochs',         type=int,   default=50)
-    parser.add_argument('--lr',             type=float, default=0.0017056448762352463)
-    parser.add_argument('--batch_size',     type=int,   default=32)
-    parser.add_argument('--gru_hidden',     type=int,   default=256)
-    parser.add_argument('--mlp_hidden',     type=int,   default=32)
-    parser.add_argument('--lambda_future', type=float, default=0.0010095021820975363,
+    parser.add_argument('--lr',             type=float, default=0.005011916102467382)
+    parser.add_argument('--batch_size',     type=int,   default=128)
+    parser.add_argument('--gru_hidden',     type=int,   default=64)
+    parser.add_argument('--mlp_hidden',     type=int,   default=64)
+    parser.add_argument('--lambda_future', type=float, default=0.0019487801074269443,
                         help='peso della loss sulla testa "future" nella loss combinata.')
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
@@ -132,9 +132,11 @@ if __name__ == '__main__':
     os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
     dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
 
-    # numero di feature in input letto DIRETTAMENTE dal dataset:
-    # cosi' se cambi le feature non devi aggiornare nulla qui a mano
-    input_size = dataset.sequences.shape[-1]
+    # numero di feature in input letto dal dataset. NB: ora le finestre vengono
+    # costruite in split_by_trial() (scaler fittato solo sul train), quindi qui
+    # sequences non esiste ancora: uso la costante N_INPUT_FEATURES del dataset.
+    from net.SensorEstimator.dataset import N_INPUT_FEATURES
+    input_size = N_INPUT_FEATURES
     print(f"Feature in input per timestep: {input_size}  (storia di [cmd, amp, freq])")
 
     model = FishSensorEstimator(

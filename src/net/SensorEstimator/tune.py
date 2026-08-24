@@ -275,7 +275,11 @@ if __name__ == "__main__":
     print("Caricamento dataset...")
     # passo scaler_path: stessa normalizzazione del training (con amp/freq)
     dataset = FishDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
-    input_size = dataset.sequences.shape[-1]
+    # le finestre ora vengono costruite in split_by_trial() (scaler fittato solo
+    # sul train), quindi qui dataset.sequences e' ancora una lista vuota: leggo
+    # il numero di feature dalla costante del dataset.
+    from net.SensorEstimator.dataset import N_INPUT_FEATURES
+    input_size = N_INPUT_FEATURES
     print(f"Feature in input per timestep: {input_size}")
 
     study_name = f"fish_forward_phase{args.phase}"

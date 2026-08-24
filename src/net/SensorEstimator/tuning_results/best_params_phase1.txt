@@ -1,0 +1,11 @@
+(lambda_future: fisso a 0.5 in fase 1, cercato in [1e-3, 1.0] log nelle fasi 2/3)
+=== Fase 1 - architettura (top 2) ===
+  (lr: 1e-3, batch_size: 64 - fissi)
+
+  #1  val_loss=0.0829
+    gru_hidden: 128
+    mlp_hidden: 128
+
+  #2  val_loss=0.0833
+    gru_hidden: 256
+    mlp_hidden: 32

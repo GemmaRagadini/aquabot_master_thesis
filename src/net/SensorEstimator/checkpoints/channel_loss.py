@@ -11,13 +11,8 @@ Le dimensioni del modello (gru_hidden, mlp_hidden) sono lette DALLE SHAPE dei pe
 nel checkpoint: niente flag da passare a mano, niente rischio di size mismatch.
 
 Uso:
-  python channel_loss.py --checkpoint checkpoints/best.pt
-  python channel_loss.py --checkpoint checkpoints/best.pt --json_out channel_loss.json
+python3 src/net/SensorEstimator/checkpoints/channel_loss.py [--json_out channel_loss.json]
 
-Il JSON prodotto ha la stessa struttura attesa da convert_mse_to_real_units.py
-(--mse-json), cosi' i due script si incatenano senza dover ricopiare i numeri a mano:
-  python channel_loss.py --checkpoint checkpoints/best.pt --json_out channel_loss.json
-  python convert_mse_to_real_units.py --scaler scalers.pkl --mse-json channel_loss.json
 """
 import argparse
 import json
@@ -54,7 +49,7 @@ def dims_from_state_dict(sd):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default=os.path.join(SCRIPT_DIR, "checkpoints", "best.pt"))
+    parser.add_argument("--checkpoint", default=os.path.join(SCRIPT_DIR, "best.pt"))
     parser.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
     parser.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers.pkl"),
                          help="normalizzatore da riusare: DEVE essere lo stesso del training")
@@ -136,12 +131,6 @@ def main():
     print("-" * 59)
     print(f"{'media':<14}{mse_his.mean():>12.4f}{r2_his.mean():>8.3f}"
           f"{mse_fut.mean():>12.4f}{mse_persist.mean():>13.4f}")
-
-    print("\nLettura:")
-    print("  MSE storia ~ 1.0  -> il modello non batte la media (canale non imparato)")
-    print("  MSE storia ~ 0.0  -> predizione quasi perfetta")
-    print("  Se un canale ha MSE molto piu' alta degli altri, e' lui a gonfiare la media.")
-    print("  MSE persist: se il modello NON e' sotto la persistenza, non aggiunge valore su quel canale.")
 
     # --- export JSON, stessa struttura attesa da convert_mse_to_real_units.py (--mse-json) ---
     if args.json_out:
