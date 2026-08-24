@@ -13,8 +13,10 @@ H = 20
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
 
 # numero di feature in input alla rete per ogni timestep della finestra.
-# ORA: [cmd_servo, amp, freq]  (prima era solo cmd_servo -> 1)
-N_INPUT_FEATURES = 3
+# ORA: [cmd_servo, amp, freq]  
+
+# N_INPUT_FEATURES = 3
+N_INPUT_FEATURES = 1
 
 class FishDataset(Dataset):
     def __init__(self, log_dir: str, h: int = H, scaler_path: str = None):
@@ -314,8 +316,8 @@ class FishDataset(Dataset):
             # input: storia di [cmd_servo, amp, freq] -> (h, 3)
             seq = np.stack([
                 cmd_n[i - h:i],
-                amp_n[i - h:i],
-                freq_n[i - h:i],
+                # amp_n[i - h:i],
+                # freq_n[i - h:i],
             ], axis=1)
 
             # PROVA: sensor_mean (sm_n) escluso dai target — faceva peggio della

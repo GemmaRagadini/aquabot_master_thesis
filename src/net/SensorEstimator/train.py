@@ -107,11 +107,11 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir',        default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints'))
     parser.add_argument('--epochs',         type=int,   default=50)
-    parser.add_argument('--lr',             type=float, default=0.005011916102467382)
-    parser.add_argument('--batch_size',     type=int,   default=128)
+    parser.add_argument('--lr',             type=float, default=0.005253895081579669)
+    parser.add_argument('--batch_size',     type=int,   default=64)
     parser.add_argument('--gru_hidden',     type=int,   default=64)
-    parser.add_argument('--mlp_hidden',     type=int,   default=64)
-    parser.add_argument('--lambda_future', type=float, default=0.0019487801074269443,
+    parser.add_argument('--mlp_hidden',     type=int,   default=128)
+    parser.add_argument('--lambda_future', type=float, default=0.0023871980015085456,
                         help='peso della loss sulla testa "future" nella loss combinata.')
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
