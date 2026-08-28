@@ -52,7 +52,7 @@ python3 src/net/SensorEstimator/tuning_status.py --watch
 
 ## Inversa 
 python3 src/net/InverseEstimator/dataset_inverse.py ./src/net/dataset ./src/net/scaler/scalers_inverse.pkl
-python3 src/net/train_inverse.py --dataset_dir ./src/net/dataset --checkpoint_dir ./checkpoints
+python3 src/net/InverseEstimator/train_inverse.py 
 
 ## Tuning parametri  
 ./src/net/InverseEstimator/run_tuning_inverse.sh <fase 1 - 2 - 3> [n_worker]

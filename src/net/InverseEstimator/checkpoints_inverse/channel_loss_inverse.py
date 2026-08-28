@@ -36,7 +36,6 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.InverseEstimator.model_inverse   import FishInverseEstimator
 from net.InverseEstimator.dataset_inverse import FishInverseDataset
-import net.utils
 
 # la rete inversa ha un solo canale di output: il comando servo.
 # tenuto come lista per restare simmetrico agli script della diretta (che iterano
@@ -80,9 +79,10 @@ def main():
     # stessa normalizzazione del training (senza scaler_path i numeri non sarebbero confrontabili)
     dataset = FishInverseDataset(args.dataset_dir, scaler_path=args.scaler_path)
 
-    # STESSO split del training: uso net.utils.split_by_trial (stesso seed, stesso
+    # STESSO split del training: uso dataset.split_by_trial (stesso seed, stesso
     # metodo). Non ricreo la logica altrove per non rischiare uno split diverso.
-    _, val_ds = net.utils.split_by_trial(dataset, val_frac=0.2, seed=42)
+    # Questa chiamata costruisce anche le finestre e fitta lo scaler sul train.
+    _, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     val_loader = DataLoader(val_ds, batch_size=256)
 
     ckpt = torch.load(args.checkpoint, map_location=device)

@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-# !! LAMBDA FUTURE TEMPORANEAMENTE A 0 (coerente con la rete diretta)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
@@ -18,8 +17,7 @@ REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.InverseEstimator.model_inverse   import FishInverseEstimator
-from net.InverseEstimator.dataset_inverse import FishInverseDataset
-import net.utils
+from net.InverseEstimator.dataset_inverse import FishInverseDataset, N_INPUT_FEATURES
 
 random.seed(42)
 np.random.seed(42)
@@ -29,7 +27,10 @@ DEVICE = torch.device("cpu")
 
 
 def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future):
-    train_ds, val_ds = net.utils.split_by_trial(dataset, val_frac=0.2, seed=42)
+    # split a livello di trial (niente leak da finestre sovrapposte); lo scaler
+    # viene fittato sui soli trial di train dentro dataset.prepare()
+    train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
+    print(f"Split per-trial: {len(train_ds)} finestre train | {len(val_ds)} finestre val")
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
@@ -112,12 +113,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_inverse'))
-    parser.add_argument('--epochs',         type=int,   default=100)
-    parser.add_argument('--lr',             type=float, default=0.003993358254431755)
-    parser.add_argument('--batch_size',     type=int,   default=64)
-    parser.add_argument('--gru_hidden',     type=int,   default=512)
-    parser.add_argument('--mlp_hidden',     type=int,   default=32)
-    parser.add_argument('--lambda_future', type=float, default=0.07335107144987375,
+    parser.add_argument('--epochs',         type=int,   default=50)
+    parser.add_argument('--lr',             type=float, default=0.010097047959358965)
+    parser.add_argument('--batch_size',     type=int,   default=32)
+    parser.add_argument('--gru_hidden',     type=int,   default=128)
+    parser.add_argument('--mlp_hidden',     type=int,   default=128)
+    parser.add_argument('--lambda_future', type=float, default=0.05152799748991319,
                         help='peso della loss sulla testa "future" nella loss combinata') # poi rimetti quella del tuning
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
@@ -137,9 +138,11 @@ if __name__ == '__main__':
     os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
     dataset = FishInverseDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
 
-    # numero di feature in input letto DIRETTAMENTE dal dataset
-    input_size = dataset.sequences.shape[-1]
-    print(f"Feature in input per timestep: {input_size}  (storia di [sd, sm, vf])")
+    # numero di feature in input. NB: ora le finestre vengono costruite in
+    # split_by_trial() (scaler fittato solo sul train), quindi qui sequences non
+    # esiste ancora: uso la costante N_INPUT_FEATURES del dataset.
+    input_size = N_INPUT_FEATURES
+    print(f"Feature in input per timestep: {input_size}  (storia di [sd, vf])")
 
     model = FishInverseEstimator(
         input_size=input_size,

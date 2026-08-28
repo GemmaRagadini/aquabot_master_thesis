@@ -34,10 +34,10 @@ class FishInverseDataset(Dataset):
         file separato). Coerenza garantita dallo stesso metodo di fit globale, senza
         accoppiare i due training su un unico file .pkl.
 
-        NB2: da questa versione l'input e' a 2 canali (sensor_mean rimosso). Uno
-        scalers_inverse.pkl piu' vecchio (che conteneva anche 'sm') resta caricabile
-        perche' le chiavi usate ('sd','cmd','vf') ci sono comunque; per pulizia
-        conviene rigenerarlo cancellando il vecchio file.
+        Come nella rete diretta, lo scaler NON viene fittato qui nel __init__: se lo
+        fittassimo su tutti gli episodi (train + val) le statistiche di
+        normalizzazione vedrebbero anche i dati di validation -> data leakage. Il fit
+        avviene in prepare(), chiamato da split_by_trial() sui SOLI trial di train.
         """
         self.sequences       = []   # (h, 2)  storia sensoriale in ingresso
         self.targets_history = []   # (h, 1)  comandi passati
@@ -72,7 +72,77 @@ class FishInverseDataset(Dataset):
         if not episodes:
             raise ValueError("Nessun episodio valido dopo il parsing dei CSV.")
 
-        # --- normalizzatore: carica se esiste, altrimenti fitta (e salva) ---
+        # --- conservo gli episodi grezzi e la loro provenienza ---
+        # Lo scaler NON viene piu' fittato qui (vedi docstring): il fit avviene in
+        # prepare(), chiamato da split_by_trial() sui SOLI trial di train.
+        self._episodes    = episodes
+        self._scaler_path = scaler_path
+        self.trial_names  = [ep["name"] for ep in episodes]
+        self._prepared    = False
+        self._prepare_lock = __import__("threading").Lock()
+        self._device      = None
+
+        print(f"Dataset grezzo: {len(episodes)} trial letti. "
+              f"Scaler e finestre verranno costruiti in split_by_trial() "
+              f"(fit solo sul training set).")
+
+    def _finalize_windows(self):
+        """Converte in tensori le liste di finestre e controlla i NaN.
+        Chiamato al termine di prepare()."""
+        self.sequences       = torch.tensor(np.array(self.sequences),       dtype=torch.float32)
+        self.targets_history = torch.tensor(np.array(self.targets_history), dtype=torch.float32)
+        self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
+        self.labels          = torch.tensor(np.array(self.labels),          dtype=torch.float32)
+        self.window_trial    = np.asarray(self.window_trial, dtype=np.int64)
+
+        # --- guardia finale: nessun NaN/Inf deve arrivare al training ---
+        for name, t in [("sequences", self.sequences),
+                        ("targets_history", self.targets_history),
+                        ("targets_future", self.targets_future)]:
+            if not torch.isfinite(t).all():
+                raise ValueError(f"NaN/Inf residui in {name}: controlla i CSV con check_nan.py")
+
+        if self._device is not None:
+            self._move_tensors(self._device)
+
+        print(f"Dataset: {len(self)} campioni da {len(self._episodes)} trial. "
+              f"seq feature/timestep = {self.sequences.shape[-1]}")
+
+    def prepare(self, train_trial_ids):
+        """Fitta lo scaler SOLO sui trial di train, poi costruisce tutte le
+        finestre (train + val) usando quello scaler.
+
+        train_trial_ids: iterable di indici di trial (posizione in self._episodes)
+                         da usare per il fit dello scaler.
+
+        Comportamento scaler_path:
+          - file esistente -> carica e riusa (nessun refit);
+          - file assente   -> fitta sul train e salva;
+          - None           -> fitta sul train e non salva.
+
+        Thread-safe: con Optuna in n_jobs>1 piu' trial chiamano split_by_trial
+        (-> prepare) in parallelo sullo stesso dataset. Il lock + double-check
+        garantiscono che fit e costruzione finestre avvengano UNA sola volta;
+        gli altri thread aspettano e poi trovano _prepared=True.
+        """
+        if self._prepared:
+            return
+
+        with self._prepare_lock:
+            # double-check: un altro thread potrebbe aver gia' preparato
+            # mentre questo era in attesa del lock
+            if self._prepared:
+                return
+            self._prepare_locked(train_trial_ids)
+
+    def _prepare_locked(self, train_trial_ids):
+        train_trial_ids = set(int(i) for i in train_trial_ids)
+        train_episodes  = [ep for idx, ep in enumerate(self._episodes)
+                           if idx in train_trial_ids]
+        if not train_episodes:
+            raise ValueError("prepare(): nessun trial di train per fittare lo scaler.")
+
+        scaler_path = self._scaler_path
         if scaler_path is not None and Path(scaler_path).exists():
             self.scalers = self.load_scalers(scaler_path)
             # guardia: chiavi attese per l'inverse (sm non piu' in input)
@@ -87,39 +157,40 @@ class FishInverseDataset(Dataset):
             self._sync_norm_stats()
             print(f"Normalizzatore caricato da {scaler_path} (nessun refit).")
         else:
-            self._fit_scalers(episodes)
+            # FIT SOLO SUL TRAIN: niente leak dai dati di validation
+            self._fit_scalers(train_episodes)
             if scaler_path is not None:
                 self.save_scalers(scaler_path)
-                print(f"Normalizzatore fittato e salvato in {scaler_path}.")
+                print(f"Normalizzatore fittato SUL TRAIN e salvato in {scaler_path}.")
+            else:
+                print("Normalizzatore fittato SUL TRAIN (non salvato).")
 
-        # --- PASSATA 2: normalizza e costruisci le finestre ---
-        for trial_idx, ep in enumerate(episodes):
-            self.trial_names.append(ep["name"])
-            self._build_windows(ep, h, trial_idx)
+        # costruisci le finestre di TUTTI i trial con lo scaler train-only
+        self.sequences       = []
+        self.targets_history = []
+        self.targets_future  = []
+        self.labels          = []
+        self.window_trial    = []
+        for trial_idx, ep in enumerate(self._episodes):
+            self._build_windows(ep, self.h, trial_idx)
 
-        self.sequences       = torch.tensor(np.array(self.sequences),       dtype=torch.float32)
-        self.targets_history = torch.tensor(np.array(self.targets_history), dtype=torch.float32)
-        self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
-        self.labels          = torch.tensor(np.array(self.labels),          dtype=torch.float32)
-        self.window_trial    = np.asarray(self.window_trial, dtype=np.int64)
-
-        # --- guardia finale: nessun NaN/Inf deve arrivare al training ---
-        for name, t in [("sequences", self.sequences),
-                        ("targets_history", self.targets_history),
-                        ("targets_future", self.targets_future)]:
-            if not torch.isfinite(t).all():
-                raise ValueError(f"NaN/Inf residui in {name}: controlla i CSV con check_nan.py")
-
-        print(f"Dataset: {len(self)} campioni da {len(episodes)} trial. "
-              f"seq feature/timestep = {self.sequences.shape[-1]}")
+        self._finalize_windows()
+        self._prepared = True
 
     def to(self, device):
-        """Sposta tutti i tensori sul device (es. GPU) una volta sola."""
+        # Puo' essere chiamato PRIMA di prepare() (quando i tensori non esistono
+        # ancora): in quel caso memorizzo il device e spostero' i tensori alla
+        # fine di prepare().
+        self._device = device
+        if self._prepared:
+            self._move_tensors(device)
+        return self
+
+    def _move_tensors(self, device):
         self.sequences       = self.sequences.to(device)
         self.targets_history = self.targets_history.to(device)
         self.targets_future  = self.targets_future.to(device)
         self.labels          = self.labels.to(device)
-        return self
 
     def _parse_sensor_values(self, series: pd.Series):
         def parse_one(s):
@@ -266,6 +337,57 @@ class FishInverseDataset(Dataset):
             self.labels.append(label)
             self.window_trial.append(trial_idx)
 
+    def split_by_trial(self, val_frac=0.2, seed=42):
+        """Split train/val a livello di TRIAL, non di finestra.
+
+        Le finestre consecutive si sovrappongono di h-1 timestep: splittare a
+        caso sulle finestre (random_split) mette finestre quasi identiche sia
+        in train che in val -> data leak, val loss ottimistica e inutile.
+        Qui invece si tengono interi trial da un lato o dall'altro, cosi' la
+        val misura davvero la generalizzazione a episodi mai visti.
+
+        Speculare a FishDataset.split_by_trial() della rete diretta: lo split si
+        decide sui TRIAL prima di costruire le finestre, cosi' lo scaler viene
+        fittato (in prepare()) sui soli trial di train.
+
+        Ritorna (train_subset, val_subset).
+        """
+        from torch.utils.data import Subset
+
+        # Lo split si decide sui TRIAL (indici in self._episodes), prima di
+        # costruire le finestre: cosi' possiamo fittare lo scaler sui soli
+        # trial di train dentro prepare().
+        trial_ids = np.arange(len(self._episodes))
+        rng = np.random.default_rng(seed)
+        rng.shuffle(trial_ids)
+
+        n_val_trials = max(1, int(round(val_frac * len(trial_ids))))
+        val_trials   = set(trial_ids[:n_val_trials].tolist())
+        train_trials = [int(t) for t in trial_ids if t not in val_trials]
+
+        if not train_trials or not val_trials:
+            raise ValueError(
+                f"Split per-trial degenere: train={len(train_trials)} trial, "
+                f"val={len(val_trials)} trial. Servono piu' trial (ne hai "
+                f"{len(trial_ids)})."
+            )
+
+        # fit scaler SOLO sui trial di train + costruzione finestre
+        self.prepare(train_trials)
+
+        # ora le finestre esistono: costruisco gli indici train/val
+        val_mask  = np.isin(self.window_trial, list(val_trials))
+        val_idx   = np.flatnonzero(val_mask)
+        train_idx = np.flatnonzero(~val_mask)
+
+        if len(train_idx) == 0 or len(val_idx) == 0:
+            raise ValueError(
+                f"Split per-trial degenere a livello finestra: "
+                f"train={len(train_idx)}, val={len(val_idx)}."
+            )
+
+        return Subset(self, train_idx), Subset(self, val_idx)
+
     def save_scalers(self, path):
         import joblib
         joblib.dump(self.scalers, path)
@@ -293,6 +415,9 @@ if __name__ == '__main__':
     scaler_path = sys.argv[2] if len(sys.argv) > 2 else str(Path(log_dir) / "scalers_inverse.pkl")
 
     ds = FishInverseDataset(log_dir, scaler_path=scaler_path)
+    # le finestre ora vengono costruite in split_by_trial() (scaler fittato
+    # solo sul train), quindi lo invoco prima di indicizzare il dataset.
+    ds.split_by_trial(val_frac=0.2, seed=42)
     seq, t_hist, t_fut, label = ds[0]
     print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [sd, vf]")
     print(f"target_history shape: {t_hist.shape}")   # (20, 1)

@@ -8,7 +8,7 @@ import numpy as np
 import optuna
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from pathlib import Path
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,7 +17,7 @@ REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.InverseEstimator.model_inverse   import FishInverseEstimator
-from net.InverseEstimator.dataset_inverse import FishInverseDataset
+from net.InverseEstimator.dataset_inverse import FishInverseDataset, N_INPUT_FEATURES
 
 # Epoche per fase
 EPOCHS_PER_PHASE = {1: 30, 2: 30, 3: 50}
@@ -99,19 +99,19 @@ def run_trial(trial, params, dataset, n_epochs):
     batch_size    = params["batch_size"]
     lambda_future = params["lambda_future"]
 
-    # split train/val (stesso seed -> stesso split per tutti i trial)
-    n_val   = int(0.2 * len(dataset))
-    n_train = len(dataset) - n_val
-    train_ds, val_ds = random_split(
-        dataset, [n_train, n_val],
-        generator=torch.Generator().manual_seed(42),
-    )
+    # split train/val PER TRIAL (stesso seed -> stesso split per tutti i trial).
+    # Niente random_split: le finestre scorrevoli si sovrappongono di h-1 timestep,
+    # splittarle a caso mette finestre quasi identiche in train e val -> data leak
+    # e val loss ottimistica (il tuning ottimizzerebbe una metrica falsata).
+    # split_by_trial fitta anche lo scaler sui soli trial di train (idempotente:
+    # dal 2o trial Optuna in poi esce subito, nessun refit).
+    train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     # dataset gia' in VRAM -> num_workers=0, nessun pin_memory
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
 
     model = FishInverseEstimator(
-        input_size=dataset.sequences.shape[-1],
+        input_size=N_INPUT_FEATURES,
         gru_hidden=gru_hidden,
         mlp_hidden=mlp_hidden,
         h=dataset.h,

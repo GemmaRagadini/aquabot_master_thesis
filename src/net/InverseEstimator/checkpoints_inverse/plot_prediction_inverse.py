@@ -29,7 +29,11 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.InverseEstimator.model_inverse   import FishInverseEstimator
 from net.InverseEstimator.dataset_inverse import FishInverseDataset
-import net.utils
+
+# split usato per etichettare/scegliere i trial di validation.
+# DEVE combaciare con quello di train_inverse.py per essere onesto.
+VAL_FRAC = 0.2
+SPLIT_SEED = 42
 
 # la rete inversa predice un solo canale: il comando servo
 CHANNELS = ["cmd"]
@@ -53,24 +57,29 @@ def dims_from_state_dict(sd):
     return int(gru_hidden), int(mlp_hidden)
 
 
-def pick_default_trial(dataset, val_frac=0.2, seed=42):
-    """Prova a scegliere un trial dal validation split (out-of-sample), per un
-    grafico onesto. Se non riesce a leggere gli indici del val, ripiega sul
-    trial 0 con un avviso."""
-    try:
-        _, val_ds = net.utils.split_by_trial(dataset, val_frac=val_frac, seed=seed)
-        val_trial_idxs = np.unique(dataset.window_trial[np.asarray(val_ds.indices)])
-        return int(val_trial_idxs[0]), True
-    except Exception as e:
-        print(f"[avviso] non riesco a leggere il validation split ({e}); uso il trial 0.",
-              file=sys.stderr)
-        return 0, False
+def prepare_dataset(dataset):
+    """Costruisce finestre e scaler. Nella nuova versione di FishInverseDataset le
+    finestre non esistono finche' non si chiama split_by_trial() (lo scaler viene
+    fittato sul solo train). Qui invochiamo lo split una volta cosi'
+    window_trial/sequences/scalers sono disponibili, e restituiamo gli indici dei
+    trial di validation per etichettarli."""
+    _, val_ds = dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
+    val_trial_idxs = np.unique(dataset.window_trial[np.asarray(val_ds.indices)])
+    return set(int(i) for i in val_trial_idxs)
 
 
-def resolve_trial(dataset, trial_arg):
+def pick_default_trial(val_trial_idxs):
+    """Sceglie un trial dal validation split (out-of-sample), per un grafico
+    onesto. val_trial_idxs e' l'insieme calcolato in prepare_dataset()."""
+    if val_trial_idxs:
+        return int(sorted(val_trial_idxs)[0]), True
+    return 0, False
+
+
+def resolve_trial(dataset, trial_arg, val_trial_idxs):
     names = dataset.trial_names
     if trial_arg is None:
-        idx, is_val = pick_default_trial(dataset)
+        idx, is_val = pick_default_trial(val_trial_idxs)
         print(f"Nessun --trial specificato: uso '{names[idx]}' "
               f"({'dal validation split' if is_val else 'fallback trial 0'}).")
         return idx
@@ -153,20 +162,23 @@ def main():
     device = torch.device(args.device)
     dataset = FishInverseDataset(args.dataset_dir, scaler_path=args.scaler_path)
 
+    # Nella nuova versione di FishInverseDataset le finestre e gli scaler non
+    # esistono finche' non si chiama split_by_trial(): lo facciamo qui una volta
+    # sola. Restituisce anche gli indici dei trial di validation per etichettarli.
+    try:
+        val_trial_idxs = prepare_dataset(dataset)
+    except Exception as e:
+        print(f"[avviso] non riesco a costruire il validation split ({e}); "
+              f"proseguo senza etichette train/val.", file=sys.stderr)
+        val_trial_idxs = set()
+
     if args.list_trials:
-        try:
-            _, val_ds = net.utils.split_by_trial(dataset, val_frac=0.2, seed=42)
-            val_trial_idxs = set(np.unique(dataset.window_trial[np.asarray(val_ds.indices)]).tolist())
-        except Exception as e:
-            val_trial_idxs = None
-            print(f"[avviso] non riesco a leggere il validation split ({e}); "
-                  f"non posso etichettare train/val.", file=sys.stderr)
         for i, n in enumerate(dataset.trial_names):
-            tag = "?" if val_trial_idxs is None else ("val" if i in val_trial_idxs else "train")
+            tag = ("val" if i in val_trial_idxs else "train") if val_trial_idxs else "?"
             print(f"{i:3d}  [{tag:5s}]  {n}")
         return
 
-    trial_idx = resolve_trial(dataset, args.trial)
+    trial_idx = resolve_trial(dataset, args.trial, val_trial_idxs)
     trial_name = dataset.trial_names[trial_idx]
 
     ckpt = torch.load(args.checkpoint, map_location=device)
