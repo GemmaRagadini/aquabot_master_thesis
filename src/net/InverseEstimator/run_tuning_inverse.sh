@@ -18,7 +18,7 @@ export MKL_NUM_THREADS=4
 # rende importabile il package 'net' (che vive dentro src/)
 export PYTHONPATH="$(pwd)/src:${PYTHONPATH:-}"
 
-mkdir -p ./src/net/InverseEstimator/tuning_results ./src/net/InverseEstimator/logs_tuning_inverse
+mkdir -p ./src/net/InverseEstimator/logs_tuning_inverse
 
 echo "Fase $PHASE | $WORKERS worker x $PER_WORKER trial = ~$TOTAL trial totali"
 

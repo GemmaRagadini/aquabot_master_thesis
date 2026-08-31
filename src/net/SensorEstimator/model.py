@@ -6,10 +6,8 @@ import torch.nn as nn
 H = 20
 
 # N_OUTPUTS: quanti canali predicono le teste.
-# 3 = [sensor_diff, sensor_mean, current]
-# 2 = [sensor_diff, current]  <-- PROVA: sensor_mean escluso (era per lo piu' rumore,
-#     faceva peggio della persistenza). Per rimetterlo: N_OUTPUTS=3 qui E riattiva
-#     la riga 'sm' nel dataset (vedi commenti li').
+# 2 = [sensor_diff, current]  
+
 N_OUTPUTS = 2
 
 
@@ -19,8 +17,8 @@ class FishSensorEstimator(nn.Module):
 		Stimatore: data una finestra temporale di comandi motore,
 		predice la risposta sensoriale attesa.
 
-		input_size:  numero di canali in ingresso (3 => storia normalizzata di
-		             [tail_target_rad, tail_amp_rad, tail_freq_hz])
+		input_size:  numero di canali in ingresso (1 => storia normalizzata di
+		             [tail_target_rad])
 		gru_hidden:  dimensione hidden state GRU
 		mlp_hidden:  dimensione hidden layer MLP
 		h:       quanti istanti predice la testa storia (= lunghezza finestra input)
@@ -29,8 +27,8 @@ class FishSensorEstimator(nn.Module):
 		self.h = h
 
 		# Stadio 1: GRU — encoder temporale
-		# input:  (batch, h, 3)        => storia normalizzata di
-		#                                 [tail_target_rad, tail_amp_rad, tail_freq_hz]
+		# input:  (batch, h, 1)        => storia normalizzata di
+		#                                 [tail_target_rad]
 		# output: tutti gli hidden state   (batch, h, gru_hidden)
 		#         + ultimo hidden state    (1, batch, gru_hidden)
 		self.gru = nn.GRU(
@@ -52,7 +50,6 @@ class FishSensorEstimator(nn.Module):
 		# Testa storia: applicata su tutti gli h hidden state
 		# (batch, h, gru_hidden) -> (batch, h, N_OUTPUTS)
 		# predice [sensor_diff, current] per ogni istante passato
-		# (con N_OUTPUTS=3 sarebbe [sensor_diff, sensor_mean, current])
 		self.head_history = nn.Linear(gru_hidden, N_OUTPUTS)
 
 		# Testa futuro: predice [sensor_diff, current] al timestep t+1
@@ -61,8 +58,8 @@ class FishSensorEstimator(nn.Module):
 
 	def forward(self, seq):
 		"""
-		seq:     (batch, h, 3)   => storia normalizzata di
-		                            [tail_target_rad, tail_amp_rad, tail_freq_hz]
+		seq:     (batch, h, 1)   => storia normalizzata di
+		                            [tail_target_rad]
 
 		returns:
 			pred_history  (batch, h, N_OUTPUTS)   => sensori agli ultimi h istanti passati

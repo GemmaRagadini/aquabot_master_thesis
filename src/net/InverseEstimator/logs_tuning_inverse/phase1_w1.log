@@ -5,7 +5,7 @@ Caricamento dataset...
 Trovati 34 trial.
   [trial_20260519_151133.csv] attenzione: calibrazione a riposo su 37 campioni (< 50)
 Dataset grezzo: 34 trial letti. Scaler e finestre verranno costruiti in split_by_trial() (fit solo sul training set).
-[I 2026-08-27 12:04:41,254] A new study created in RDB with name: fish_inverse_phase1
+[I 2026-08-31 13:43:46,113] A new study created in RDB with name: fish_inverse_phase1
 Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_inverse.pkl (nessun refit).
 Dataset: 27290 campioni da 34 trial. seq feature/timestep = 2
   Trial 0 | Epoch  0 | val 0.2638
@@ -38,7 +38,7 @@ Dataset: 27290 campioni da 34 trial. seq feature/timestep = 2
   Trial 0 | Epoch 27 | val 0.1087
   Trial 0 | Epoch 28 | val 0.1076
   Trial 0 | Epoch 29 | val 0.1106
-[I 2026-08-27 12:05:48,897] Trial 0 finished with value: 0.10757142196951518 and parameters: {'gru_hidden': 64, 'mlp_hidden': 64}. Best is trial 0 with value: 0.10757142196951518.
+[I 2026-08-31 13:44:53,620] Trial 0 finished with value: 0.10757142196951518 and parameters: {'gru_hidden': 64, 'mlp_hidden': 64}. Best is trial 0 with value: 0.10757142196951518.
   Trial 4 | Epoch  0 | val 0.2244
   Trial 4 | Epoch  1 | val 0.1846
   Trial 4 | Epoch  2 | val 0.1663
@@ -69,7 +69,7 @@ Dataset: 27290 campioni da 34 trial. seq feature/timestep = 2
   Trial 4 | Epoch 27 | val 0.0948
   Trial 4 | Epoch 28 | val 0.0954
   Trial 4 | Epoch 29 | val 0.0922
-[I 2026-08-27 12:07:06,995] Trial 4 finished with value: 0.0922376010288943 and parameters: {'gru_hidden': 512, 'mlp_hidden': 64}. Best is trial 3 with value: 0.09155937990368303.
+[I 2026-08-31 13:46:11,427] Trial 4 finished with value: 0.0922376010288943 and parameters: {'gru_hidden': 512, 'mlp_hidden': 64}. Best is trial 3 with value: 0.09155937990368303.
   Trial 8 | Epoch  0 | val 0.2391
   Trial 8 | Epoch  1 | val 0.2140
   Trial 8 | Epoch  2 | val 0.1837
@@ -100,7 +100,7 @@ Dataset: 27290 campioni da 34 trial. seq feature/timestep = 2
   Trial 8 | Epoch 27 | val 0.0962
   Trial 8 | Epoch 28 | val 0.0951
   Trial 8 | Epoch 29 | val 0.0898
-[I 2026-08-27 12:08:28,838] Trial 8 finished with value: 0.08980339529242978 and parameters: {'gru_hidden': 256, 'mlp_hidden': 128}. Best is trial 7 with value: 0.0882378250443891.
+[I 2026-08-31 13:47:32,501] Trial 8 finished with value: 0.08980339529242978 and parameters: {'gru_hidden': 256, 'mlp_hidden': 128}. Best is trial 7 with value: 0.0882378250443891.
   Trial 12 | Epoch  0 | val 0.2635
   Trial 12 | Epoch  1 | val 0.2416
   Trial 12 | Epoch  2 | val 0.2269
@@ -131,7 +131,7 @@ Dataset: 27290 campioni da 34 trial. seq feature/timestep = 2
   Trial 12 | Epoch 27 | val 0.1109
   Trial 12 | Epoch 28 | val 0.1047
   Trial 12 | Epoch 29 | val 0.1051
-[I 2026-08-27 12:09:36,154] Trial 12 finished with value: 0.1046722551057143 and parameters: {'gru_hidden': 64, 'mlp_hidden': 256}. Best is trial 7 with value: 0.0882378250443891.
+[I 2026-08-31 13:48:39,810] Trial 12 finished with value: 0.1046722551057143 and parameters: {'gru_hidden': 64, 'mlp_hidden': 256}. Best is trial 7 with value: 0.0882378250443891.
 
 === Migliori iperparametri - Fase 1 ===
   gru_hidden: 512

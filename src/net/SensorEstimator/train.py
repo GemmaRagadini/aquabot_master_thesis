@@ -117,9 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--threads',        type=int,   default=8)
     parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers.pkl'),
                         help='normalizzatore fisso: se esiste lo carica e lo riusa, '
-                             'altrimenti lo fitta sui CSV e lo salva qui. '
-                             'ATTENZIONE: con amp/freq in input il vecchio pkl non e\' '
-                             'compatibile, cancellalo o usa un nuovo path.')
+                             'altrimenti lo fitta sui CSV e lo salva qui. ')
     args = parser.parse_args()
 
     torch.set_num_threads(args.threads)
@@ -137,7 +135,7 @@ if __name__ == '__main__':
     # sequences non esiste ancora: uso la costante N_INPUT_FEATURES del dataset.
     from net.SensorEstimator.dataset import N_INPUT_FEATURES
     input_size = N_INPUT_FEATURES
-    print(f"Feature in input per timestep: {input_size}  (storia di [cmd, amp, freq])")
+    print(f"Feature in input per timestep: {input_size}  (storia di cmd)")
 
     model = FishSensorEstimator(
         input_size=input_size,

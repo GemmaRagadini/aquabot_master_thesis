@@ -12,21 +12,21 @@
 === Fase 2 - training (top 2 per architettura) ===
 
   -- arch #1 --
-  #1  val_loss=0.0598
-    lr: 0.004083425747074975
-    batch_size: 128
-    lambda_future: 0.11845649909227292
-  #2  val_loss=0.0604
-    lr: 0.0032422807145510643
-    batch_size: 128
-    lambda_future: 0.1183702428540198
+  #1  val_loss=0.0612
+    lr: 0.0004708963254035185
+    batch_size: 32
+    lambda_future: 0.1606367179970849
+  #2  val_loss=0.0625
+    lr: 0.000552071713816055
+    batch_size: 32
+    lambda_future: 0.19580487871101593
 
   -- arch #2 --
-  #1  val_loss=0.0581
-    lr: 0.004936856100554834
-    batch_size: 32
-    lambda_future: 0.10239317019068164
-  #2  val_loss=0.0598
-    lr: 0.003843457604967912
+  #1  val_loss=0.0597
+    lr: 0.0020117806043147366
     batch_size: 128
-    lambda_future: 0.10788725434417852
+    lambda_future: 0.10858527344232813
+  #2  val_loss=0.0605
+    lr: 0.0017560279882855338
+    batch_size: 128
+    lambda_future: 0.15423754523711355

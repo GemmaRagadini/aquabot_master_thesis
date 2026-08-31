@@ -11,11 +11,6 @@ from sklearn.preprocessing import StandardScaler
 H = 20
 
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
-
-# numero di feature in input alla rete per ogni timestep della finestra.
-# ORA: [cmd_servo, amp, freq]  
-
-# N_INPUT_FEATURES = 3
 N_INPUT_FEATURES = 1
 
 class FishDataset(Dataset):
