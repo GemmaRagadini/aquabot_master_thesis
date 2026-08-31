@@ -10,7 +10,7 @@ misurata da channel_loss_inverse.py.
 
 Uso:
    python3 src/net/InverseEstimator/checkpoints_inverse/plot_prediction_inverse.py [--list_trials]   # elenca i trial (sceglline uno del val)
-   python3 src/net/InverseEstimator/checkpoints_inverse/plot_prediction_inverse.py [--trial ./src/net/dataset/trial_20260519_152944.csv]
+   python3 src/net/InverseEstimator/checkpoints_inverse/plot_prediction_inverse.py [--trial trial_20260519_152944.csv]
   (Se non specificato prende il primo trial nel validation split)
 """
 import argparse
