@@ -96,24 +96,33 @@ def build_wide_row(trial_name, split, n_win, per_channel):
     Colonne per canale (testa future, la piu' importante):
       {ch}_RMSE_hist, {ch}_MAE_hist      -> errore testa history
       {ch}_RMSE_fut,  {ch}_MAE_fut       -> errore testa future
-      {ch}_RMSE_persist                  -> baseline persistenza (predici t-1)
+      {ch}_RMSE_persist                  -> baseline persistenza RMSE (predici t-1)
+      {ch}_MAE_persist                   -> baseline persistenza MAE
       {ch}_ppk                           -> ampiezza picco-picco del segnale reale
       {ch}_RMSE_fut_pct                  -> RMSE_fut / ppk * 100
       {ch}_persist_pct                   -> RMSE_persist / ppk * 100
-      {ch}_skill                         -> 1 - RMSE_fut/RMSE_persist
+      {ch}_MAE_fut_pct                   -> MAE_fut / ppk * 100
+      {ch}_MAE_persist_pct               -> MAE_persist / ppk * 100
+      {ch}_skill_rmse                    -> 1 - RMSE_fut/RMSE_persist
                                             (>0 = batte la persistenza)
+      {ch}_skill_mae                     -> 1 - MAE_fut/MAE_persist
+                                            (piu' robusto agli outlier)
     """
     row = {"trial": trial_name, "split": split, "n_finestre": n_win}
     for ch, m in per_channel.items():
-        row[f"{ch}_RMSE_hist"]    = m["rmse_h"]
-        row[f"{ch}_MAE_hist"]     = m["mae_h"]
-        row[f"{ch}_RMSE_fut"]     = m["rmse_f"]
-        row[f"{ch}_MAE_fut"]      = m["mae_f"]
-        row[f"{ch}_RMSE_persist"] = m["rmse_persist"]
-        row[f"{ch}_ppk"]          = m["ppk"]
-        row[f"{ch}_RMSE_fut_pct"] = m["rmse_fut_pct"]
-        row[f"{ch}_persist_pct"]  = m["persist_pct"]
-        row[f"{ch}_skill"]        = m["skill"]
+        row[f"{ch}_RMSE_hist"]       = m["rmse_h"]
+        row[f"{ch}_MAE_hist"]        = m["mae_h"]
+        row[f"{ch}_RMSE_fut"]        = m["rmse_f"]
+        row[f"{ch}_MAE_fut"]         = m["mae_f"]
+        row[f"{ch}_RMSE_persist"]    = m["rmse_persist"]
+        row[f"{ch}_MAE_persist"]     = m["mae_persist"]
+        row[f"{ch}_ppk"]             = m["ppk"]
+        row[f"{ch}_RMSE_fut_pct"]    = m["rmse_fut_pct"]
+        row[f"{ch}_persist_pct"]     = m["persist_pct"]
+        row[f"{ch}_MAE_fut_pct"]     = m["mae_fut_pct"]
+        row[f"{ch}_MAE_persist_pct"] = m["mae_persist_pct"]
+        row[f"{ch}_skill_rmse"]      = m["skill_rmse"]
+        row[f"{ch}_skill_mae"]       = m["skill_mae"]
     return row
 
 
@@ -213,24 +222,33 @@ def main():
             true_t   = t_hist[:, -1, ci].numpy()   # valore vero a t (norm)
             true_tp1 = t_fut[:, ci].numpy()         # valore vero a t+1 (norm)
             e_persist = _real_err(true_t, true_tp1, sc)  # (t - (t+1)) in reale
-            rmse_persist, _ = rmse_mae(e_persist)
+            rmse_persist, mae_persist = rmse_mae(e_persist)
 
             # --- ampiezza picco-picco del segnale REALE del trial ---
             # uso i veri a t+1 in unita' reali come campione del segnale
             true_real = sc.inverse_transform(true_tp1.reshape(-1, 1)).ravel()
             ppk = float(true_real.max() - true_real.min())
 
-            rmse_fut_pct = 100.0 * rmse_f / ppk if ppk > 0 else float("nan")
-            persist_pct  = 100.0 * rmse_persist / ppk if ppk > 0 else float("nan")
+            rmse_fut_pct    = 100.0 * rmse_f / ppk if ppk > 0 else float("nan")
+            persist_pct     = 100.0 * rmse_persist / ppk if ppk > 0 else float("nan")
+            mae_fut_pct     = 100.0 * mae_f / ppk if ppk > 0 else float("nan")
+            mae_persist_pct = 100.0 * mae_persist / ppk if ppk > 0 else float("nan")
             # skill score: quanto il modello migliora sulla persistenza.
             # >0 => batte la baseline; =0 => equivale; <0 => peggio.
-            skill = (1.0 - rmse_f / rmse_persist) if rmse_persist > 0 else float("nan")
+            # skill_rmse penalizza gli errori grossi; skill_mae e' piu' robusto
+            # agli outlier.
+            skill_rmse = (1.0 - rmse_f / rmse_persist) if rmse_persist > 0 else float("nan")
+            skill_mae  = (1.0 - mae_f / mae_persist) if mae_persist > 0 else float("nan")
 
             per_channel[ch] = {"rmse_h": rmse_h, "mae_h": mae_h,
                                "rmse_f": rmse_f, "mae_f": mae_f,
-                               "rmse_persist": rmse_persist, "ppk": ppk,
+                               "rmse_persist": rmse_persist,
+                               "mae_persist": mae_persist, "ppk": ppk,
                                "rmse_fut_pct": rmse_fut_pct,
-                               "persist_pct": persist_pct, "skill": skill}
+                               "persist_pct": persist_pct,
+                               "mae_fut_pct": mae_fut_pct,
+                               "mae_persist_pct": mae_persist_pct,
+                               "skill_rmse": skill_rmse, "skill_mae": skill_mae}
 
             err_pool[ch]["hist"].append(e_h)
             err_pool[ch]["fut"].append(e_f)
@@ -256,16 +274,23 @@ def main():
         true = np.concatenate(err_pool[ch]["true_f"])
         rmse_h, mae_h = rmse_mae(e_h)
         rmse_f, mae_f = rmse_mae(e_f)
-        rmse_persist, _ = rmse_mae(e_p)
+        rmse_persist, mae_persist = rmse_mae(e_p)
         ppk = float(true.max() - true.min())
-        rmse_fut_pct = 100.0 * rmse_f / ppk if ppk > 0 else float("nan")
-        persist_pct  = 100.0 * rmse_persist / ppk if ppk > 0 else float("nan")
-        skill = (1.0 - rmse_f / rmse_persist) if rmse_persist > 0 else float("nan")
+        rmse_fut_pct    = 100.0 * rmse_f / ppk if ppk > 0 else float("nan")
+        persist_pct     = 100.0 * rmse_persist / ppk if ppk > 0 else float("nan")
+        mae_fut_pct     = 100.0 * mae_f / ppk if ppk > 0 else float("nan")
+        mae_persist_pct = 100.0 * mae_persist / ppk if ppk > 0 else float("nan")
+        skill_rmse = (1.0 - rmse_f / rmse_persist) if rmse_persist > 0 else float("nan")
+        skill_mae  = (1.0 - mae_f / mae_persist) if mae_persist > 0 else float("nan")
         pooled_channel[ch] = {"rmse_h": rmse_h, "mae_h": mae_h,
                               "rmse_f": rmse_f, "mae_f": mae_f,
-                              "rmse_persist": rmse_persist, "ppk": ppk,
+                              "rmse_persist": rmse_persist,
+                              "mae_persist": mae_persist, "ppk": ppk,
                               "rmse_fut_pct": rmse_fut_pct,
-                              "persist_pct": persist_pct, "skill": skill}
+                              "persist_pct": persist_pct,
+                              "mae_fut_pct": mae_fut_pct,
+                              "mae_persist_pct": mae_persist_pct,
+                              "skill_rmse": skill_rmse, "skill_mae": skill_mae}
         n_pool = len(e_f)
     pooled_split = "POOLED_val" if not args.all_trials else "POOLED_all"
     pooled_row = build_wide_row("== COMPLESSIVO (pooled) ==", pooled_split,
@@ -281,9 +306,10 @@ def main():
     for ch in CHANNELS:
         metric_cols += [f"{ch}_RMSE_hist", f"{ch}_MAE_hist",
                         f"{ch}_RMSE_fut",  f"{ch}_MAE_fut",
-                        f"{ch}_RMSE_persist", f"{ch}_ppk",
+                        f"{ch}_RMSE_persist", f"{ch}_MAE_persist", f"{ch}_ppk",
                         f"{ch}_RMSE_fut_pct", f"{ch}_persist_pct",
-                        f"{ch}_skill"]
+                        f"{ch}_MAE_fut_pct", f"{ch}_MAE_persist_pct",
+                        f"{ch}_skill_rmse", f"{ch}_skill_mae"]
     df_out = df_out[lead + metric_cols]
 
     # arrotonda (vale SIA per lo stampato SIA per il CSV salvato)
@@ -302,12 +328,14 @@ def main():
     print("\n=== Verdetto (pooled, testa future) ===")
     for ch in CHANNELS:
         m = pooled_channel[ch]
-        verdict = ("batte la persistenza" if m["skill"] > 0.05 else
-                   "~come la persistenza" if m["skill"] > -0.05 else
+        verdict = ("batte la persistenza" if m["skill_rmse"] > 0.05 else
+                   "~come la persistenza" if m["skill_rmse"] > -0.05 else
                    "PEGGIO della persistenza")
         print(f"  {ch:<12} RMSE {m['rmse_f']:.2f} ({m['rmse_fut_pct']:.1f}% ppk) | "
-              f"persist {m['rmse_persist']:.2f} ({m['persist_pct']:.1f}%) | "
-              f"skill {m['skill']:+.2f} -> {verdict}")
+              f"MAE {m['mae_f']:.2f} ({m['mae_fut_pct']:.1f}% ppk) | "
+              f"persist RMSE {m['rmse_persist']:.2f} MAE {m['mae_persist']:.2f} | "
+              f"skill_rmse {m['skill_rmse']:+.2f} | skill_mae {m['skill_mae']:+.2f} "
+              f"-> {verdict}")
 
 
 if __name__ == "__main__":
