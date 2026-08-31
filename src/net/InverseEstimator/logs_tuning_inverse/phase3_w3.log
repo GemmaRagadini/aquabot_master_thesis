@@ -505,3 +505,59 @@ Dataset: 27290 campioni da 34 trial. seq feature/timestep = 2
   Trial 51 | Epoch  2 | val 0.0818
   Trial 51 | Epoch  3 | val 0.0731
   Trial 51 | Epoch  4 | val 0.0761
+  Trial 51 | Epoch  5 | val 0.0697
+  Trial 51 | Epoch  6 | val 0.0680
+  Trial 51 | Epoch  7 | val 0.0630
+  Trial 51 | Epoch  8 | val 0.0616
+  Trial 51 | Epoch  9 | val 0.0619
+  Trial 51 | Epoch 10 | val 0.0609
+  Trial 51 | Epoch 11 | val 0.0628
+  Trial 51 | Epoch 12 | val 0.0638
+  Trial 51 | Epoch 13 | val 0.0599
+  Trial 51 | Epoch 14 | val 0.0598
+  Trial 51 | Epoch 15 | val 0.0568
+  Trial 51 | Epoch 16 | val 0.0576
+  Trial 51 | Epoch 17 | val 0.0578
+  Trial 51 | Epoch 18 | val 0.0599
+  Trial 51 | Epoch 19 | val 0.0594
+  Trial 51 | Epoch 20 | val 0.0603
+  Trial 51 | Epoch 21 | val 0.0584
+  Trial 51 | Epoch 22 | val 0.0580
+  Trial 51 | Epoch 23 | val 0.0594
+  Trial 51 | Epoch 24 | val 0.0606
+  Trial 51 | Epoch 25 | val 0.0576
+  Trial 51 | Epoch 26 | val 0.0603
+  Trial 51 | Epoch 27 | val 0.0585
+  Trial 51 | Epoch 28 | val 0.0598
+  Trial 51 | Epoch 29 | val 0.0583
+  Trial 51 | Epoch 30 | val 0.0597
+  Trial 51 | Epoch 31 | val 0.0580
+  Trial 51 | Epoch 32 | val 0.0594
+  Trial 51 | Epoch 33 | val 0.0581
+  Trial 51 | Epoch 34 | val 0.0584
+  Trial 51 | Epoch 35 | val 0.0598
+  Trial 51 | Epoch 36 | val 0.0586
+  Trial 51 | Epoch 37 | val 0.0581
+  Trial 51 | Epoch 38 | val 0.0585
+  Trial 51 | Epoch 39 | val 0.0592
+  Trial 51 | Epoch 40 | val 0.0567
+  Trial 51 | Epoch 41 | val 0.0582
+  Trial 51 | Epoch 42 | val 0.0578
+  Trial 51 | Epoch 43 | val 0.0583
+  Trial 51 | Epoch 44 | val 0.0570
+  Trial 51 | Epoch 45 | val 0.0572
+  Trial 51 | Epoch 46 | val 0.0594
+  Trial 51 | Epoch 47 | val 0.0616
+  Trial 51 | Epoch 48 | val 0.0579
+  Trial 51 | Epoch 49 | val 0.0586
+[I 2026-08-31 14:40:01,186] Trial 51 finished with value: 0.05666752623866743 and parameters: {'gru_hidden': 256, 'mlp_hidden': 256, 'lr': 0.001966086265568751, 'batch_size': 32, 'lambda_future': 0.05210969437221639}. Best is trial 25 with value: 0.055759194960345086.
+
+=== Migliori iperparametri - Fase 3 ===
+  gru_hidden: 128
+  mlp_hidden: 64
+  lr: 0.003253161269482492
+  batch_size: 64
+  lambda_future: 0.11535019360819432
+  best val loss: 0.0558
+
+Risultati salvati in /home/gemma/tesi/aquabot/src/net/InverseEstimator/tuning_results_inverse/best_params_inverse_phase3.txt
