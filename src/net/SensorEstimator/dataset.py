@@ -307,7 +307,11 @@ class FishDataset(Dataset):
         freq_des = ep["freq_des"]
         n = len(cmd_n)
 
-        for i in range(h, n - 1):
+        # ONE-STEP: la finestra di input termina a t=i-1, il target futuro e' a
+        # t=i (il campione immediatamente successivo all'ultimo input). Cosi' la
+        # rete e' onestamente "un passo avanti" e combacia con la convenzione del
+        # rollout closed-loop. range(h, n): con i=n-1 il target sd_n[i] esiste.
+        for i in range(h, n):
             # input: storia di [cmd_servo, amp, freq] -> (h, 3)
             seq = np.stack([
                 cmd_n[i - h:i],
@@ -324,9 +328,11 @@ class FishDataset(Dataset):
                 vf_n[i - h:i],
             ], axis=1)
 
-            target_future = np.array([sd_n[i + 1], vf_n[i + 1]], dtype=np.float32)
-            # con sensor_mean: np.array([sd_n[i+1], sm_n[i+1], vf_n[i+1]], ...)
-            label = np.array([amp_des[i], freq_des[i]], dtype=np.float32)
+            target_future = np.array([sd_n[i], vf_n[i]], dtype=np.float32)
+            # con sensor_mean: np.array([sd_n[i], sm_n[i], vf_n[i]], ...)
+            # label ancorata all'ultimo istante di input (t=i-1) per coerenza
+            # con l'inversa.
+            label = np.array([amp_des[i - 1], freq_des[i - 1]], dtype=np.float32)
 
             self.sequences.append(seq)
             self.targets_history.append(target_history)

@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 
 # H: quanti istanti passati predice la testa storia

@@ -313,8 +313,11 @@ class FishInverseDataset(Dataset):
         n = len(cmd_n)
 
         # --- finestre scorrevoli ---
-        # il loop finisce a n-1 perche' serve il campione t+1 per il target futuro
-        for i in range(h, n - 1):
+        # ONE-STEP (speculare alla diretta): input fino a t=i-1, target a t=i.
+        # Cosi' inversa e diretta sono l'una l'inversa dell'altra allo STESSO
+        # istante, e la composizione chiusa nell'anello non accumula fase.
+        # range(h, n): con i=n-1 il target cmd_n[i] esiste.
+        for i in range(h, n):
             # input: storia degli ultimi h valori sensoriali  ->  (h, 2)
             # [sensor_diff, current] — sensor_mean escluso (speculare alla diretta)
             seq = np.stack([
@@ -325,11 +328,11 @@ class FishInverseDataset(Dataset):
             # target storia: ultimi h comandi motore  ->  (h, 1)
             target_history = cmd_n[i - h:i].reshape(-1, 1)
 
-            # target futuro: comando al timestep t+1  ->  (1,)
-            target_future = np.array([cmd_n[i + 1]], dtype=np.float32)
+            # target futuro ONE-STEP: comando a t=i  ->  (1,)
+            target_future = np.array([cmd_n[i]], dtype=np.float32)
 
-            # label invariata (amp, freq desiderati)
-            label = np.array([amp_des[i], freq_des[i]], dtype=np.float32)
+            # label ancorata all'ultimo istante di input (t=i-1), coerente con la diretta
+            label = np.array([amp_des[i - 1], freq_des[i - 1]], dtype=np.float32)
 
             self.sequences.append(seq)
             self.targets_history.append(target_history)

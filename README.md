@@ -67,9 +67,7 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 # Cosa fare ora
 - RIPARTIRE DA : 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- slide 
-- entrare più nel dettaglio del training sulle slide 
-- mettere TS/VS su slide in dataset 
+- rivedi closed loop che è sfasato
 
 
 # Requirements 
