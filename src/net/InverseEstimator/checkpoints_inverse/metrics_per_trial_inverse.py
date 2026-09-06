@@ -37,7 +37,10 @@ def dims_from_state_dict(sd):
     """Ricostruisce gru_hidden e mlp_hidden dalle shape dei pesi salvati,
     come in channel_loss_inverse.py: niente flag da passare a mano."""
     gru_hidden = sd["gru.weight_hh_l0"].shape[1]
-    mlp_hidden = sd["mlp.0.weight"].shape[0]
+    if "mlp_future.0.weight" in sd:
+        mlp_hidden = sd["mlp_future.0.weight"].shape[0]
+    else:
+        mlp_hidden = sd["mlp.0.weight"].shape[0]
     return int(gru_hidden), int(mlp_hidden)
 
 

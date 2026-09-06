@@ -36,7 +36,7 @@ trial: sensor_diff, current, comando (tail_target_rad).
 
 Uso
 ---
-  python3 closed_loop_test.py \
+  python3 src/net/closed_loop_test.py \
       --fwd_checkpoint     src/net/SensorEstimator/checkpoints/best.pt \
       --inv_checkpoint     src/net/InverseEstimator/checkpoints_inverse/best.pt \
       --fwd_scaler         src/net/scaler/scalers.pkl \
@@ -101,8 +101,13 @@ def norm(scaler, x):
 
 
 def dims_from_state_dict(sd):
+    """Ricostruisce gru_hidden e mlp_hidden dalle shape dei pesi salvati,
+    come in channel_loss_inverse.py: niente flag da passare a mano."""
     gru_hidden = sd["gru.weight_hh_l0"].shape[1]
-    mlp_hidden = sd["mlp.0.weight"].shape[0]
+    if "mlp_future.0.weight" in sd:
+        mlp_hidden = sd["mlp_future.0.weight"].shape[0]
+    else:
+        mlp_hidden = sd["mlp.0.weight"].shape[0]
     return int(gru_hidden), int(mlp_hidden)
 
 
@@ -318,7 +323,7 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--trial", default=None,
                     help="nome/sottostringa/indice del trial. Default: primo del val split.")
-    ap.add_argument("--steps", type=int, default=200,
+    ap.add_argument("--steps", type=int, default=None,
                     help="numero di passi del rollout. Default: tutto il trial.")
     ap.add_argument("--list_trials", action="store_true")
     ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "closed_loop.png"))

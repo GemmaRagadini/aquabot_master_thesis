@@ -1,32 +1,32 @@
 === Fase 1 - architettura (top 2) ===
   (lr: 1e-3, batch_size: 64, lambda_future: 1.0 - fissi)
 
-  #1  val_loss=0.0882
-    gru_hidden: 512
-    mlp_hidden: 128
-
-  #2  val_loss=0.0898
+  #1  val_loss=0.0734
     gru_hidden: 256
-    mlp_hidden: 128
+    mlp_hidden: 256
+
+  #2  val_loss=0.0745
+    gru_hidden: 512
+    mlp_hidden: 256
 
 === Fase 2 - training (top 2 per architettura) ===
 
   -- arch #1 --
-  #1  val_loss=0.0612
-    lr: 0.0004708963254035185
+  #1  val_loss=0.0505
+    lr: 0.0008773287964485803
     batch_size: 32
-    lambda_future: 0.1606367179970849
-  #2  val_loss=0.0625
-    lr: 0.000552071713816055
+    lambda_future: 0.11073819998560405
+  #2  val_loss=0.0516
+    lr: 0.0005347479793026537
     batch_size: 32
-    lambda_future: 0.19580487871101593
+    lambda_future: 0.10416612390457966
 
   -- arch #2 --
-  #1  val_loss=0.0597
-    lr: 0.0020117806043147366
+  #1  val_loss=0.0533
+    lr: 0.0004489865780426875
+    batch_size: 32
+    lambda_future: 0.14403551703244022
+  #2  val_loss=0.0537
+    lr: 0.0006039718321307084
     batch_size: 128
-    lambda_future: 0.10858527344232813
-  #2  val_loss=0.0605
-    lr: 0.0017560279882855338
-    batch_size: 128
-    lambda_future: 0.15423754523711355
+    lambda_future: 0.1072354198992096

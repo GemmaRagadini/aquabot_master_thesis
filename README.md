@@ -59,7 +59,7 @@ python3 src/net/InverseEstimator/train_inverse.py
 python3 src/net/InverseEstimator/tuning_status_inverse.py --watch
 
 # Check loss 
-python3 src/net/SensorEstimator/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimator/checkpoints/channel_loss.json
+python3 src/net/SensorEstimator/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimator/checkpoints/channel_loss.2json
 
 # Real values 
 python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimatos/checkpoints/channel_loss.json
@@ -67,8 +67,11 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 # Cosa fare ora
 - RIPARTIRE DA : 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- rivedi closed loop che è sfasato
-
+- Auto regressione singolo modello 
+- Modifica dataset
+- Extra input a mlp con parametri sinusoide
+- modifica slide perché ora tutto MLP e iperparametri  
+- superare le modalità e parametrizzare tutto? 
 
 # Requirements 
 uv pip install -r requirements.txt
