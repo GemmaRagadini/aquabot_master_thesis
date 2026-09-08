@@ -162,7 +162,7 @@ def plot_current(csv_path):
     plt.tight_layout()
     plt.show()
 
-CSV = 'logs/trial_chaoticstop2.csv'
+CSV = 'logs/trial_20260908_145006.csv'
 
 plot_motor(CSV)
 # plot_current(CSV)

@@ -68,11 +68,17 @@ class MasterNode(Node):
         self.declare_parameter("rand_update_min_sec", 0.4)      # intervallo min tra nuovi target casuali
         self.declare_parameter("rand_update_max_sec", 1.5)      # intervallo max
         self.declare_parameter("rand_smooth_alpha", 0.15)       # 0..1: quanto è morbida la transizione (basso = morbido)
-        
+
         # parametri specifici per chaotic_stop
         self.declare_parameter("stop_prob", 0.25)               # prob. che a un update parta una pausa
         self.declare_parameter("stop_min_sec", 0.3)             # durata min pausa
         self.declare_parameter("stop_max_sec", 1.2)             # durata max pausa
+
+        # parametri per il centro di oscillazione randomico (cambi radi e netti)
+        self.declare_parameter("rand_vary_bias", False)          # se True, anche il centro varia
+        self.declare_parameter("rand_bias_margin", 0.02)         # margine di sicurezza (rad) sotto il limite fisico
+        self.declare_parameter("rand_bias_update_min_sec", 4.0)  # intervallo min tra cambi di centro
+        self.declare_parameter("rand_bias_update_max_sec", 8.0)  # intervallo max tra cambi di centro
 
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min = float(self.get_parameter('freq_min_hz').value)
@@ -105,16 +111,21 @@ class MasterNode(Node):
         self.stop_min = float(self.get_parameter("stop_min_sec").value)
         self.stop_max = float(self.get_parameter("stop_max_sec").value)
 
+        self.rand_vary_bias = bool(self.get_parameter("rand_vary_bias").value)
+        self.rand_bias_margin = float(self.get_parameter("rand_bias_margin").value)
+        self.rand_bias_update_min = float(self.get_parameter("rand_bias_update_min_sec").value)
+        self.rand_bias_update_max = float(self.get_parameter("rand_bias_update_max_sec").value)
+
         # pubblica il target della coda
         self.publisher = self.create_publisher(Float64, self.target_topic, 10)
-        
+
         self.create_subscription(
             Float32MultiArray, self.sensor_topic, self.sensor_callback, 10
         )
         self.create_subscription(Float64, '/aquabot/dynamixel/present_position',
             self.position_callback, 10)
         self.create_subscription(Float64, '/aquabot/dynamixel/present_current',
-            self.current_callback, 10) 
+            self.current_callback, 10)
         self.last_sensor = None
         self.last_sensor_time = None
         self.t0 = None
@@ -136,11 +147,13 @@ class MasterNode(Node):
 
         # stato modalità randomiche
         self._rng = random.Random(self.rand_seed if self.rand_seed > 0 else None)
-        self.rand_next_update_t = 0.0     # quando ricampionare i target
+        self.rand_next_update_t = 0.0     # quando ricampionare i target di amp/freq
         self.rand_target_amp = self.amp   # target verso cui interpolare
         self.rand_target_freq = self.freq
         self.stop_until_t = 0.0           # se t_rel < questo, il movimento è in pausa
-
+        # centro randomico (cambi radi e netti, timer proprio)
+        self.current_bias_rand = 0.0      # centro randomico corrente
+        self.bias_next_update_t = 0.0     # quando cambiare il centro
 
         self.sensor_diff_offset = 0.0
         self.calibration_samples = []
@@ -183,6 +196,29 @@ class MasterNode(Node):
                 self.turning_bias_amp = float(p.value)
             elif p.name == 'turning_bias_freq_hz':
                 self.turning_bias_freq = float(p.value)
+            elif p.name == 'rand_vary_bias':
+                self.rand_vary_bias = bool(p.value)
+            elif p.name == 'rand_bias_margin':
+                self.rand_bias_margin = float(p.value)
+            elif p.name == 'rand_bias_update_min_sec':
+                self.rand_bias_update_min = float(p.value)
+            elif p.name == 'rand_bias_update_max_sec':
+                self.rand_bias_update_max = float(p.value)
+            elif p.name == 'rand_smooth_alpha':
+                self.rand_smooth_alpha = float(p.value)
+            elif p.name == 'rand_update_min_sec':
+                self.rand_update_min = float(p.value)
+            elif p.name == 'rand_update_max_sec':
+                self.rand_update_max = float(p.value)
+            elif p.name == 'rand_seed':
+                self.rand_seed = int(p.value)
+                self._rng = random.Random(self.rand_seed if self.rand_seed > 0 else None)
+            elif p.name == 'stop_prob':
+                self.stop_prob = float(p.value)
+            elif p.name == 'stop_min_sec':
+                self.stop_min = float(p.value)
+            elif p.name == 'stop_max_sec':
+                self.stop_max = float(p.value)
         return SetParametersResult(successful=True)
 
     def sensor_callback(self, msg: Float32MultiArray):
@@ -235,6 +271,7 @@ class MasterNode(Node):
             "tail_target_rad",
             "tail_bias_rad",
             "tail_bias_offset_rad",
+            "tail_bias_rand_rad",
             "tail_amp_rad",
             "tail_freq_hz",
             "phase_rad",
@@ -249,6 +286,11 @@ class MasterNode(Node):
         self.last_control_time = self.t0
         self.phase_acc = 0.0
         self.current_bias_offset = 0.0
+        # reset stato randomico a inizio trial
+        self.rand_next_update_t = 0.0
+        self.bias_next_update_t = 0.0
+        self.stop_until_t = 0.0
+        self.current_bias_rand = 0.0
         self.recording = True
         self.get_logger().info(f"Started trial -> {filename}")
 
@@ -265,9 +307,14 @@ class MasterNode(Node):
         self.last_control_time = None
         self.phase_acc = 0.0
 
-        msg = Float64()
-        msg.data = float(clamp(self.bias, self.tail_min, self.tail_max))
-        self.publisher.publish(msg)
+        # pubblica il ritorno al centro solo se il contesto ROS è ancora valido
+        try:
+            if rclpy.ok():
+                msg = Float64()
+                msg.data = float(clamp(self.bias, self.tail_min, self.tail_max))
+                self.publisher.publish(msg)
+        except Exception:
+            pass
 
     def control_step(self):
         now = self.get_clock().now()
@@ -365,9 +412,9 @@ class MasterNode(Node):
             self.current_amp = 0.0
             self.current_freq = 0.0
             return clamp(theta, self.tail_min, self.tail_max)
-        
+
         elif self.mode == 'random_walk':
-            # ricampiona i target a intervalli casuali, poi interpola dolcemente
+            # amp/freq: vagano con continuità (interpolate)
             if t_rel >= self.rand_next_update_t:
                 self.rand_target_amp = self._rng.uniform(self.amp_min, self.amp_max)
                 self.rand_target_freq = self._rng.uniform(self.freq_min, self.freq_max)
@@ -378,9 +425,24 @@ class MasterNode(Node):
             self.current_amp = (1.0 - a) * self.current_amp + a * self.rand_target_amp
             self.current_freq = (1.0 - a) * self.current_freq + a * self.rand_target_freq
 
+            # centro: cambi RADI e NETTI (salto secco, timer separato e lento)
+            if self.rand_vary_bias:
+                if t_rel >= self.bias_next_update_t:
+                    # margine per il centro data l'ampiezza corrente:
+                    # |bias_rand| + amp <= MAX_AMP_RAD - margine
+                    max_bias_off = self.MAX_AMP_RAD - self.current_amp - self.rand_bias_margin
+                    if max_bias_off < 0.0:
+                        max_bias_off = 0.0
+                    self.current_bias_rand = self._rng.uniform(-max_bias_off, max_bias_off)
+                    self.bias_next_update_t = t_rel + self._rng.uniform(
+                        self.rand_bias_update_min, self.rand_bias_update_max)
+            else:
+                self.current_bias_rand = 0.0
+
             self.phase_acc += 2.0 * math.pi * self.current_freq * dt
-            bias_offset = self.compute_bias_offset()
-            theta = self.bias + bias_offset + self.current_amp * math.sin(self.phase_acc)
+            bias_offset = self.compute_bias_offset()  # feedback sensori (se attivo)
+            theta = (self.bias + self.current_bias_rand + bias_offset
+                     + self.current_amp * math.sin(self.phase_acc))
             return clamp(theta, self.tail_min, self.tail_max)
 
         elif self.mode == 'chaotic_stop':
@@ -470,6 +532,7 @@ class MasterNode(Node):
             float(self.latest_target),
             float(self.bias),
             float(self.current_bias_offset),
+            float(getattr(self, 'current_bias_rand', 0.0)),
             float(self.current_amp),
             float(self.current_freq),
             float(phase),

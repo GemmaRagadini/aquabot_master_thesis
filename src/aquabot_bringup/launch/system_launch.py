@@ -58,6 +58,11 @@ def generate_launch_description():
             # turning combined
             'turning_bias_amp_rad': 0.2,
             'turning_bias_freq_hz': 0.08,
+
+            #random centre
+            'rand_vary_bias': True,
+            'rand_bias_margin': 0.02,   # margine di sicurezza sotto il limite fisico
+            
         }]
     )
 
@@ -102,7 +107,7 @@ def generate_launch_description():
             ExecuteProcess(
                 cmd=[
                     'ros2', 'service', 'call', '/trial',
-                    'std_srvs/srv/SetBool', '{data: true}'
+                    'std_srvs/srv/SetBool', '{data: false}'
                 ],
                 output='screen'
             )
