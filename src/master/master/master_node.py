@@ -3,6 +3,7 @@ import math
 import csv
 import os
 import rclpy
+import random
 from datetime import datetime
 from rclpy.node import Node
 from std_msgs.msg import Float64, Float32MultiArray
@@ -62,6 +63,17 @@ class MasterNode(Node):
         self.declare_parameter("turning_bias_amp_rad", 0.4)
         self.declare_parameter("turning_bias_freq_hz", 0.08)
 
+        # parametri per modalità randomiche
+        self.declare_parameter("rand_seed", 0)                  # 0 = seed casuale, >0 = riproducibile
+        self.declare_parameter("rand_update_min_sec", 0.4)      # intervallo min tra nuovi target casuali
+        self.declare_parameter("rand_update_max_sec", 1.5)      # intervallo max
+        self.declare_parameter("rand_smooth_alpha", 0.15)       # 0..1: quanto è morbida la transizione (basso = morbido)
+        
+        # parametri specifici per chaotic_stop
+        self.declare_parameter("stop_prob", 0.25)               # prob. che a un update parta una pausa
+        self.declare_parameter("stop_min_sec", 0.3)             # durata min pausa
+        self.declare_parameter("stop_max_sec", 1.2)             # durata max pausa
+
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min = float(self.get_parameter('freq_min_hz').value)
         self.freq_max = float(self.get_parameter('freq_max_hz').value)
@@ -84,6 +96,14 @@ class MasterNode(Node):
         self.feedback_max_offset = float(self.get_parameter("feedback_max_offset").value)
         self.turning_bias_amp = float(self.get_parameter("turning_bias_amp_rad").value)
         self.turning_bias_freq = float(self.get_parameter("turning_bias_freq_hz").value)
+
+        self.rand_seed = int(self.get_parameter("rand_seed").value)
+        self.rand_update_min = float(self.get_parameter("rand_update_min_sec").value)
+        self.rand_update_max = float(self.get_parameter("rand_update_max_sec").value)
+        self.rand_smooth_alpha = float(self.get_parameter("rand_smooth_alpha").value)
+        self.stop_prob = float(self.get_parameter("stop_prob").value)
+        self.stop_min = float(self.get_parameter("stop_min_sec").value)
+        self.stop_max = float(self.get_parameter("stop_max_sec").value)
 
         # pubblica il target della coda
         self.publisher = self.create_publisher(Float64, self.target_topic, 10)
@@ -113,6 +133,14 @@ class MasterNode(Node):
         self.current_amp = self.amp
         self.current_freq = self.freq
         self.current_bias_offset = 0.0
+
+        # stato modalità randomiche
+        self._rng = random.Random(self.rand_seed if self.rand_seed > 0 else None)
+        self.rand_next_update_t = 0.0     # quando ricampionare i target
+        self.rand_target_amp = self.amp   # target verso cui interpolare
+        self.rand_target_freq = self.freq
+        self.stop_until_t = 0.0           # se t_rel < questo, il movimento è in pausa
+
 
         self.sensor_diff_offset = 0.0
         self.calibration_samples = []
@@ -201,6 +229,7 @@ class MasterNode(Node):
         self.csv_file = open(filename, 'w', newline='')
         self.csv_writer = csv.writer(self.csv_file)
         self.csv_writer.writerow([
+            "mode",
             "t_ros_sec",
             "t_rel_sec",
             "tail_target_rad",
@@ -336,6 +365,50 @@ class MasterNode(Node):
             self.current_amp = 0.0
             self.current_freq = 0.0
             return clamp(theta, self.tail_min, self.tail_max)
+        
+        elif self.mode == 'random_walk':
+            # ricampiona i target a intervalli casuali, poi interpola dolcemente
+            if t_rel >= self.rand_next_update_t:
+                self.rand_target_amp = self._rng.uniform(self.amp_min, self.amp_max)
+                self.rand_target_freq = self._rng.uniform(self.freq_min, self.freq_max)
+                self.rand_next_update_t = t_rel + self._rng.uniform(
+                    self.rand_update_min, self.rand_update_max)
+
+            a = self.rand_smooth_alpha
+            self.current_amp = (1.0 - a) * self.current_amp + a * self.rand_target_amp
+            self.current_freq = (1.0 - a) * self.current_freq + a * self.rand_target_freq
+
+            self.phase_acc += 2.0 * math.pi * self.current_freq * dt
+            bias_offset = self.compute_bias_offset()
+            theta = self.bias + bias_offset + self.current_amp * math.sin(self.phase_acc)
+            return clamp(theta, self.tail_min, self.tail_max)
+
+        elif self.mode == 'chaotic_stop':
+            in_stop = t_rel < self.stop_until_t
+
+            if t_rel >= self.rand_next_update_t and not in_stop:
+                # cambio BRUSCO (nessuna interpolazione): salto diretto
+                self.current_amp = self._rng.uniform(self.amp_min, self.amp_max)
+                self.current_freq = self._rng.uniform(self.freq_min, self.freq_max)
+                self.rand_next_update_t = t_rel + self._rng.uniform(
+                    self.rand_update_min, self.rand_update_max)
+                # eventualmente avvia una pausa
+                if self._rng.random() < self.stop_prob:
+                    self.stop_until_t = t_rel + self._rng.uniform(
+                        self.stop_min, self.stop_max)
+                    in_stop = True
+
+            if in_stop:
+                # movimento fermo: la fase non avanza, resta all'ultima posizione
+                self.current_freq = 0.0
+                bias_offset = self.compute_bias_offset()
+                theta = self.bias + bias_offset + self.current_amp * math.sin(self.phase_acc)
+                return clamp(theta, self.tail_min, self.tail_max)
+
+            self.phase_acc += 2.0 * math.pi * self.current_freq * dt
+            bias_offset = self.compute_bias_offset()
+            theta = self.bias + bias_offset + self.current_amp * math.sin(self.phase_acc)
+            return clamp(theta, self.tail_min, self.tail_max)
 
         # fallback
         bias_offset = self.compute_bias_offset()
@@ -391,6 +464,7 @@ class MasterNode(Node):
             sensor_values = self.last_sensor
 
         self.csv_writer.writerow([
+            self.mode,
             t_ros_sec,
             t_rel,
             float(self.latest_target),

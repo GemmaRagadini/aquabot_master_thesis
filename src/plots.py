@@ -51,7 +51,7 @@ def plot_motor(csv_path):
     plt.show()
 
 
-def plot_sensors(csv_path):
+def plot_bending(csv_path):
     rows = _read_csv(csv_path)
     t        = [float(r["t_rel_sec"]) for r in rows]
     s0, s1   = _parse_sensors(rows)
@@ -145,10 +145,27 @@ def plot_combined_sweep(csv_path):
     plt.tight_layout()
     plt.show()
 
+def plot_current(csv_path):
+    rows = _read_csv(csv_path)
+    t       = [float(r["t_rel_sec"])         for r in rows]
+    current = [float(r["present_current_ma"]) for r in rows]
 
-CSV = 'logs/trial_20260519_143409.csv'
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.plot(t, current, color='green', linewidth=1.2, label='Motor current [mA]')
+    ax.axhline(0, color='black', linewidth=0.8)
+    ax.set_xlabel("Time [s]", fontsize=LABEL_SIZE)
+    ax.set_ylabel("Current [mA]", fontsize=LABEL_SIZE)
+    ax.set_title("Motor current", fontsize=TITLE_SIZE, fontweight='bold')
+    ax.legend(fontsize=LEGEND_SIZE, loc='upper right')
+    ax.tick_params(labelsize=TICK_SIZE)
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+CSV = 'logs/trial_chaoticstop2.csv'
 
 plot_motor(CSV)
+# plot_current(CSV)
 # plot_tail_amplitude(CSV)
-# plot_sensors(CSV)
+# plot_bending(CSV)
 # plot_combined_sweep(CSV)   # usare con trial combined_sweep
