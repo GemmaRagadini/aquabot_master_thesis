@@ -10,8 +10,12 @@ from sklearn.preprocessing import StandardScaler
 # a 20Hz, 20 timestep = 1 secondo = un ciclo completo a 1 Hz
 H = 20
 
-NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz"]
+NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad", "tail_freq_hz", "phase_rad"]
 N_INPUT_FEATURES = 1
+
+# CTX_DIM: dimensione del vettore di contesto statico passato SOLO all'MLP
+# (non alla GRU). Ordine: [amp, freq, sin(phase), cos(phase), d_amp, d_freq]
+CTX_DIM = 6
 
 class FishDataset(Dataset):
     def __init__(self, log_dir: str, h: int = H, scaler_path: str = None):
@@ -26,6 +30,7 @@ class FishDataset(Dataset):
         cancellalo o usa un nuovo path, cosi' viene rifittato con le nuove feature.
         """
         self.sequences       = []
+        self.context         = []   # (CTX_DIM,)  contesto statico per finestra (solo MLP)
         self.targets_history = []   # (h, 3)  sensori passati
         self.targets_future  = []   # (3,)    sensori al t+1
         self.labels          = []
@@ -78,12 +83,14 @@ class FishDataset(Dataset):
         """Converte in tensori le liste di finestre e controlla i NaN.
         Chiamato al termine di prepare()."""
         self.sequences       = torch.tensor(np.array(self.sequences),       dtype=torch.float32)
+        self.context         = torch.tensor(np.array(self.context),         dtype=torch.float32)
         self.targets_history = torch.tensor(np.array(self.targets_history), dtype=torch.float32)
         self.targets_future  = torch.tensor(np.array(self.targets_future),  dtype=torch.float32)
         self.labels          = torch.tensor(np.array(self.labels),          dtype=torch.float32)
         self.window_trial    = np.asarray(self.window_trial, dtype=np.int64)
 
         for name, t in [("sequences", self.sequences),
+                        ("context", self.context),
                         ("targets_history", self.targets_history),
                         ("targets_future", self.targets_future)]:
             if not torch.isfinite(t).all():
@@ -153,6 +160,7 @@ class FishDataset(Dataset):
 
         # costruisci le finestre di TUTTI i trial con lo scaler train-only
         self.sequences       = []
+        self.context         = []
         self.targets_history = []
         self.targets_future  = []
         self.labels          = []
@@ -174,6 +182,7 @@ class FishDataset(Dataset):
 
     def _move_tensors(self, device):
         self.sequences       = self.sequences.to(device)
+        self.context         = self.context.to(device)
         self.targets_history = self.targets_history.to(device)
         self.targets_future  = self.targets_future.to(device)
         self.labels          = self.labels.to(device)
@@ -239,6 +248,10 @@ class FishDataset(Dataset):
         cmd_servo = df["tail_target_rad"].values.astype(np.float32)
         amp_des   = df["tail_amp_rad"].values.astype(np.float32)
         freq_des  = df["tail_freq_hz"].values.astype(np.float32)
+        # fase dell'oscillatore, in radianti. La usiamo SOLO tramite sin/cos nel
+        # contesto MLP: la fase e' ciclica e passarla grezza crea una
+        # discontinuita' artificiale a 2*pi. sin/cos la rendono continua.
+        phase     = df["phase_rad"].values.astype(np.float32)
 
         return {
             "sensor_diff_cal": sensor_diff_cal.astype(np.float32),
@@ -247,6 +260,7 @@ class FishDataset(Dataset):
             "current":         current,
             "amp_des":         amp_des,
             "freq_des":        freq_des,
+            "phase":           phase,
             "offset_diff":     float(offset),
             "offset_mean":     float(offset_mean),
         }
@@ -305,6 +319,7 @@ class FishDataset(Dataset):
         # label NON normalizzate (restano i valori fisici come prima)
         amp_des  = ep["amp_des"]
         freq_des = ep["freq_des"]
+        phase    = ep["phase"]        # radianti, per sin/cos del contesto
         n = len(cmd_n)
 
         # ONE-STEP: la finestra di input termina a t=i-1, il target futuro e' a
@@ -334,7 +349,24 @@ class FishDataset(Dataset):
             # con l'inversa.
             label = np.array([amp_des[i - 1], freq_des[i - 1]], dtype=np.float32)
 
+            # --- contesto statico per l'MLP (NON entra nella GRU) ---
+            # ancorato a t=i-1 (ultimo istante di input), come la label.
+            # [amp, freq]      : regime della curva (normalizzati come l'input)
+            # [sin, cos phase] : posizione ciclica nella oscillazione (continua)
+            # [d_amp, d_freq]  : variazione sulla finestra -> segnala i transitori
+            #                    (es. stop del moto => amp che cala => d_amp << 0)
+            ph = phase[i - 1]
+            ctx = np.array([
+                amp_n[i - 1],
+                freq_n[i - 1],
+                np.sin(ph),
+                np.cos(ph),
+                amp_n[i - 1] - amp_n[i - h],
+                freq_n[i - 1] - freq_n[i - h],
+            ], dtype=np.float32)
+
             self.sequences.append(seq)
+            self.context.append(ctx)
             self.targets_history.append(target_history)
             self.targets_future.append(target_future)
             self.labels.append(label)
@@ -403,6 +435,7 @@ class FishDataset(Dataset):
     def __getitem__(self, idx):
         return (
             self.sequences[idx],
+            self.context[idx],
             self.targets_history[idx],
             self.targets_future[idx],
             self.labels[idx],
@@ -418,8 +451,9 @@ if __name__ == '__main__':
     # le finestre ora vengono costruite in split_by_trial() (scaler fittato
     # solo sul train), quindi lo invoco prima di indicizzare il dataset.
     ds.split_by_trial(val_frac=0.2, seed=42)
-    seq, t_hist, t_fut, label = ds[0]
-    print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [cmd, amp, freq]")
+    seq, ctx, t_hist, t_fut, label = ds[0]
+    print(f"seq shape:            {seq.shape}   (h, {N_INPUT_FEATURES}) = storia di [cmd]")
+    print(f"context shape:        {ctx.shape}   ({CTX_DIM},) = [amp, freq, sin, cos, d_amp, d_freq]")
     print(f"target_history shape: {t_hist.shape}")
     print(f"target_future shape:  {t_fut.shape}")
     print(f"label shape:          {label.shape}")

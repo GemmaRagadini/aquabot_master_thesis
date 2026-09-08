@@ -66,7 +66,9 @@ def prepare_dataset(dataset):
 
 def dims_from_state_dict(sd):
     """Ricostruisce gru_hidden e mlp_hidden dalle shape dei pesi salvati,
-    come in channel_loss.py: niente flag da passare a mano."""
+    come in channel_loss.py: niente flag da passare a mano.
+    NB: mlp_future.0.weight ora ha shape (mlp_hidden, gru_hidden + ctx_dim);
+    shape[0] resta mlp_hidden, quindi il calcolo e' ancora corretto."""
     gru_hidden = sd["gru.weight_hh_l0"].shape[1]
     if "mlp_future.0.weight" in sd:
         mlp_hidden = sd["mlp_future.0.weight"].shape[0]
@@ -113,13 +115,15 @@ def run_model_on_trial(dataset, model, device, trial_idx, batch_size=256):
     idxs.sort()  # le finestre di un trial sono gia' contigue e in ordine temporale
 
     seq   = dataset.sequences[idxs]
+    ctx   = dataset.context[idxs]           # (n, ctx_dim) contesto statico per finestra
     t_fut = dataset.targets_future[idxs]
 
     preds = []
     with torch.no_grad():
         for start in range(0, len(idxs), batch_size):
-            chunk = seq[start:start + batch_size].to(device)
-            _, pred_future, _ = model(chunk)
+            chunk     = seq[start:start + batch_size].to(device)
+            chunk_ctx = ctx[start:start + batch_size].to(device)
+            _, pred_future, _ = model(chunk, chunk_ctx)
             preds.append(pred_future.cpu())
     pred_fut = torch.cat(preds, dim=0)
 
@@ -191,9 +195,11 @@ def main():
     ckpt = torch.load(args.checkpoint, map_location=device)
     state = ckpt["model_state"]
     input_size = ckpt.get("input_size", dataset.sequences.shape[-1])
+    ctx_dim = ckpt.get("ctx_dim", int(dataset.context.shape[-1]))
     gru_hidden, mlp_hidden = dims_from_state_dict(state)
     model = FishSensorEstimator(input_size=input_size, gru_hidden=gru_hidden,
-                                 mlp_hidden=mlp_hidden, h=dataset.h).to(device)
+                                 mlp_hidden=mlp_hidden, h=dataset.h,
+                                 ctx_dim=ctx_dim).to(device)
     model.load_state_dict(state)
     model.eval()
 

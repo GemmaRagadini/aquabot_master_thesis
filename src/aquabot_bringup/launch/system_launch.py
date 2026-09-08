@@ -5,6 +5,8 @@ from launch_ros.actions import Node
 # Tick 2299 => +0.385 rad   Tick 2975 => +1.422 rad
 # Centro di oscillazione: (0.385 + 1.422) / 2 = 0.903 rad
 # Semiampiezza massima:   (1.422 - 0.385) / 2 = 0.519 rad
+
+# DA NON CAMBIARE!!
 TAIL_MIN_RAD  = 0.385
 TAIL_MAX_RAD  = 1.422
 TAIL_BIAS_RAD = 0.903
@@ -21,7 +23,7 @@ def generate_launch_description():
             parameters=[{
                 'sensor_topic': '/sensor_reading',
                 'target_topic': '/aquabot/dynamixel/target_position',
-                'mode': 'turning_combined',
+                'mode': 'std',
                 'trial_duration_sec': 30.0,
 
                 # centro reale 

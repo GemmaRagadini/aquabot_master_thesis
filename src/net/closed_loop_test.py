@@ -15,6 +15,19 @@ scorrevoli di lunghezza H:
   * buf_cmd : storia comandi normalizzati con lo scaler DIRETTO  -> input diretta
   * buf_sen : storia [sensor_diff, current] norm. scaler INVERSO -> input inversa
 
+Contesto della rete diretta (nuova architettura)
+------------------------------------------------
+La rete diretta ora riceve, oltre alla finestra di comandi, un vettore di
+CONTESTO statico per finestra: [amp, freq, sin(phase), cos(phase), d_amp, d_freq].
+In closed-loop questo contesto e' fornito "vero" dal trial (teacher forcing SOLO
+sul contesto): amp/freq/phase sono i parametri di regime che comunque comandi,
+quindi darli reali isola l'errore sulla DINAMICA dei sensori/comando dall'errore
+di stima del regime. amp/freq sono normalizzati con lo scaler diretto (chiavi
+'amp'/'freq'); sin/cos della fase restano grezzi; d_amp/d_freq sono differenze
+sulla finestra dei valori normalizzati. L'ancoraggio e' a t (ultimo istante di
+input), identico a dataset._build_windows.
+La rete INVERSA non ha contesto: resta model(seq).
+
 Passaggio di dominio (il punto chiave del test)
 -----------------------------------------------
 L'uscita di una rete e' normalizzata con il PROPRIO scaler; per darla in pasto
@@ -27,7 +40,8 @@ dell'altra rete:
 Warmup
 ------
 I primi H campioni VERI del trial (scelto dal validation split) inizializzano
-entrambi i buffer. Da li' in poi il rollout e' completamente autoregressivo.
+entrambi i buffer. Da li' in poi il rollout e' completamente autoregressivo
+(tranne il contesto della diretta, sempre vero — vedi sopra).
 
 Plot
 ----
@@ -42,7 +56,7 @@ Uso
       --fwd_scaler         src/net/scaler/scalers.pkl \
       --inv_scaler         src/net/scaler/scalers_inverse.pkl \
       --dataset_dir        src/net/dataset
-  # opzionali: --trial <nome|indice>  --steps <N>  --list_trials  --out <png>
+  # opzionali: --trial <nome|indice>  --steps <N>  --list_trials  --out <png> --forward_only
 """
 import argparse
 import os
@@ -102,7 +116,9 @@ def norm(scaler, x):
 
 def dims_from_state_dict(sd):
     """Ricostruisce gru_hidden e mlp_hidden dalle shape dei pesi salvati,
-    come in channel_loss_inverse.py: niente flag da passare a mano."""
+    come in channel_loss_inverse.py: niente flag da passare a mano.
+    NB (diretta): mlp_future.0.weight ora ha shape (mlp_hidden, gru_hidden+ctx_dim);
+    shape[0] resta mlp_hidden, quindi il calcolo e' ancora corretto."""
     gru_hidden = sd["gru.weight_hh_l0"].shape[1]
     if "mlp_future.0.weight" in sd:
         mlp_hidden = sd["mlp_future.0.weight"].shape[0]
@@ -111,16 +127,31 @@ def dims_from_state_dict(sd):
     return int(gru_hidden), int(mlp_hidden)
 
 
-def load_model(model_cls, checkpoint_path, input_size_fallback, h, device):
+def load_model(model_cls, checkpoint_path, input_size_fallback, h, device,
+               has_ctx=False):
+    """Carica un checkpoint e ricostruisce il modello.
+
+    has_ctx=True (rete diretta): legge ctx_dim dal checkpoint e lo passa al
+    costruttore. has_ctx=False (rete inversa): costruttore senza ctx_dim.
+    Ritorna (model, input_size, ctx_dim) con ctx_dim=None se la rete non ha
+    contesto."""
     ckpt  = torch.load(checkpoint_path, map_location=device)
     state = ckpt["model_state"]
     input_size = ckpt.get("input_size", input_size_fallback)
     gru_hidden, mlp_hidden = dims_from_state_dict(state)
-    model = model_cls(input_size=input_size, gru_hidden=gru_hidden,
-                      mlp_hidden=mlp_hidden, h=h).to(device)
+
+    if has_ctx:
+        ctx_dim = ckpt.get("ctx_dim", 6)
+        model = model_cls(input_size=input_size, gru_hidden=gru_hidden,
+                          mlp_hidden=mlp_hidden, h=h, ctx_dim=ctx_dim).to(device)
+    else:
+        ctx_dim = None
+        model = model_cls(input_size=input_size, gru_hidden=gru_hidden,
+                          mlp_hidden=mlp_hidden, h=h).to(device)
+
     model.load_state_dict(state)
     model.eval()
-    return model, input_size
+    return model, input_size, ctx_dim
 
 
 def val_trial_indices(dataset):
@@ -174,34 +205,88 @@ def real_signals_from_csv(dataset_dir, trial_name):
 def build_real_from_dataset(fwd_ds, trial_idx):
     """Estrae i segnali reali (fisici) del trial direttamente dagli episodi gia'
     parsati dal FishDataset diretto: garantisce identica calibrazione/offset a
-    quella vista dalle reti. Ritorna array reali sensor_diff, current, cmd."""
+    quella vista dalle reti. Ritorna array reali sensor_diff, current, cmd, piu'
+    i parametri di regime amp_des/freq_des/phase per il contesto della diretta."""
     ep = fwd_ds._episodes[trial_idx]
     return {
         "sensor_diff": np.asarray(ep["sensor_diff_cal"], dtype=np.float64),
         "current":     np.asarray(ep["current"],         dtype=np.float64),
         "cmd":         np.asarray(ep["cmd_servo"],        dtype=np.float64),
+        # parametri di regime "veri" del trial, per il contesto della diretta
+        "amp_des":     np.asarray(ep["amp_des"],          dtype=np.float64),
+        "freq_des":    np.asarray(ep["freq_des"],         dtype=np.float64),
+        "phase":       np.asarray(ep["phase"],            dtype=np.float64),
     }
+
+
+def build_true_context(real, fwd_scalers, t, h):
+    """Costruisce il vettore di CONTESTO 'vero' della rete diretta per la finestra
+    di comandi che TERMINA all'istante t (ultimo input), identico all'ancoraggio
+    di dataset._build_windows (ctx ancorato a i-1, con d = val[i-1]-val[i-h]).
+
+    Qui t corrisponde a i-1, quindi:
+      d_amp = amp_n[t] - amp_n[t-h+1],  idem d_freq
+    Ordine: [amp, freq, sin(phase), cos(phase), d_amp, d_freq].
+    amp/freq normalizzati con lo scaler DIRETTO; sin/cos grezzi.
+    Ritorna np.ndarray shape (6,) float32.
+    """
+    sc_amp  = fwd_scalers["amp"]
+    sc_freq = fwd_scalers["freq"]
+
+    amp_t   = float(norm(sc_amp,  real["amp_des"][t])[0])
+    freq_t  = float(norm(sc_freq, real["freq_des"][t])[0])
+    amp_t0  = float(norm(sc_amp,  real["amp_des"][t - h + 1])[0])
+    freq_t0 = float(norm(sc_freq, real["freq_des"][t - h + 1])[0])
+    ph      = float(real["phase"][t])
+
+    return np.array([
+        amp_t,
+        freq_t,
+        np.sin(ph),
+        np.cos(ph),
+        amp_t - amp_t0,
+        freq_t - freq_t0,
+    ], dtype=np.float32)
 
 
 # ----------------------------------------------------------------------------
 # ROLLOUT closed-loop
 # ----------------------------------------------------------------------------
 def closed_loop_rollout(fwd_model, inv_model, fwd_scalers, inv_scalers,
-                        real, h, n_steps, device):
+                        real, h, n_steps, device, forward_only=False):
     """
     Rollout closed-loop: UN tick = UN avanzamento temporale di uno.
 
-    real: dict con array reali 'sensor_diff','current','cmd' (interi del trial).
+    real: dict con array reali 'sensor_diff','current','cmd' (interi del trial)
+          piu' 'amp_des','freq_des','phase' per il contesto vero della diretta.
 
     Semantica fisica:
       Entrambe le reti sono addestrate un-passo-avanti con la STESSA convenzione:
       finestra che termina a t -> uscita a t+1.
-        - DIRETTA: comandi fino a t            -> sensori [sd,vf] a t+1
-        - INVERSA: sensori  fino a t           -> comando a t+1
+        - DIRETTA: comandi fino a t (+ contesto vero a t) -> sensori [sd,vf] a t+1
+        - INVERSA: sensori  fino a t                       -> comando a t+1
       I valori appena predetti (istante t+1) entrano nei buffer solo A FINE tick,
       per il tick successivo. Cosi' un tick = un solo campione fisico.
 
-    Nota sul bug corretto:
+    Contesto della diretta:
+      fornito "vero" dal trial a ogni tick (teacher forcing solo sul contesto).
+      Al tick k l'ultimo istante di input e' t = start + k - 1 = h-1 + k, e il
+      contesto viene costruito su quell'istante con build_true_context().
+
+    Modalita' diagnostica forward_only:
+      Se forward_only=True, il comando che rientra nella diretta NON viene dalla
+      rete inversa ma e' il comando VERO del trial a quell'istante. Serve a
+      isolare le due sorgenti d'errore dell'anello: la diretta gira comunque in
+      autoregressione (i suoi sensori predetti restano nei buffer sd/vf usati
+      per il plot), ma la catena dei comandi e' quella reale. Se in questa
+      modalita' sensor_diff si riaggancia al vero mentre l'anello completo
+      diverge, l'errore viene dall'INVERSA, non dalla diretta.
+      NB: la diretta di questo progetto prende in input SOLO comandi, quindi con
+      forward_only il canale sensori predetto coincide col one-step teacher
+      forced (plot_prediction.py): e' il comportamento atteso e la conferma che
+      la diretta e' sana. pred_cmd in questa modalita' e' il comando vero.
+
+    Nota sul bug corretto (invariato):
       La versione precedente costruiva la finestra dell'inversa terminandola a
       t+1 (buf_sd[1:] + [sd_next]). Ma l'inversa, addestrata come "sensori fino a
       t -> comando a t+1", con una finestra che termina a t+1 produce il comando
@@ -244,12 +329,18 @@ def closed_loop_rollout(fwd_model, inv_model, fwd_scalers, inv_scalers,
     n_steps = min(n_steps, max_steps)
 
     with torch.no_grad():
-        for _ in range(n_steps):
-            # ---- DIRETTA: comandi fino a t -> sensori a t+1 ----
+        for k in range(n_steps):
+            # ultimo istante di input di questo tick (t). Al tick 0 vale h-1.
+            t_last = start + k - 1
+
+            # ---- DIRETTA: comandi fino a t (+ contesto vero a t) -> sensori a t+1 ----
             cmd_norm = norm(sc_cmd_fwd, buf_cmd)                       # (h,)
             seq_fwd  = torch.tensor(cmd_norm, dtype=torch.float32,
                                     device=device).reshape(1, h, 1)
-            _, fut_fwd, _ = fwd_model(seq_fwd)                        # (1,2) norm diretto
+            ctx_vec  = build_true_context(real, fwd_scalers, t_last, h)  # (6,)
+            ctx_fwd  = torch.tensor(ctx_vec, dtype=torch.float32,
+                                    device=device).reshape(1, -1)         # (1,6)
+            _, fut_fwd, _ = fwd_model(seq_fwd, ctx_fwd)              # (1,2) norm diretto
             fut_fwd = fut_fwd.cpu().numpy().ravel()
             sd_next = float(denorm(sc_sd_fwd, fut_fwd[0])[0])         # -> reale, istante t+1
             vf_next = float(denorm(sc_vf_fwd, fut_fwd[1])[0])
@@ -257,18 +348,24 @@ def closed_loop_rollout(fwd_model, inv_model, fwd_scalers, inv_scalers,
             pred_sd.append(sd_next)
             pred_vf.append(vf_next)
 
-            # ---- INVERSA: sensori fino a t -> comando a t+1 ----
-            # stessa convenzione della diretta: finestra che TERMINA a t.
-            # i sensori appena predatti (t+1) NON entrano qui: entrano nei buffer
-            # solo a fine tick, per il tick successivo.
-            sd_in  = norm(sc_sd_inv, buf_sd)
-            vf_in  = norm(sc_vf_inv, buf_vf)
-            seq_inv = torch.tensor(np.stack([sd_in, vf_in], axis=1),
-                                   dtype=torch.float32,
-                                   device=device).reshape(1, h, 2)
-            _, fut_inv, _ = inv_model(seq_inv)                       # (1,1) norm inverso
-            cmd_next = float(denorm(sc_cmd_inv,
-                                    float(fut_inv.cpu().numpy().ravel()[0]))[0])  # reale, t+1
+            # ---- comando a t+1: dall'INVERSA, oppure vero (forward_only) ----
+            if forward_only:
+                # diagnostica: la catena dei comandi e' quella reale del trial.
+                # il comando a t+1 e' cmd_r[t_last+1]. l'inversa non viene usata.
+                cmd_next = float(cmd_r[t_last + 1])
+            else:
+                # ---- INVERSA: sensori fino a t -> comando a t+1 ----
+                # stessa convenzione della diretta: finestra che TERMINA a t.
+                # i sensori appena predatti (t+1) NON entrano qui: entrano nei
+                # buffer solo a fine tick. L'inversa NON ha contesto.
+                sd_in  = norm(sc_sd_inv, buf_sd)
+                vf_in  = norm(sc_vf_inv, buf_vf)
+                seq_inv = torch.tensor(np.stack([sd_in, vf_in], axis=1),
+                                       dtype=torch.float32,
+                                       device=device).reshape(1, h, 2)
+                _, fut_inv, _ = inv_model(seq_inv)                   # (1,1) norm inverso
+                cmd_next = float(denorm(sc_cmd_inv,
+                                        float(fut_inv.cpu().numpy().ravel()[0]))[0])  # reale, t+1
 
             pred_cmd.append(cmd_next)
 
@@ -325,6 +422,10 @@ def main():
                     help="nome/sottostringa/indice del trial. Default: primo del val split.")
     ap.add_argument("--steps", type=int, default=None,
                     help="numero di passi del rollout. Default: tutto il trial.")
+    ap.add_argument("--forward_only", action="store_true",
+                    help="diagnostica: usa il comando VERO del trial al posto "
+                         "dell'uscita dell'inversa. Isola l'errore della diretta "
+                         "da quello dell'anello con l'inversa.")
     ap.add_argument("--list_trials", action="store_true")
     ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "closed_loop.png"))
     args = ap.parse_args()
@@ -362,12 +463,29 @@ def main():
             raise ValueError(f"scaler diretto: manca la chiave '{k}' in {args.fwd_scaler}")
         if k not in inv_scalers:
             raise ValueError(f"scaler inverso: manca la chiave '{k}' in {args.inv_scaler}")
+    # il contesto della diretta usa amp/freq: lo scaler diretto DEVE averli
+    for k in ("amp", "freq"):
+        if k not in fwd_scalers:
+            raise ValueError(
+                f"scaler diretto: manca la chiave '{k}' in {args.fwd_scaler}. "
+                f"Serve la versione nuova dello scaler (con amp/freq) per costruire "
+                f"il contesto della rete diretta. Rifitta lo scaler col dataset nuovo."
+            )
 
     # --- modelli ---
-    fwd_model, _ = load_model(FishSensorEstimator, args.fwd_checkpoint,
-                              input_size_fallback=1, h=h, device=device)
-    inv_model, _ = load_model(FishInverseEstimator, args.inv_checkpoint,
-                              input_size_fallback=2, h=h, device=device)
+    # diretta: ha contesto -> load_model legge ctx_dim dal checkpoint
+    fwd_model, _, fwd_ctx_dim = load_model(FishSensorEstimator, args.fwd_checkpoint,
+                                           input_size_fallback=1, h=h, device=device,
+                                           has_ctx=True)
+    # inversa: nessun contesto
+    inv_model, _, _ = load_model(FishInverseEstimator, args.inv_checkpoint,
+                                 input_size_fallback=2, h=h, device=device,
+                                 has_ctx=False)
+    if fwd_ctx_dim != 6:
+        print(f"[avviso] la rete diretta ha ctx_dim={fwd_ctx_dim}, ma questo script "
+              f"costruisce un contesto a 6 [amp,freq,sin,cos,d_amp,d_freq]. "
+              f"Se hai cambiato il vettore di contesto, aggiorna build_true_context().",
+              file=sys.stderr)
 
     # --- segnali reali del trial (calibrazione identica a quella vista dalle reti) ---
     real = build_real_from_dataset(fwd_ds, trial_idx)
@@ -380,16 +498,19 @@ def main():
         raise ValueError(f"Trial troppo corto per h={h}: {len(real['cmd'])} campioni "
                          f"(servono almeno {h+1}).")
 
+    mode_str = "FORWARD_ONLY (comando vero)" if args.forward_only else "closed-loop completo (diretta+inversa)"
     print(f"Trial: {trial_name} | campioni={len(real['cmd'])} | h={h} | "
           f"passi rollout={n_steps}  (~{n_steps/20.0:.1f}s @20Hz)")
+    print(f"Modalita': {mode_str}")
 
     # --- rollout ---
     pred = closed_loop_rollout(fwd_model, inv_model, fwd_scalers, inv_scalers,
-                               real, h, n_steps, device)
+                               real, h, n_steps, device,
+                               forward_only=args.forward_only)
     start, n = pred["start"], pred["n_steps"]
 
     # --- serie reali allineate: la predizione al passo k stima il campione start+k ---
-    # (start = h+1: primo indice predetto dalla diretta con finestra comandi [0:h])
+    # (start = h: primo indice predetto dalla diretta con finestra comandi [0:h])
     sl = slice(start, start + n)
     true = {
         "sensor_diff": real["sensor_diff"][sl],
@@ -431,7 +552,8 @@ def main():
           f"comando (tail_target_rad) — RMSE closed-loop {rmse_cmd:.4f} {CHANNEL_UNIT['cmd']}")
 
     axes[-1].set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
-    fig.suptitle(f"Test closed-loop diretta↔inversa — trial {trial_name} "
+    title_mode = "forward-only (comando vero)" if args.forward_only else "diretta↔inversa"
+    fig.suptitle(f"Test closed-loop {title_mode} — trial {trial_name} "
                  f"({n} passi, ~{n/20.0:.1f}s)",
                  color=COL_TEXT, fontsize=13, fontweight="bold", x=0.01, ha="left", y=0.997)
     fig.tight_layout(rect=[0, 0, 1, 0.96])

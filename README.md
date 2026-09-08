@@ -66,11 +66,12 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 
 # Cosa fare ora
 - RIPARTIRE DA : 
-- attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- Auto regressione singolo modello 
 - Modifica dataset
-- Extra input a mlp con parametri sinusoide
-- modifica slide perché ora tutto MLP e iperparametri  
+- sistema slide con le modifiche sull'MLP, extra parametri e test cloosed loop 
+- sin e cos della fase?? 
+
+- attenzione alla calibrazione sui primi 50 campioni, si fa così? 
+- Auto regressione singolo modello ??
 - superare le modalità e parametrizzare tutto? 
 
 # Requirements 

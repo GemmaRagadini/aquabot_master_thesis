@@ -43,7 +43,9 @@ ROUND_DEC  = 4   # decimali salvati nel CSV
 
 def dims_from_state_dict(sd):
     """Ricostruisce gru_hidden e mlp_hidden dalle shape dei pesi salvati,
-    come in channel_loss.py: niente flag da passare a mano."""
+    come in channel_loss.py: niente flag da passare a mano.
+    NB: mlp_future.0.weight ora ha shape (mlp_hidden, gru_hidden + ctx_dim);
+    shape[0] resta mlp_hidden, quindi il calcolo e' ancora corretto."""
     gru_hidden = sd["gru.weight_hh_l0"].shape[1]
     if "mlp_future.0.weight" in sd:
         mlp_hidden = sd["mlp_future.0.weight"].shape[0]
@@ -78,14 +80,16 @@ def run_trial(dataset, model, device, trial_idx, batch_size=256):
         return None
 
     seq    = dataset.sequences[idxs]
+    ctx    = dataset.context[idxs]           # (n, ctx_dim) contesto statico per finestra
     t_hist = dataset.targets_history[idxs]   # (n, h, nc)
     t_fut  = dataset.targets_future[idxs]    # (n, nc)
 
     ph, pf = [], []
     with torch.no_grad():
         for s in range(0, len(idxs), batch_size):
-            chunk = seq[s:s + batch_size].to(device)
-            pred_history, pred_future, _ = model(chunk)
+            chunk     = seq[s:s + batch_size].to(device)
+            chunk_ctx = ctx[s:s + batch_size].to(device)
+            pred_history, pred_future, _ = model(chunk, chunk_ctx)
             ph.append(pred_history.cpu())
             pf.append(pred_future.cpu())
     return t_hist, torch.cat(ph), t_fut, torch.cat(pf)
@@ -152,9 +156,10 @@ def main():
     ckpt = torch.load(args.checkpoint, map_location=device)
     state = ckpt["model_state"]
     input_size = ckpt.get("input_size", dataset.sequences.shape[-1])
+    ctx_dim = ckpt.get("ctx_dim", int(dataset.context.shape[-1]))
     gru_hidden, mlp_hidden = dims_from_state_dict(state)
-    print(f"input_size={input_size} | gru_hidden={gru_hidden} | mlp_hidden={mlp_hidden} "
-          f"(letti dal checkpoint)")
+    print(f"input_size={input_size} | ctx_dim={ctx_dim} | gru_hidden={gru_hidden} | "
+          f"mlp_hidden={mlp_hidden} (letti dal checkpoint)")
 
     # --- ASSERT DI COERENZA: evitano numeri sbagliati silenziosi ---
     ds_input = int(dataset.sequences.shape[-1])
@@ -165,11 +170,20 @@ def main():
             f"col modello salvato (controlla N_INPUT_FEATURES nel dataset e le feature "
             f"attive in _build_windows). I risultati sarebbero privi di senso."
         )
+    ds_ctx = int(dataset.context.shape[-1])
+    if ctx_dim != ds_ctx:
+        raise ValueError(
+            f"MISMATCH contesto: il checkpoint ha ctx_dim={ctx_dim} ma il dataset ne "
+            f"produce {ds_ctx}. Il vettore di contesto (amp/freq/sin/cos/d_amp/d_freq) "
+            f"non e' compatibile col modello salvato (controlla CTX_DIM e la costruzione "
+            f"del contesto in _build_windows)."
+        )
 
     model = FishSensorEstimator(input_size=input_size,
                                 gru_hidden=gru_hidden,
                                 mlp_hidden=mlp_hidden,
-                                h=dataset.h).to(device)
+                                h=dataset.h,
+                                ctx_dim=ctx_dim).to(device)
     model.load_state_dict(state)
     model.eval()
 

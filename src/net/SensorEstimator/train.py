@@ -44,8 +44,8 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future)
         # --- training ---
         model.train()
         train_loss = 0.0
-        for seq, t_hist, t_fut, _ in train_loader:
-            pred_history, pred_future, _ = model(seq)
+        for seq, ctx, t_hist, t_fut, _ in train_loader:
+            pred_history, pred_future, _ = model(seq, ctx)
             loss_history = mse(pred_history, t_hist)
             loss_future  = mse(pred_future,  t_fut)
             loss = loss_history + lambda_future * loss_future
@@ -66,8 +66,8 @@ def train(model, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_future)
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for seq, t_hist, t_fut, _ in val_loader:
-                pred_history, pred_future, _ = model(seq)
+            for seq, ctx, t_hist, t_fut, _ in val_loader:
+                pred_history, pred_future, _ = model(seq, ctx)
                 loss_history = mse(pred_history, t_hist)
                 loss_future  = mse(pred_future,  t_fut)
                 val_loss += (loss_history + lambda_future * loss_future).item()
@@ -99,6 +99,7 @@ def save_checkpoint(model, norm_stats, checkpoint_dir, name="checkpoint.pt"):
         "model_state": state_cpu,
         "norm_stats":  norm_stats,
         "input_size":  model.gru.input_size,
+        "ctx_dim":     model.ctx_dim,
     }, path)
 
 
@@ -107,11 +108,11 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir',        default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints'))
     parser.add_argument('--epochs',         type=int,   default=50)
-    parser.add_argument('--lr',             type=float, default=0.005253895081579669)
-    parser.add_argument('--batch_size',     type=int,   default=64)
-    parser.add_argument('--gru_hidden',     type=int,   default=64)
-    parser.add_argument('--mlp_hidden',     type=int,   default=128)
-    parser.add_argument('--lambda_future', type=float, default=0.0023871980015085456,
+    parser.add_argument('--lr',             type=float, default=0.0028599844555446253)
+    parser.add_argument('--batch_size',     type=int,   default=128)
+    parser.add_argument('--gru_hidden',     type=int,   default=128)
+    parser.add_argument('--mlp_hidden',     type=int,   default=256)
+    parser.add_argument('--lambda_future', type=float, default=0.002718665206988605,
                         help='peso della loss sulla testa "future" nella loss combinata.')
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
@@ -161,6 +162,7 @@ if __name__ == '__main__':
         "model_state": {k: v.cpu() for k, v in model.state_dict().items()},
         "norm_stats":  dataset.norm_stats,
         "input_size":  model.gru.input_size,
+        "ctx_dim":     model.ctx_dim,
         "theta_star":  {n: p.detach().cpu().clone() for n, p in model.named_parameters()},
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path}")
