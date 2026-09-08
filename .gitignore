@@ -2,7 +2,6 @@
 build/
 install/
 log/
-logs/
 
 # Python
 __pycache__/
@@ -16,7 +15,6 @@ __pycache__/
 
 # OS
 .DS_Store
-
 
 *venv
 
