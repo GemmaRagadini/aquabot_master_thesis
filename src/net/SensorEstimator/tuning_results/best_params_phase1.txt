@@ -2,10 +2,10 @@
 === Fase 1 - architettura (top 2) ===
   (lr: 1e-3, batch_size: 64 - fissi)
 
-  #1  val_loss=0.0578
-    gru_hidden: 256
+  #1  val_loss=0.1382
+    gru_hidden: 512
     mlp_hidden: 256
 
-  #2  val_loss=0.0585
+  #2  val_loss=0.1392
     gru_hidden: 128
     mlp_hidden: 256

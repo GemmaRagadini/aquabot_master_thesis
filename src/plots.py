@@ -1,5 +1,6 @@
 import ast
 import csv
+import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
@@ -31,8 +32,21 @@ def _parse_sensors(rows):
     return s0, s1
 
 
-def plot_motor(csv_path):
+def _trial_name(csv_path):
+    return os.path.splitext(os.path.basename(csv_path))[0]
+
+
+def _save_fig(fig, save_dir, name):
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+        path = os.path.join(save_dir, name + ".png")
+        fig.savefig(path, dpi=150, bbox_inches='tight')
+        print(f"Salvato: {path}")
+
+
+def plot_motor(csv_path, save_dir=None):
     rows = _read_csv(csv_path)
+    trial = _trial_name(csv_path)
     t        = [float(r["t_rel_sec"])          for r in rows]
     target   = [float(r["tail_target_rad"])    for r in rows]
     position = [float(r["present_position_rad"]) for r in rows]
@@ -43,16 +57,18 @@ def plot_motor(csv_path):
     ax.axhline(0, color='black', linewidth=0.8)
     ax.set_xlabel("Time [s]", fontsize=LABEL_SIZE)
     ax.set_ylabel("Angle [rad]", fontsize=LABEL_SIZE)
-    ax.set_title("Motor position", fontsize=TITLE_SIZE, fontweight='bold')
+    ax.set_title(f"Motor position — {trial}", fontsize=TITLE_SIZE, fontweight='bold')
     ax.legend(fontsize=LEGEND_SIZE, loc='upper right')
     ax.tick_params(labelsize=TICK_SIZE)
     ax.grid(True)
     plt.tight_layout()
+    _save_fig(fig, save_dir, f"{trial}_motor_position")
     plt.show()
 
 
-def plot_bending(csv_path):
+def plot_bending(csv_path, save_dir=None):
     rows = _read_csv(csv_path)
+    trial = _trial_name(csv_path)
     t        = [float(r["t_rel_sec"]) for r in rows]
     s0, s1   = _parse_sensors(rows)
 
@@ -61,16 +77,18 @@ def plot_bending(csv_path):
     ax.plot(t, s1, color='purple',     linewidth=1.2, label='Sensor 1 (bending)')
     ax.set_xlabel("Time [s]", fontsize=LABEL_SIZE)
     ax.set_ylabel("ADC value", fontsize=LABEL_SIZE)
-    ax.set_title("Bending sensors", fontsize=TITLE_SIZE, fontweight='bold')
+    ax.set_title(f"Bending sensors — {trial}", fontsize=TITLE_SIZE, fontweight='bold')
     ax.legend(fontsize=LEGEND_SIZE, loc='upper right')
     ax.tick_params(labelsize=TICK_SIZE)
     ax.grid(True)
     plt.tight_layout()
+    _save_fig(fig, save_dir, f"{trial}_bending_sensors")
     plt.show()
 
 
-def plot_tail_amplitude(csv_path):
+def plot_tail_amplitude(csv_path, save_dir=None):
     rows = _read_csv(csv_path)
+    trial = _trial_name(csv_path)
     t, amp, bias_total = [], [], []
     center_upper, center_lower = [], []
 
@@ -86,13 +104,11 @@ def plot_tail_amplitude(csv_path):
 
     fig, ax = plt.subplots(figsize=(12, 5))
 
-    # banda oscillazione
     ax.fill_between(t, center_lower, center_upper,
                     alpha=0.15, color='blue', label='Oscillation band')
     ax.plot(t, center_upper, color='blue', linewidth=1,   linestyle='--', label='bias + amp')
     ax.plot(t, center_lower, color='blue', linewidth=1,   linestyle='--', label='bias − amp')
 
-    # centro oscillazione — evidenziato
     ax.plot(t, bias_total, color='red', linewidth=2.5, zorder=5,
             label='Oscillation centre (bias + feedback)')
     ax.fill_between(t,
@@ -100,22 +116,23 @@ def plot_tail_amplitude(csv_path):
                     [b + 0.015 for b in bias_total],
                     color='red', alpha=0.25, zorder=4)
 
-    # ampiezza istantanea
     ax.plot(t, amp, color='green', linewidth=1.5, linestyle=':', label='Amplitude')
     ax.axhline(0, color='black', linewidth=0.8)
 
     ax.set_xlabel("Time [s]", fontsize=LABEL_SIZE)
     ax.set_ylabel("Angle [rad]", fontsize=LABEL_SIZE)
-    ax.set_title("Tail amplitude and oscillation centre", fontsize=TITLE_SIZE, fontweight='bold')
+    ax.set_title(f"Tail amplitude and oscillation centre — {trial}", fontsize=TITLE_SIZE, fontweight='bold')
     ax.legend(fontsize=LEGEND_SIZE, loc='upper right')
     ax.tick_params(labelsize=TICK_SIZE)
     ax.grid(True)
     plt.tight_layout()
+    _save_fig(fig, save_dir, f"{trial}_tail_amplitude")
     plt.show()
 
 
-def plot_combined_sweep(csv_path):
+def plot_combined_sweep(csv_path, save_dir=None):
     rows = _read_csv(csv_path)
+    trial = _trial_name(csv_path)
     t    = [float(r["t_rel_sec"])    for r in rows]
     amp  = [float(r["tail_amp_rad"]) for r in rows]
     freq = [float(r["tail_freq_hz"]) for r in rows]
@@ -140,13 +157,16 @@ def plot_combined_sweep(csv_path):
     lines  = ax.get_lines() + ax_freq.get_lines()
     labels = [l.get_label() for l in lines]
     ax.legend(lines, labels, fontsize=LEGEND_SIZE, loc='upper right')
-    ax.set_title("Amplitude & frequency vs time", fontsize=TITLE_SIZE, fontweight='bold')
+    ax.set_title(f"Amplitude & frequency vs time — {trial}", fontsize=TITLE_SIZE, fontweight='bold')
 
     plt.tight_layout()
+    _save_fig(fig, save_dir, f"{trial}_combined_sweep")
     plt.show()
 
-def plot_current(csv_path):
+
+def plot_current(csv_path, save_dir=None):
     rows = _read_csv(csv_path)
+    trial = _trial_name(csv_path)
     t       = [float(r["t_rel_sec"])         for r in rows]
     current = [float(r["present_current_ma"]) for r in rows]
 
@@ -155,17 +175,21 @@ def plot_current(csv_path):
     ax.axhline(0, color='black', linewidth=0.8)
     ax.set_xlabel("Time [s]", fontsize=LABEL_SIZE)
     ax.set_ylabel("Current [mA]", fontsize=LABEL_SIZE)
-    ax.set_title("Motor current", fontsize=TITLE_SIZE, fontweight='bold')
+    ax.set_title(f"Motor current — {trial}", fontsize=TITLE_SIZE, fontweight='bold')
     ax.legend(fontsize=LEGEND_SIZE, loc='upper right')
     ax.tick_params(labelsize=TICK_SIZE)
     ax.grid(True)
     plt.tight_layout()
+    _save_fig(fig, save_dir, f"{trial}_motor_current")
     plt.show()
 
-CSV = 'logs/trial_20260908_145006.csv'
 
-plot_motor(CSV)
-# plot_current(CSV)
-# plot_tail_amplitude(CSV)
-# plot_bending(CSV)
-# plot_combined_sweep(CSV)   # usare con trial combined_sweep
+CSV = 'logs/trial_20260908_140613.csv'
+SAVE_DIR = 'plots'
+
+plot_motor(CSV, SAVE_DIR)
+plot_current(CSV, SAVE_DIR)
+
+# plot_tail_amplitude(CSV, SAVE_DIR)
+# plot_bending(CSV, SAVE_DIR)
+# plot_combined_sweep(CSV, SAVE_DIR)   # usare con trial combined_sweep
