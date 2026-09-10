@@ -87,7 +87,11 @@ for cfg in \
     "0.30 0.7" \
     "0.30 1.0" \
     "0.40 0.8" \
-    "0.519 1.0"; do
+    "0.519 1.0" \
+    "0.30 0.5" \
+    "0.40 0.5" \
+    "0.30 0.7" \
+    "0.40 0.8"; do
     read amp freq <<< "$cfg"
     set_param tail_amp_rad $amp
     set_param tail_freq_hz $freq
@@ -186,7 +190,15 @@ for turning_cfg in \
     "0.20 0.08" \
     "0.20 0.12" \
     "0.15 0.05" \
-    "0.20 0.15"; do
+    "0.20 0.15" \
+    "0.10 0.12" \
+    "0.15 0.12" \
+    "0.10 0.05" \
+    "0.20 0.05" \
+    "0.15 0.15" \
+    "0.10 0.15" \
+    "0.18 0.10" \
+    "0.12 0.10"; do
     read t_amp t_freq <<< "$turning_cfg"
     set_param turning_bias_amp_rad $t_amp
     set_param turning_bias_freq_hz $t_freq
@@ -214,7 +226,11 @@ for cfg in \
     "0.25 0.25 0.5" \
     "0.30 0.15 0.8" \
     "0.20 0.25 0.6" \
-    "0.35 0.15 0.5"; do
+    "0.35 0.15 0.5" \
+    "0.25 0.20 0.7" \
+    "0.30 0.20 1.0" \
+    "0.20 0.30 0.5" \
+    "0.35 0.15 0.8"; do
     read amp t_amp freq <<< "$cfg"
     set_param amp_min_rad $amp
     set_param amp_max_rad $amp      # min=max → ampiezza fissa

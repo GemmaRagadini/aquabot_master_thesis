@@ -229,6 +229,7 @@ class MasterNode(Node):
             "tail_amp_rad",        # ampiezza corrente
             "tail_freq_hz",        # frequenza corrente
             "phase_rad",           # fase accumulata mod 2pi (diagnostica)
+            "real_position_rad",   # posizione reale del motore (diagnostica plot)
             "present_current_ma",  # corrente misurata
             "sensor_values",       # letture sensori grezze
         ])
@@ -306,7 +307,7 @@ class MasterNode(Node):
         self.phase_acc += 2.0 * math.pi * self.current_freq * dt
 
     def _update_mode(self, t_rel: float, dt: float):
-        """Ogni modalita' e' un generatore di (amp, freq, center).
+        """Ogni modalita' e' SOLO un generatore di (amp, freq, center).
         La riga del moto non e' piu' duplicata: sta in compute_target."""
         mode = self.mode
 
@@ -410,6 +411,7 @@ class MasterNode(Node):
             float(self.current_amp),
             float(self.current_freq),
             float(phase),
+            float(self.present_position),
             float(self.present_current),
             sensor_values,
         ])
