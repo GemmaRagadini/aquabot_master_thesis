@@ -66,13 +66,13 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 
 # Cosa fare ora
 - RIPARTIRE DA : 
-- Modifica dataset
-- sistema slide con le modifiche sull'MLP, extra parametri e test cloosed loop 
-- sin e cos della fase?? 
+- rifai slide 
+- guarda i grafici di previsione dopo il nuovo modello 
+
 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 - Auto regressione singolo modello ??
-- superare le modalità e parametrizzare tutto? 
+- superare le modalità
 
 # Requirements 
 uv pip install -r requirements.txt
