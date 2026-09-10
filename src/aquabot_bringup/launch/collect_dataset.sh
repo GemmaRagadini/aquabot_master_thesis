@@ -17,9 +17,6 @@
 #   combined_sweep:   bias(0.903) + amp_max(0.518)                  = 1.421  OK
 #   turning_fixed:    amp + turning_amp <= 0.519 imposto per config = <=1.422 OK
 #   turning_combined: bias(0.903) + t_amp(0.2) + amp_max(0.518)     = 1.621  -> clampato OK
-#   random_walk:      bias(0.903) + amp_max(0.518)                  = 1.421  OK (no turning offset)
-#   random_walk+bias: |bias_rand| + amp <= 0.519 - margine (imposto dal nodo) OK
-#   chaotic_stop:     bias(0.903) + amp_max(0.518)                  = 1.421  OK (no turning offset)
 
 DRY_RUN=false
 if [[ "$1" == "--dry-run" || "$1" == "--dry_run" ]]; then
@@ -226,122 +223,6 @@ for cfg in \
     set_param turning_bias_amp_rad $t_amp
     echo ""
     echo "  turning_fixed | amp=${amp} freq=${freq}Hz turning_amp=${t_amp}rad"
-    start_trial
-    wait_trial $DURATION
-    TOTAL_TRIALS=$((TOTAL_TRIALS + 1))
-done
-
-# ── Gruppo 6: random_walk ────────────────────────────
-# Amp/freq che vagano con continuità (interpolate). seed=0 → ogni trial diverso.
-# Nessun turning offset: bias(0.903)+amp_max(0.518)=1.421 OK.
-# Variamo morbidezza (rand_smooth_alpha), cadenza di ricampionamento e finestre amp/freq.
-echo ""
-echo "=== GRUPPO 6: random_walk ==="
-
-set_param mode random_walk
-set_param trial_duration_sec $DURATION_ROS
-set_param rand_seed 0        # sempre diverso
-set_param rand_vary_bias False   # centro FISSO in questo gruppo
-
-# cfg: smooth_alpha  update_min  update_max  amp_min  amp_max  freq_min  freq_max
-for rw_cfg in \
-    "0.10 0.5 1.5 0.3 0.518 0.5 1.0" \
-    "0.20 0.4 1.2 0.3 0.518 0.5 1.0" \
-    "0.30 0.3 0.9 0.3 0.518 0.5 1.0" \
-    "0.15 0.5 1.5 0.2 0.45  0.4 0.9" \
-    "0.25 0.3 1.0 0.3 0.518 0.6 1.2" \
-    "0.10 0.6 1.8 0.15 0.4  0.5 1.0" \
-    "0.35 0.2 0.7 0.3 0.518 0.5 1.3" \
-    "0.20 0.4 1.2 0.25 0.5  0.4 1.0"; do
-    read alpha umin umax amin amax fmin fmax <<< "$rw_cfg"
-    set_param rand_smooth_alpha $alpha
-    set_param rand_update_min_sec $umin
-    set_param rand_update_max_sec $umax
-    set_param amp_min_rad $amin
-    set_param amp_max_rad $amax
-    set_param freq_min_hz $fmin
-    set_param freq_max_hz $fmax
-    echo ""
-    echo "  random_walk | alpha=${alpha} update=[${umin}, ${umax}]s amp=[${amin}, ${amax}] freq=[${fmin}, ${fmax}]"
-    start_trial
-    wait_trial $DURATION
-    TOTAL_TRIALS=$((TOTAL_TRIALS + 1))
-done
-
-# ── Gruppo 6b: random_walk con centro variabile ──────
-# Come il gruppo 6 ma il centro di oscillazione cambia in modo RADO e NETTO
-# (salto secco ogni bias_update_min..max secondi, timer proprio nel nodo).
-# Il nodo limita il centro in base all'ampiezza: |bias_rand| + amp <= 0.519 - margine,
-# quindi non satura mai (rand_bias_margin = margine di sicurezza extra).
-# seed=0 → ogni trial diverso.
-echo ""
-echo "=== GRUPPO 6b: random_walk (centro variabile) ==="
-
-set_param mode random_walk
-set_param trial_duration_sec $DURATION_ROS
-set_param rand_seed 0
-set_param rand_vary_bias True     # centro VARIABILE in questo gruppo
-
-# cfg: smooth_alpha  update_min  update_max  bias_margin  bias_upd_min  bias_upd_max  amp_min  amp_max  freq_min  freq_max
-for rwb_cfg in \
-    "0.15 0.5 1.5 0.02 4.0 8.0 0.3 0.518 0.5 1.0" \
-    "0.20 0.4 1.2 0.02 3.0 6.0 0.3 0.518 0.5 1.0" \
-    "0.10 0.6 1.8 0.05 5.0 9.0 0.3 0.518 0.5 1.0" \
-    "0.25 0.3 1.0 0.02 4.0 8.0 0.2 0.45  0.4 0.9" \
-    "0.15 0.5 1.5 0.05 3.0 6.0 0.3 0.518 0.6 1.2" \
-    "0.30 0.3 0.9 0.02 5.0 9.0 0.25 0.5  0.5 1.0"; do
-    read alpha umin umax bmarg bumin bumax amin amax fmin fmax <<< "$rwb_cfg"
-    set_param rand_smooth_alpha $alpha
-    set_param rand_update_min_sec $umin
-    set_param rand_update_max_sec $umax
-    set_param rand_bias_margin $bmarg
-    set_param rand_bias_update_min_sec $bumin
-    set_param rand_bias_update_max_sec $bumax
-    set_param amp_min_rad $amin
-    set_param amp_max_rad $amax
-    set_param freq_min_hz $fmin
-    set_param freq_max_hz $fmax
-    echo ""
-    echo "  random_walk+bias | alpha=${alpha} update=[${umin}, ${umax}]s margin=${bmarg} bias_upd=[${bumin}, ${bumax}]s amp=[${amin}, ${amax}] freq=[${fmin}, ${fmax}]"
-    start_trial
-    wait_trial $DURATION
-    TOTAL_TRIALS=$((TOTAL_TRIALS + 1))
-done
-
-# ── Gruppo 7: chaotic_stop ───────────────────────────
-# Cambi bruschi di amp/freq + pause casuali. seed=0 → ogni trial diverso.
-# Nessun turning offset: bias(0.903)+amp_max(0.518)=1.421 OK.
-# Variamo probabilità/durata degli stop, cadenza dei cambi e finestre amp/freq.
-echo ""
-echo "=== GRUPPO 7: chaotic_stop ==="
-
-set_param mode chaotic_stop
-set_param trial_duration_sec $DURATION_ROS
-set_param rand_seed 0        # sempre diverso
-set_param rand_vary_bias False   # centro non variabile qui
-
-# cfg: stop_prob  stop_min  stop_max  update_min  update_max  amp_min  amp_max  freq_min  freq_max
-for cs_cfg in \
-    "0.20 0.3 1.0 0.4 1.2 0.3 0.518 0.5 1.0" \
-    "0.35 0.4 1.5 0.4 1.2 0.3 0.518 0.5 1.0" \
-    "0.25 0.3 0.8 0.6 1.5 0.3 0.518 0.5 1.0" \
-    "0.15 0.2 0.6 0.4 1.0 0.3 0.518 0.6 1.2" \
-    "0.30 0.5 1.2 0.5 1.3 0.2 0.45  0.4 0.9" \
-    "0.40 0.4 1.0 0.3 0.9 0.3 0.518 0.5 1.0" \
-    "0.25 0.3 1.0 0.5 1.5 0.15 0.4  0.5 1.1" \
-    "0.20 0.4 1.4 0.4 1.2 0.25 0.5  0.5 1.3"; do
-    read sprob smin smax umin umax amin amax fmin fmax <<< "$cs_cfg"
-    set_param stop_prob $sprob
-    set_param stop_min_sec $smin
-    set_param stop_max_sec $smax
-    set_param rand_update_min_sec $umin
-    set_param rand_update_max_sec $umax
-    set_param amp_min_rad $amin
-    set_param amp_max_rad $amax
-    set_param freq_min_hz $fmin
-    set_param freq_max_hz $fmax
-    echo ""
-    echo "  chaotic_stop | stop_prob=${sprob} stop=[${smin}, ${smax}]s update=[${umin}, ${umax}]s amp=[${amin}, ${amax}] freq=[${fmin}, ${fmax}]"
     start_trial
     wait_trial $DURATION
     TOTAL_TRIALS=$((TOTAL_TRIALS + 1))

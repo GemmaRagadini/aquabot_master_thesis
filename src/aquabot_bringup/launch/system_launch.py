@@ -44,6 +44,7 @@ def generate_launch_description():
             'log_rate_hz': 20.0,
             'log_dir': './logs',
 
+            # feedback: SOLO diagnostica, mai nel moto (resta spento)
             'feedback_enabled': False,
             'feedback_gain': 0.001,
             'feedback_alpha': 0.1,
@@ -58,11 +59,6 @@ def generate_launch_description():
             # turning combined
             'turning_bias_amp_rad': 0.2,
             'turning_bias_freq_hz': 0.08,
-
-            #random centre
-            'rand_vary_bias': True,
-            'rand_bias_margin': 0.02,   # margine di sicurezza sotto il limite fisico
-            
         }]
     )
 

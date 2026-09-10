@@ -3,7 +3,6 @@ import math
 import csv
 import os
 import rclpy
-import random
 from datetime import datetime
 from rclpy.node import Node
 from std_msgs.msg import Float64, Float32MultiArray
@@ -53,7 +52,12 @@ class MasterNode(Node):
         self.declare_parameter('amp_min_rad', 0.1)
         self.declare_parameter('amp_max_rad', self.MAX_AMP_RAD)
 
-        # collegamento sensori -> motore
+        # --- FEEDBACK SENSORI: SOLO DIAGNOSTICA ---
+        # Durante training e test resta SEMPRE spento: non entra mai nel moto
+        # generato. Serve solo per verificare a mano il funzionamento dei sensori
+        # (compute_bias_offset_diagnostic()). La traiettoria e' sempre e solo
+        #   theta = center + amp * sin(phase)
+        # senza alcun termine di feedback.
         self.declare_parameter("feedback_enabled", False)
         self.declare_parameter("feedback_gain", 0.0)
         self.declare_parameter("feedback_alpha", 0.1)
@@ -62,23 +66,6 @@ class MasterNode(Node):
         # parametri per turning (variazione sinusoidale del centro di oscillazione)
         self.declare_parameter("turning_bias_amp_rad", 0.4)
         self.declare_parameter("turning_bias_freq_hz", 0.08)
-
-        # parametri per modalità randomiche
-        self.declare_parameter("rand_seed", 0)                  # 0 = seed casuale, >0 = riproducibile
-        self.declare_parameter("rand_update_min_sec", 0.4)      # intervallo min tra nuovi target casuali
-        self.declare_parameter("rand_update_max_sec", 1.5)      # intervallo max
-        self.declare_parameter("rand_smooth_alpha", 0.15)       # 0..1: quanto è morbida la transizione (basso = morbido)
-
-        # parametri specifici per chaotic_stop
-        self.declare_parameter("stop_prob", 0.25)               # prob. che a un update parta una pausa
-        self.declare_parameter("stop_min_sec", 0.3)             # durata min pausa
-        self.declare_parameter("stop_max_sec", 1.2)             # durata max pausa
-
-        # parametri per il centro di oscillazione randomico (cambi radi e netti)
-        self.declare_parameter("rand_vary_bias", False)          # se True, anche il centro varia
-        self.declare_parameter("rand_bias_margin", 0.02)         # margine di sicurezza (rad) sotto il limite fisico
-        self.declare_parameter("rand_bias_update_min_sec", 4.0)  # intervallo min tra cambi di centro
-        self.declare_parameter("rand_bias_update_max_sec", 8.0)  # intervallo max tra cambi di centro
 
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min = float(self.get_parameter('freq_min_hz').value)
@@ -96,25 +83,15 @@ class MasterNode(Node):
         self.control_rate = float(self.get_parameter('control_rate_hz').value)
         self.log_rate = float(self.get_parameter('log_rate_hz').value)
         self.log_dir = self.get_parameter('log_dir').value
+
+        # feedback: solo diagnostica (vedi nota sopra)
         self.feedback_enabled = bool(self.get_parameter("feedback_enabled").value)
         self.feedback_gain = float(self.get_parameter("feedback_gain").value)
         self.feedback_alpha = float(self.get_parameter("feedback_alpha").value)
         self.feedback_max_offset = float(self.get_parameter("feedback_max_offset").value)
+
         self.turning_bias_amp = float(self.get_parameter("turning_bias_amp_rad").value)
         self.turning_bias_freq = float(self.get_parameter("turning_bias_freq_hz").value)
-
-        self.rand_seed = int(self.get_parameter("rand_seed").value)
-        self.rand_update_min = float(self.get_parameter("rand_update_min_sec").value)
-        self.rand_update_max = float(self.get_parameter("rand_update_max_sec").value)
-        self.rand_smooth_alpha = float(self.get_parameter("rand_smooth_alpha").value)
-        self.stop_prob = float(self.get_parameter("stop_prob").value)
-        self.stop_min = float(self.get_parameter("stop_min_sec").value)
-        self.stop_max = float(self.get_parameter("stop_max_sec").value)
-
-        self.rand_vary_bias = bool(self.get_parameter("rand_vary_bias").value)
-        self.rand_bias_margin = float(self.get_parameter("rand_bias_margin").value)
-        self.rand_bias_update_min = float(self.get_parameter("rand_bias_update_min_sec").value)
-        self.rand_bias_update_max = float(self.get_parameter("rand_bias_update_max_sec").value)
 
         # pubblica il target della coda
         self.publisher = self.create_publisher(Float64, self.target_topic, 10)
@@ -139,22 +116,21 @@ class MasterNode(Node):
         self.log_counter = 0
         self.log_every = max(1, int(round(self.control_rate / self.log_rate)))
 
+        # --- STATO DELLA DINAMICA ---
+        # I tre segnali che DEFINISCONO il moto istante per istante. Ogni
+        # modalita' e' solo un generatore che aggiorna questi tre; la formula
+        # finale e' unica (compute_target).
+        self.current_amp    = self.amp
+        self.current_freq   = self.freq
+        self.current_center = self.bias   # centro EFFETTIVO (bias + eventuali variazioni)
+
         self.phase_acc = 0.0
         self.last_control_time = None
-        self.current_amp = self.amp
-        self.current_freq = self.freq
+
+        # feedback diagnostico (mai nel moto)
         self.current_bias_offset = 0.0
 
-        # stato modalità randomiche
-        self._rng = random.Random(self.rand_seed if self.rand_seed > 0 else None)
-        self.rand_next_update_t = 0.0     # quando ricampionare i target di amp/freq
-        self.rand_target_amp = self.amp   # target verso cui interpolare
-        self.rand_target_freq = self.freq
-        self.stop_until_t = 0.0           # se t_rel < questo, il movimento è in pausa
-        # centro randomico (cambi radi e netti, timer proprio)
-        self.current_bias_rand = 0.0      # centro randomico corrente
-        self.bias_next_update_t = 0.0     # quando cambiare il centro
-
+        # calibrazione sensori (diagnostica)
         self.sensor_diff_offset = 0.0
         self.calibration_samples = []
         self.calibration_done = False
@@ -196,29 +172,6 @@ class MasterNode(Node):
                 self.turning_bias_amp = float(p.value)
             elif p.name == 'turning_bias_freq_hz':
                 self.turning_bias_freq = float(p.value)
-            elif p.name == 'rand_vary_bias':
-                self.rand_vary_bias = bool(p.value)
-            elif p.name == 'rand_bias_margin':
-                self.rand_bias_margin = float(p.value)
-            elif p.name == 'rand_bias_update_min_sec':
-                self.rand_bias_update_min = float(p.value)
-            elif p.name == 'rand_bias_update_max_sec':
-                self.rand_bias_update_max = float(p.value)
-            elif p.name == 'rand_smooth_alpha':
-                self.rand_smooth_alpha = float(p.value)
-            elif p.name == 'rand_update_min_sec':
-                self.rand_update_min = float(p.value)
-            elif p.name == 'rand_update_max_sec':
-                self.rand_update_max = float(p.value)
-            elif p.name == 'rand_seed':
-                self.rand_seed = int(p.value)
-                self._rng = random.Random(self.rand_seed if self.rand_seed > 0 else None)
-            elif p.name == 'stop_prob':
-                self.stop_prob = float(p.value)
-            elif p.name == 'stop_min_sec':
-                self.stop_min = float(p.value)
-            elif p.name == 'stop_max_sec':
-                self.stop_max = float(p.value)
         return SetParametersResult(successful=True)
 
     def sensor_callback(self, msg: Float32MultiArray):
@@ -264,33 +217,27 @@ class MasterNode(Node):
         filename = os.path.join(self.log_dir, f"trial_{stamp}.csv")
         self.csv_file = open(filename, 'w', newline='')
         self.csv_writer = csv.writer(self.csv_file)
+        # --- LOG PULITO: solo le cose interpretabili ---
+        # Il moto e' theta = center + amp*sin(phase); le tre colonne
+        # center_rad / tail_amp_rad / tail_freq_hz lo definiscono per intero.
         self.csv_writer.writerow([
             "mode",
             "t_ros_sec",
             "t_rel_sec",
-            "tail_target_rad",
-            "tail_bias_rad",
-            "tail_bias_offset_rad",
-            "tail_bias_rand_rad",
-            "tail_amp_rad",
-            "tail_freq_hz",
-            "phase_rad",
-            "cycle_idx",
-            "present_position_rad",
-            "present_current_ma",
-            "sensor_len",
-            "sensor_values"
+            "tail_target_rad",     # comando prodotto (theta)
+            "center_rad",          # centro EFFETTIVO di oscillazione (bias + variazioni)
+            "tail_amp_rad",        # ampiezza corrente
+            "tail_freq_hz",        # frequenza corrente
+            "phase_rad",           # fase accumulata mod 2pi (diagnostica)
+            "present_current_ma",  # corrente misurata
+            "sensor_values",       # letture sensori grezze
         ])
         self.csv_file.flush()
         self.t0 = self.get_clock().now()
         self.last_control_time = self.t0
         self.phase_acc = 0.0
+        self.current_center = self.bias
         self.current_bias_offset = 0.0
-        # reset stato randomico a inizio trial
-        self.rand_next_update_t = 0.0
-        self.bias_next_update_t = 0.0
-        self.stop_until_t = 0.0
-        self.current_bias_rand = 0.0
         self.recording = True
         self.get_logger().info(f"Started trial -> {filename}")
 
@@ -307,7 +254,7 @@ class MasterNode(Node):
         self.last_control_time = None
         self.phase_acc = 0.0
 
-        # pubblica il ritorno al centro solo se il contesto ROS è ancora valido
+        # ritorno al centro base, se ROS e' ancora attivo
         try:
             if rclpy.ok():
                 msg = Float64()
@@ -318,10 +265,8 @@ class MasterNode(Node):
 
     def control_step(self):
         now = self.get_clock().now()
-
         if self.t0 is None:
             self.t0 = now
-
         if self.last_control_time is None:
             self.last_control_time = now
 
@@ -341,140 +286,74 @@ class MasterNode(Node):
             self.log_counter = 0
             self.log_step()
 
+    # ------------------------------------------------------------------
+    #  FORMULA UNICA DEL MOTO
+    # ------------------------------------------------------------------
     def compute_target(self, t_rel: float, dt: float):
-        if self.mode == 'std':
-            freq_t = self.freq
-            amp_t = self.amp
-            self.current_amp = amp_t
-            self.current_freq = freq_t
-            self.phase_acc += 2.0 * math.pi * freq_t * dt
-            bias_offset = self.compute_bias_offset()
-            theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
+        """Aggiorna (amp, freq, center) secondo la modalita', poi applica
+        l'UNICA formula del moto:  theta = center + amp * sin(phase_acc).
 
-        elif self.mode == 'freq_sweep':
+        Nessun ramo di feedback: il feedback sensori e' solo diagnostico e non
+        entra mai qui (vedi compute_bias_offset_diagnostic)."""
+        # 1) il generatore di modalita' aggiorna amp/freq/center e fa avanzare la fase
+        self._update_mode(t_rel, dt)
+
+        # 2) formula unica
+        theta = self.current_center + self.current_amp * math.sin(self.phase_acc)
+        return clamp(theta, self.tail_min, self.tail_max)
+
+    def _advance_phase(self, dt: float):
+        self.phase_acc += 2.0 * math.pi * self.current_freq * dt
+
+    def _update_mode(self, t_rel: float, dt: float):
+        """Ogni modalita' e' un generatore di (amp, freq, center).
+        La riga del moto non e' piu' duplicata: sta in compute_target."""
+        mode = self.mode
+
+        if mode == 'std':
+            self.current_amp = self.amp
+            self.current_freq = self.freq
+            self.current_center = self.bias
+            self._advance_phase(dt)
+
+        elif mode == 'freq_sweep':
             alpha = self.triangular_profile(t_rel, self.trial_duration)
-            freq_t = self.freq_min + alpha * (self.freq_max - self.freq_min)
-            amp_t = self.amp
-            self.current_amp = amp_t
-            self.current_freq = freq_t
-            self.phase_acc += 2.0 * math.pi * freq_t * dt
-            bias_offset = self.compute_bias_offset()
-            theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
+            self.current_freq = self.freq_min + alpha * (self.freq_max - self.freq_min)
+            self.current_amp = self.amp
+            self.current_center = self.bias
+            self._advance_phase(dt)
 
-        elif self.mode == 'amp_sweep':
+        elif mode == 'amp_sweep':
             alpha = self.triangular_profile(t_rel, self.trial_duration)
-            amp_t = self.amp_min + alpha * (self.amp_max - self.amp_min)
-            freq_t = self.freq
-            self.current_amp = amp_t
-            self.current_freq = freq_t
-            self.phase_acc += 2.0 * math.pi * freq_t * dt
-            bias_offset = self.compute_bias_offset()
-            theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
+            self.current_amp = self.amp_min + alpha * (self.amp_max - self.amp_min)
+            self.current_freq = self.freq
+            self.current_center = self.bias
+            self._advance_phase(dt)
 
-        elif self.mode == 'combined_sweep':
+        elif mode == 'combined_sweep':
             PHI = 1.6180339887
             alpha_amp  = self.triangular_profile(t_rel, self.trial_duration)
             alpha_freq = self.triangular_profile(t_rel, self.trial_duration / PHI)
-            amp_t  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
-            freq_t = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
-            self.current_amp  = amp_t
-            self.current_freq = freq_t
-            self.phase_acc += 2.0 * math.pi * freq_t * dt
-            bias_offset = self.compute_bias_offset()
-            theta = self.bias + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
+            self.current_amp  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
+            self.current_freq = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
+            self.current_center = self.bias
+            self._advance_phase(dt)
 
-        elif self.mode == 'turning_combined':
+        elif mode == 'turning_combined':
             PHI = 1.6180339887
             alpha_amp  = self.triangular_profile(t_rel, self.trial_duration)
             alpha_freq = self.triangular_profile(t_rel, self.trial_duration / PHI)
-            amp_t  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
-            freq_t = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
-            self.current_amp  = amp_t
-            self.current_freq = freq_t
-            self.phase_acc += 2.0 * math.pi * freq_t * dt
-            bias_t = self.bias + self.turning_bias_amp * math.sin(
-                2.0 * math.pi * self.turning_bias_freq * t_rel
-            )
-            bias_offset = self.compute_bias_offset()
-            theta = bias_t + bias_offset + amp_t * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
+            self.current_amp  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
+            self.current_freq = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
+            # il centro oscilla lentamente: ORA e' loggato nel center effettivo
+            self.current_center = self.bias + self.turning_bias_amp * math.sin(
+                2.0 * math.pi * self.turning_bias_freq * t_rel)
+            self._advance_phase(dt)
 
-        elif self.mode == '1to1':
-            if self.last_sensor is None or len(self.last_sensor) < 2:
-                return clamp(self.bias, self.tail_min, self.tail_max)
-            sensor_diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
-            sensor_diff_calibrated = sensor_diff - self.sensor_diff_offset
-            theta = self.bias + self.feedback_gain * sensor_diff_calibrated
+        else:
+            # fallback: fermo al centro
             self.current_amp = 0.0
-            self.current_freq = 0.0
-            return clamp(theta, self.tail_min, self.tail_max)
-
-        elif self.mode == 'random_walk':
-            # amp/freq: vagano con continuità (interpolate)
-            if t_rel >= self.rand_next_update_t:
-                self.rand_target_amp = self._rng.uniform(self.amp_min, self.amp_max)
-                self.rand_target_freq = self._rng.uniform(self.freq_min, self.freq_max)
-                self.rand_next_update_t = t_rel + self._rng.uniform(
-                    self.rand_update_min, self.rand_update_max)
-
-            a = self.rand_smooth_alpha
-            self.current_amp = (1.0 - a) * self.current_amp + a * self.rand_target_amp
-            self.current_freq = (1.0 - a) * self.current_freq + a * self.rand_target_freq
-
-            # centro: cambi RADI e NETTI (salto secco, timer separato e lento)
-            if self.rand_vary_bias:
-                if t_rel >= self.bias_next_update_t:
-                    # margine per il centro data l'ampiezza corrente:
-                    # |bias_rand| + amp <= MAX_AMP_RAD - margine
-                    max_bias_off = self.MAX_AMP_RAD - self.current_amp - self.rand_bias_margin
-                    if max_bias_off < 0.0:
-                        max_bias_off = 0.0
-                    self.current_bias_rand = self._rng.uniform(-max_bias_off, max_bias_off)
-                    self.bias_next_update_t = t_rel + self._rng.uniform(
-                        self.rand_bias_update_min, self.rand_bias_update_max)
-            else:
-                self.current_bias_rand = 0.0
-
-            self.phase_acc += 2.0 * math.pi * self.current_freq * dt
-            bias_offset = self.compute_bias_offset()  # feedback sensori (se attivo)
-            theta = (self.bias + self.current_bias_rand + bias_offset
-                     + self.current_amp * math.sin(self.phase_acc))
-            return clamp(theta, self.tail_min, self.tail_max)
-
-        elif self.mode == 'chaotic_stop':
-            in_stop = t_rel < self.stop_until_t
-
-            if t_rel >= self.rand_next_update_t and not in_stop:
-                # cambio BRUSCO (nessuna interpolazione): salto diretto
-                self.current_amp = self._rng.uniform(self.amp_min, self.amp_max)
-                self.current_freq = self._rng.uniform(self.freq_min, self.freq_max)
-                self.rand_next_update_t = t_rel + self._rng.uniform(
-                    self.rand_update_min, self.rand_update_max)
-                # eventualmente avvia una pausa
-                if self._rng.random() < self.stop_prob:
-                    self.stop_until_t = t_rel + self._rng.uniform(
-                        self.stop_min, self.stop_max)
-                    in_stop = True
-
-            if in_stop:
-                # movimento fermo: la fase non avanza, resta all'ultima posizione
-                self.current_freq = 0.0
-                bias_offset = self.compute_bias_offset()
-                theta = self.bias + bias_offset + self.current_amp * math.sin(self.phase_acc)
-                return clamp(theta, self.tail_min, self.tail_max)
-
-            self.phase_acc += 2.0 * math.pi * self.current_freq * dt
-            bias_offset = self.compute_bias_offset()
-            theta = self.bias + bias_offset + self.current_amp * math.sin(self.phase_acc)
-            return clamp(theta, self.tail_min, self.tail_max)
-
-        # fallback
-        bias_offset = self.compute_bias_offset()
-        return clamp(self.bias + bias_offset, self.tail_min, self.tail_max)
+            self.current_center = self.bias
 
     def triangular_profile(self, t_rel: float, duration: float) -> float:
         if duration <= 0.0:
@@ -485,44 +364,41 @@ class MasterNode(Node):
         else:
             return 2.0 * (1.0 - tau)
 
-    def compute_bias_offset(self):
+    # ------------------------------------------------------------------
+    #  FEEDBACK SENSORI — SOLO DIAGNOSTICA (mai nel moto)
+    # ------------------------------------------------------------------
+    def compute_bias_offset_diagnostic(self):
+        """Calcolo dell'offset da feedback sensoriale. NON viene chiamato da
+        compute_target: durante training e test il feedback resta spento e non
+        deve influenzare il moto. Tenuto solo per ispezionare a mano la
+        risposta dei sensori quando serve."""
         if not self.feedback_enabled:
             self.current_bias_offset = 0.0
             return 0.0
         if self.last_sensor is None or len(self.last_sensor) < 2:
             self.current_bias_offset = 0.0
             return 0.0
-
         sensor_diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
         sensor_diff_calibrated = sensor_diff - self.sensor_diff_offset
         target_offset = self.feedback_gain * sensor_diff_calibrated
-
         self.current_bias_offset = (
             (1.0 - self.feedback_alpha) * self.current_bias_offset
-            + self.feedback_alpha * target_offset
-        )
+            + self.feedback_alpha * target_offset)
         self.current_bias_offset = clamp(
-            self.current_bias_offset,
-            -self.feedback_max_offset,
-            self.feedback_max_offset
-        )
+            self.current_bias_offset, -self.feedback_max_offset, self.feedback_max_offset)
         return self.current_bias_offset
 
     def log_step(self):
         if not self.recording or self.csv_writer is None:
             return
-
         now = self.get_clock().now()
         t_ros_sec = now.nanoseconds * 1e-9
         t_rel = (now - self.t0).nanoseconds * 1e-9 if self.t0 else 0.0
         phase = self.phase_acc % (2.0 * math.pi)
-        cycle_idx = int(self.phase_acc / (2.0 * math.pi))
 
         if self.last_sensor is None:
-            sensor_len = 0
             sensor_values = []
         else:
-            sensor_len = len(self.last_sensor)
             sensor_values = self.last_sensor
 
         self.csv_writer.writerow([
@@ -530,17 +406,12 @@ class MasterNode(Node):
             t_ros_sec,
             t_rel,
             float(self.latest_target),
-            float(self.bias),
-            float(self.current_bias_offset),
-            float(getattr(self, 'current_bias_rand', 0.0)),
+            float(self.current_center),
             float(self.current_amp),
             float(self.current_freq),
             float(phase),
-            cycle_idx,
-            float(self.present_position),
             float(self.present_current),
-            sensor_len,
-            sensor_values
+            sensor_values,
         ])
         self.csv_file.flush()
 
