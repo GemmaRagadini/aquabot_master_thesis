@@ -53,10 +53,14 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc):
 
     best_val_loss = float('inf')
     train_losses, val_losses = [], []
+    train_im_losses, train_fm_losses = [], []
+    val_im_losses,   val_fm_losses   = [], []
 
     for epoch in range(epochs):
         IM.train(); FM.train()
         train_loss = 0.0
+        train_im = 0.0
+        train_fm = 0.0
         for seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ in train_loader:
             # ingresso condiviso [C_T, S_T] -> (batch, H, 3)
             seq = torch.cat([seq_cmd, seq_sens], dim=-1)
@@ -84,23 +88,35 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc):
             nn.utils.clip_grad_norm_(params, max_norm=1.0)
             optimizer.step()
             train_loss += loss.item()
+            train_im   += loss_im.item()
+            train_fm   += loss_fm.item()
 
         IM.eval(); FM.eval()
         val_loss = 0.0
+        val_im = 0.0
+        val_fm = 0.0
         with torch.no_grad():
             for seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ in val_loader:
                 seq = torch.cat([seq_cmd, seq_sens], dim=-1)
                 pred_cmd,  _ = IM(seq, ctx)
                 pred_sens, _ = FM(seq, ctx)
-                val_loss += (mse(pred_cmd, tgt_cmd) + mse(pred_sens, tgt_sens)).item()
+                l_im = mse(pred_cmd,  tgt_cmd)
+                l_fm = mse(pred_sens, tgt_sens)
+                val_im   += l_im.item()
+                val_fm   += l_fm.item()
+                val_loss += (l_im + l_fm).item()
 
-        train_loss /= len(train_loader)
-        val_loss   /= len(val_loader)
+        nbt = len(train_loader)
+        nbv = len(val_loader)
+        train_loss /= nbt; train_im /= nbt; train_fm /= nbt
+        val_loss   /= nbv; val_im   /= nbv; val_fm   /= nbv
         scheduler.step(val_loss)
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
+        train_losses.append(train_loss); val_losses.append(val_loss)
+        train_im_losses.append(train_im); train_fm_losses.append(train_fm)
+        val_im_losses.append(val_im);     val_fm_losses.append(val_fm)
 
-        print(f"Epoch {epoch:3d} | train {train_loss:.4f} | val {val_loss:.4f} "
+        print(f"Epoch {epoch:3d} | train {train_loss:.4f} (IM {train_im:.4f} FM {train_fm:.4f}) "
+              f"| val {val_loss:.4f} (IM {val_im:.4f} FM {val_fm:.4f}) "
               f"| lr {optimizer.param_groups[0]['lr']:.2e}")
 
         if val_loss < best_val_loss:
@@ -108,7 +124,11 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc):
             save_checkpoint(IM, FM, dataset.norm_stats, checkpoint_dir, name="best.pt")
 
     print(f"\nTraining completato. Best val loss: {best_val_loss:.4f}")
-    return IM, FM, train_losses, val_losses
+    return IM, FM, {
+        "train": train_losses, "val": val_losses,
+        "train_im": train_im_losses, "train_fm": train_fm_losses,
+        "val_im": val_im_losses, "val_fm": val_fm_losses,
+    }
 
 
 def save_checkpoint(IM, FM, norm_stats, checkpoint_dir, name="checkpoint.pt"):
@@ -166,7 +186,7 @@ if __name__ == '__main__':
     print(f"Parametri: IM={n_im} | FM={n_fm} | tot={n_im + n_fm}")
 
     print("\nInizio training congiunto...")
-    IM, FM, train_losses, val_losses = train(
+    IM, FM, hist = train(
         IM, FM, dataset,
         epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
         checkpoint_dir=args.checkpoint_dir, lambda_cyc=args.lambda_cyc,
@@ -185,15 +205,28 @@ if __name__ == '__main__':
     }, final_path)
     print(f"Checkpoint finale salvato in {final_path}")
 
-    best_epoch = val_losses.index(min(val_losses)) + 1
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(range(1, len(train_losses) + 1), train_losses, color='steelblue', linewidth=1.5, label='Train loss')
-    ax.plot(range(1, len(val_losses)   + 1), val_losses,   color='tomato',    linewidth=1.5, label='Val loss')
-    ax.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
-    ax.set_xlabel("Epoch", fontsize=13)
-    ax.set_ylabel("Loss (MSE)", fontsize=13)
-    ax.set_title("Joint IM+FM — Training & Validation Loss", fontsize=15, fontweight='bold')
-    ax.legend(fontsize=12); ax.grid(True)
+    epochs_x = range(1, len(hist["train"]) + 1)
+    best_epoch = hist["val"].index(min(hist["val"])) + 1
+
+    # due pannelli: sinistra loss totale, destra IM vs FM separate
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
+
+    ax1.plot(epochs_x, hist["train"], color='steelblue', linewidth=1.5, label='Train loss')
+    ax1.plot(epochs_x, hist["val"],   color='tomato',    linewidth=1.5, label='Val loss')
+    ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
+    ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE)", fontsize=13)
+    ax1.set_title("Totale (IM + FM)", fontsize=14, fontweight='bold')
+    ax1.legend(fontsize=11); ax1.grid(True)
+
+    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train')
+    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val')
+    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train')
+    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val')
+    ax2.set_xlabel("Epoch", fontsize=13); ax2.set_ylabel("Loss (MSE)", fontsize=13)
+    ax2.set_title("IM (comando) vs FM (sensori)", fontsize=14, fontweight='bold')
+    ax2.legend(fontsize=11); ax2.grid(True)
+
+    fig.suptitle("Joint IM+FM — Training & Validation Loss", fontsize=16, fontweight='bold')
     plt.tight_layout()
     plot_path = os.path.join(args.checkpoint_dir, "loss_curve.png")
     plt.savefig(plot_path, dpi=150)
