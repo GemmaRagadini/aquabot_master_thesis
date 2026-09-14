@@ -14,7 +14,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-# in repo: from net.Estimator.model import ... / from net.Estimator.dataset import ...
+# in repo: from net.Joint.model import ... / from net.Joint.dataset import ...
 from model   import build_models, P as MODEL_P
 from dataset import FishJointDataset, CTX_DIM, P as DATA_P
 
@@ -39,7 +39,8 @@ def cycle_loss(IM, FM, seq_cmd, seq_sens, ctx, pred_cmd, pred_sens,
     raise NotImplementedError("Ciclo attivato in Fase B.")
 
 
-def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc):
+def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc,
+          weight_decay=0.0):
     train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     print(f"Split per-trial: {len(train_ds)} finestre train | {len(val_ds)} finestre val")
 
@@ -47,7 +48,7 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc):
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
 
     params = list(IM.parameters()) + list(FM.parameters())
-    optimizer = torch.optim.Adam(params, lr=lr)
+    optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
     mse = nn.MSELoss()
 
@@ -151,13 +152,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_joint'))
-    parser.add_argument('--epochs',         type=int,   default=50)
-    parser.add_argument('--lr',             type=float, default=0.002)
-    parser.add_argument('--batch_size',     type=int,   default=128)
+    parser.add_argument('--epochs',         type=int,   default=80)
+    parser.add_argument('--lr',             type=float, default=0.0003585794155087849)
+    parser.add_argument('--batch_size',     type=int,   default=32)
     parser.add_argument('--gru_hidden_im',  type=int,   default=128)
     parser.add_argument('--mlp_hidden_im',  type=int,   default=64)
     parser.add_argument('--gru_hidden_fm',  type=int,   default=256)
-    parser.add_argument('--mlp_hidden_fm',  type=int,   default=256)
+    parser.add_argument('--mlp_hidden_fm',  type=int,   default=128)
+    parser.add_argument('--dropout_im',     type=float, default=0.0,
+                        help='dropout nell MLP di IM (di norma 0: IM non overfitta).')
+    parser.add_argument('--dropout_fm',     type=float, default=0.10842905375567242,
+                        help='dropout nell MLP di FM (dal tuning: regolarizza FM).')
+    parser.add_argument('--weight_decay',   type=float, default=2.5314946929205504e-05,
+                        help='weight decay dell Adam (dal tuning: regolarizza).')
     parser.add_argument('--lambda_cyc',     type=float, default=0.0,
                         help='FASE A: 0 (reti allenate sui dati reali, nessun ciclo). '
                              'FASE B: accendi con warm-up.')
@@ -179,6 +186,7 @@ if __name__ == '__main__':
     IM, FM = build_models(
         gru_hidden_im=args.gru_hidden_im, mlp_hidden_im=args.mlp_hidden_im,
         gru_hidden_fm=args.gru_hidden_fm, mlp_hidden_fm=args.mlp_hidden_fm,
+        dropout_im=args.dropout_im, dropout_fm=args.dropout_fm,
     )
     IM = IM.to(DEVICE); FM = FM.to(DEVICE)
     n_im = sum(p.numel() for p in IM.parameters())
@@ -190,6 +198,7 @@ if __name__ == '__main__':
         IM, FM, dataset,
         epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
         checkpoint_dir=args.checkpoint_dir, lambda_cyc=args.lambda_cyc,
+        weight_decay=args.weight_decay,
     )
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)

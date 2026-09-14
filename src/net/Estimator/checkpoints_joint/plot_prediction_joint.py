@@ -13,35 +13,34 @@ in input e' sempre quella vera, non autoregressiva).
 Con P>1 viene plottato il PRIMO passo predetto (indice 0 della finestra P).
 
 Uso:
-python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --checkpoint src/net/Estimator/checkpoints_joint/best.pt
---list_trials      # scegline uno che e' 'val'
---trial trial_XX.csv
---t_start 10 --t_end 18 # per l'intervallo da plottare 
-
+  python3 plot_prediction_joint.py --checkpoint checkpoints_joint/best.pt
+  python3 plot_prediction_joint.py --list_trials      # scegline uno che e' 'val'
+  python3 plot_prediction_joint.py --checkpoint checkpoints_joint/best.pt --trial trial_XX.csv
 """
 import argparse
 import os
 import sys
 from pathlib import Path
- 
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
- 
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
- 
+
+# flat import (come train_joint). In repo: from net.Joint.model import ...
 from net.Estimator.model   import build_models
 from net.Estimator.dataset import FishJointDataset
- 
+
 # canali di uscita FM (sensori) e IM (comando)
 FM_CHANNELS = ["sensor_diff", "current"]
 IM_CHANNELS = ["tail_target"]
 CHANNEL_TO_SCALER_KEY = {"sensor_diff": "sd", "current": "vf", "tail_target": "cmd"}
 CHANNEL_UNIT = {"sensor_diff": "unita' sensore", "current": "mA", "tail_target": "rad"}
- 
+
 # --- palette (dataviz skill, ordine categorico fisso) ---
 COL_SURFACE  = "#fcfcfb"
 COL_TEXT     = "#0b0b0b"
@@ -51,25 +50,25 @@ COL_GRID     = "#e1e0d9"
 COL_BASELINE = "#c3c2b7"
 COL_SIGNAL   = "#0b0b0b"
 COL_MODEL    = "#2a78d6"
- 
+
 VAL_FRAC = 0.2
 SPLIT_SEED = 42
- 
- 
+
+
 def prepare_dataset(dataset):
     """Costruisce finestre e scaler tramite lo split (scaler fittato sul solo
     train). Restituisce l'insieme degli indici dei trial di validation."""
     _, val_ds = dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
     val_trial_idxs = np.unique(dataset.window_trial[np.asarray(val_ds.indices)])
     return set(int(i) for i in val_trial_idxs)
- 
- 
+
+
 def pick_default_trial(val_trial_idxs):
     if val_trial_idxs:
         return int(sorted(val_trial_idxs)[0]), True
     return 0, False
- 
- 
+
+
 def resolve_trial(dataset, trial_arg, val_trial_idxs):
     names = dataset.trial_names
     if trial_arg is None:
@@ -89,21 +88,21 @@ def resolve_trial(dataset, trial_arg, val_trial_idxs):
     if not matches:
         raise ValueError(f"Nessun trial trovato per '{trial_arg}'. Usa --list_trials.")
     raise ValueError(f"'{trial_arg}' ambiguo, trovati {[names[i] for i in matches]}.")
- 
- 
+
+
 def run_models_on_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
     """Fa girare entrambe le reti sulle finestre (contigue e ordinate) del trial.
     Ritorna target e predizioni per FM (sensori) e IM (comando), al primo passo P."""
     mask = dataset.window_trial == trial_idx
     idxs = np.nonzero(mask)[0]
     idxs.sort()
- 
+
     seq_cmd  = dataset.seq_cmd[idxs]
     seq_sens = dataset.seq_sens[idxs]
     ctx      = dataset.context[idxs]
     tgt_sens = dataset.tgt_sens[idxs]     # (n, P, 2)
     tgt_cmd  = dataset.tgt_cmd[idxs]      # (n, P, 1)
- 
+
     fm_pred, im_pred = [], []
     with torch.no_grad():
         for start in range(0, len(idxs), batch_size):
@@ -115,13 +114,13 @@ def run_models_on_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
             p_sens, _ = FM(seq, cx)                     # (b, P, 2)
             im_pred.append(p_cmd.cpu())
             fm_pred.append(p_sens.cpu())
- 
+
     fm_pred = torch.cat(fm_pred, dim=0)
     im_pred = torch.cat(im_pred, dim=0)
     # primo passo predetto (P=1 -> l'unico; P>1 -> il primo)
     return idxs, tgt_sens[:, 0, :], fm_pred[:, 0, :], tgt_cmd[:, 0, :], im_pred[:, 0, :]
- 
- 
+
+
 def real_time_axis(dataset_dir, trial_name, h, n_windows):
     df = pd.read_csv(Path(dataset_dir) / trial_name)
     t_full = df["t_rel_sec"].values.astype(np.float32)
@@ -130,8 +129,8 @@ def real_time_axis(dataset_dir, trial_name, h, n_windows):
     if len(t_future) != n_windows:
         t_future = np.arange(n_windows, dtype=np.float32) / 20.0
     return t_future
- 
- 
+
+
 def channel_panel(ax, t, true_real, pred_real, unit, title):
     ax.set_facecolor(COL_SURFACE)
     ax.grid(True, color=COL_GRID, linewidth=0.8, zorder=0)
@@ -139,16 +138,16 @@ def channel_panel(ax, t, true_real, pred_real, unit, title):
         ax.spines[spine].set_visible(False)
     for spine in ("left", "bottom"):
         ax.spines[spine].set_color(COL_BASELINE)
- 
+
     ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="predizione modello")
     ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="segnale reale")
- 
+
     ax.set_title(title, color=COL_TEXT, fontsize=12, fontweight="bold", loc="left", pad=10)
     ax.set_ylabel(unit, color=COL_TEXT_SEC, fontsize=9)
     ax.tick_params(colors=COL_MUTED, labelsize=8)
     ax.legend(loc="upper right", frameon=False, fontsize=8, labelcolor=COL_TEXT_SEC)
- 
- 
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default=os.path.join(SCRIPT_DIR, "checkpoints_joint", "best.pt"))
@@ -164,37 +163,54 @@ def main():
                         help="istante finale (s) della finestra da plottare. Default: fine.")
     parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions_joint.png"))
     args = parser.parse_args()
- 
+
     device = torch.device(args.device)
     dataset = FishJointDataset(args.dataset_dir, scaler_path=args.scaler_path)
- 
+
     try:
         val_trial_idxs = prepare_dataset(dataset)
     except Exception as e:
         print(f"[avviso] non riesco a costruire il validation split ({e}); "
               f"proseguo senza etichette train/val.", file=sys.stderr)
         val_trial_idxs = set()
- 
+
     if args.list_trials:
         for i, n in enumerate(dataset.trial_names):
             tag = ("val" if i in val_trial_idxs else "train") if val_trial_idxs else "?"
             print(f"{i:3d}  [{tag:5s}]  {n}")
         return
- 
+
     trial_idx = resolve_trial(dataset, args.trial, val_trial_idxs)
     trial_name = dataset.trial_names[trial_idx]
- 
+
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     P = ckpt.get("P", 1)
     ctx_dim = ckpt.get("ctx_dim", int(dataset.context.shape[-1]))
-    IM, FM = build_models(p=P, ctx_dim=ctx_dim)
+
+    # Le dimensioni NON sono salvate nel checkpoint (solo i pesi). Le deduco
+    # dalle shape dello state_dict, cosi' ricostruisco IM e FM con le stesse
+    # dimensioni con cui sono state allenate (che dopo il tuning NON sono i
+    # default di build_models).
+    def dims_from_state(sd):
+        gru_hidden = sd["gru.weight_hh_l0"].shape[1]   # (3*gru_hidden, gru_hidden)
+        mlp_hidden = sd["mlp.0.weight"].shape[0]        # (mlp_hidden, gru_hidden+ctx)
+        return int(gru_hidden), int(mlp_hidden)
+
+    gh_im, mh_im = dims_from_state(ckpt["im_state"])
+    gh_fm, mh_fm = dims_from_state(ckpt["fm_state"])
+    print(f"Dimensioni dal checkpoint: IM gru={gh_im} mlp={mh_im} | FM gru={gh_fm} mlp={mh_fm}")
+
+    IM, FM = build_models(
+        gru_hidden_im=gh_im, mlp_hidden_im=mh_im,
+        gru_hidden_fm=gh_fm, mlp_hidden_fm=mh_fm,
+        p=P, ctx_dim=ctx_dim)
     IM.load_state_dict(ckpt["im_state"]); IM.to(device).eval()
     FM.load_state_dict(ckpt["fm_state"]); FM.to(device).eval()
- 
+
     idxs, tgt_sens, fm_pred, tgt_cmd, im_pred = run_models_on_trial(
         dataset, IM, FM, device, trial_idx)
     t_axis = real_time_axis(args.dataset_dir, trial_name, dataset.h, len(idxs))
- 
+
     # --- finestra temporale opzionale (in secondi) ---
     t_lo = args.t_start if args.t_start is not None else float(t_axis[0])
     t_hi = args.t_end   if args.t_end   is not None else float(t_axis[-1])
@@ -212,15 +228,15 @@ def main():
     fm_pred  = fm_pred[win_t]
     tgt_cmd  = tgt_cmd[win_t]
     im_pred  = im_pred[win_t]
- 
+
     # 3 pannelli: sensor_diff, current (FM) + tail_target (IM)
     panels = [("sensor_diff", tgt_sens, fm_pred, 0),
               ("current",     tgt_sens, fm_pred, 1),
               ("tail_target", tgt_cmd,  im_pred, 0)]
- 
+
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 3.4 * len(panels)), sharex=True)
     fig.patch.set_facecolor(COL_SURFACE)
- 
+
     for ax, (ch, tgt, pred, ci) in zip(axes, panels):
         scaler = dataset.scalers[CHANNEL_TO_SCALER_KEY[ch]]
         true_real = scaler.inverse_transform(tgt[:, ci:ci + 1].numpy()).ravel()
@@ -230,7 +246,7 @@ def main():
         net = "IM" if ch == "tail_target" else "FM"
         channel_panel(ax, t_axis, true_real, pred_real, unit,
                       f"{ch} [{net}] — RMSE {rmse:.2f} {unit}")
- 
+
     axes[-1].set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
     win_txt = f"  [{t_axis[0]:.1f}–{t_axis[-1]:.1f}s]" if (args.t_start is not None or args.t_end is not None) else ""
     fig.suptitle(f"Predizioni reali IM + FM — trial {trial_name}{win_txt}",
@@ -238,7 +254,7 @@ def main():
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(args.out, dpi=160, facecolor=COL_SURFACE)
     print(f"Salvato {args.out} (trial: {trial_name}, {len(idxs)} punti)")
- 
- 
+
+
 if __name__ == "__main__":
     main()

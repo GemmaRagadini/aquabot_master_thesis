@@ -1,0 +1,312 @@
+Device: cuda | threads: 4
+Tuning della SOLA FM (IM fissa). Metrica: val loss di FM.
+=== FASE 2 | 8 trial (questo worker) | 20 epoche ===
+
+Caricamento dataset...
+Trovati 55 trial.
+Dataset grezzo: 55 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/Estimator/tuning/../../../../src/net/scaler/scalers_joint.pkl (nessun refit).
+Dataset: 41225 campioni da 55 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+ctx_dim: 4
+
+--- Fase 2, arch #1: gru=512, mlp=256 ---
+
+[I 2026-09-14 15:11:07,868] Using an existing study with name 'fish_fm_phase2_arch1' instead of creating a new one.
+  Trial 2 | Epoch  0 | val_FM 0.1448
+  Trial 2 | Epoch  1 | val_FM 0.1205
+  Trial 2 | Epoch  2 | val_FM 0.1286
+  Trial 2 | Epoch  3 | val_FM 0.1092
+  Trial 2 | Epoch  4 | val_FM 0.1063
+  Trial 2 | Epoch  5 | val_FM 0.1026
+  Trial 2 | Epoch  6 | val_FM 0.1069
+  Trial 2 | Epoch  7 | val_FM 0.1117
+  Trial 2 | Epoch  8 | val_FM 0.0952
+  Trial 2 | Epoch  9 | val_FM 0.0947
+  Trial 2 | Epoch 10 | val_FM 0.1046
+  Trial 2 | Epoch 11 | val_FM 0.0948
+  Trial 2 | Epoch 12 | val_FM 0.0918
+  Trial 2 | Epoch 13 | val_FM 0.0913
+  Trial 2 | Epoch 14 | val_FM 0.0924
+  Trial 2 | Epoch 15 | val_FM 0.0923
+  Trial 2 | Epoch 16 | val_FM 0.1006
+  Trial 2 | Epoch 17 | val_FM 0.1088
+  Trial 2 | Epoch 18 | val_FM 0.0902
+  Trial 2 | Epoch 19 | val_FM 0.0885
+[I 2026-09-14 15:13:00,654] Trial 2 finished with value: 0.08849621727283484 and parameters: {'lr': 0.00023233211013754237, 'batch_size': 64, 'weight_decay': 0.001669285452728977, 'dropout': 0.09710832166800774}. Best is trial 3 with value: 0.08358533707048212.
+  Trial 5 | Epoch  0 | val_FM 0.1217
+  Trial 5 | Epoch  1 | val_FM 0.1101
+  Trial 5 | Epoch  2 | val_FM 0.1021
+  Trial 5 | Epoch  3 | val_FM 0.1022
+  Trial 5 | Epoch  4 | val_FM 0.0923
+  Trial 5 | Epoch  5 | val_FM 0.0972
+  Trial 5 | Epoch  6 | val_FM 0.0907
+  Trial 5 | Epoch  7 | val_FM 0.0908
+  Trial 5 | Epoch  8 | val_FM 0.0914
+  Trial 5 | Epoch  9 | val_FM 0.0962
+  Trial 5 | Epoch 10 | val_FM 0.0956
+  Trial 5 | Epoch 11 | val_FM 0.0891
+  Trial 5 | Epoch 12 | val_FM 0.1001
+  Trial 5 | Epoch 13 | val_FM 0.0908
+  Trial 5 | Epoch 14 | val_FM 0.0934
+  Trial 5 | Epoch 15 | val_FM 0.0905
+  Trial 5 | Epoch 16 | val_FM 0.1010
+  Trial 5 | Epoch 17 | val_FM 0.0900
+  Trial 5 | Epoch 18 | val_FM 0.0865
+  Trial 5 | Epoch 19 | val_FM 0.0902
+[I 2026-09-14 15:13:58,796] Trial 5 finished with value: 0.0864865654329588 and parameters: {'lr': 0.00183922321676453, 'batch_size': 128, 'weight_decay': 0.00048381191833911374, 'dropout': 0.14899247976581023}. Best is trial 3 with value: 0.08358533707048212.
+  Trial 6 | Epoch  0 | val_FM 0.2158
+  Trial 6 | Epoch  1 | val_FM 0.2087
+  Trial 6 | Epoch  2 | val_FM 0.2053
+  Trial 6 | Epoch  3 | val_FM 0.1952
+  Trial 6 | Epoch  4 | val_FM 0.1983
+  Trial 6 | Epoch  5 | val_FM 0.1976
+[I 2026-09-14 15:15:15,164] Trial 6 pruned. 
+  Trial 12 | Epoch  0 | val_FM 0.1525
+  Trial 12 | Epoch  1 | val_FM 0.1493
+  Trial 12 | Epoch  2 | val_FM 0.1326
+  Trial 12 | Epoch  3 | val_FM 0.1265
+  Trial 12 | Epoch  4 | val_FM 0.1289
+  Trial 12 | Epoch  5 | val_FM 0.1259
+[I 2026-09-14 15:16:39,443] Trial 12 pruned. 
+  Trial 13 | Epoch  0 | val_FM 0.1225
+  Trial 13 | Epoch  1 | val_FM 0.1264
+  Trial 13 | Epoch  2 | val_FM 0.1112
+  Trial 13 | Epoch  3 | val_FM 0.0866
+  Trial 13 | Epoch  4 | val_FM 0.0808
+  Trial 13 | Epoch  5 | val_FM 0.0778
+  Trial 13 | Epoch  6 | val_FM 0.0711
+  Trial 13 | Epoch  7 | val_FM 0.0747
+  Trial 13 | Epoch  8 | val_FM 0.0685
+  Trial 13 | Epoch  9 | val_FM 0.0645
+  Trial 13 | Epoch 10 | val_FM 0.0630
+  Trial 13 | Epoch 11 | val_FM 0.0609
+  Trial 13 | Epoch 12 | val_FM 0.0655
+  Trial 13 | Epoch 13 | val_FM 0.0619
+  Trial 13 | Epoch 14 | val_FM 0.0623
+  Trial 13 | Epoch 15 | val_FM 0.0573
+  Trial 13 | Epoch 16 | val_FM 0.0642
+  Trial 13 | Epoch 17 | val_FM 0.0664
+  Trial 13 | Epoch 18 | val_FM 0.0560
+  Trial 13 | Epoch 19 | val_FM 0.0587
+[I 2026-09-14 15:18:56,664] Trial 13 finished with value: 0.05598071697807195 and parameters: {'lr': 0.0008607288097388942, 'batch_size': 64, 'weight_decay': 1.4549520692960407e-05, 'dropout': 0.348767424962253}. Best is trial 7 with value: 0.05417336857892939.
+  Trial 16 | Epoch  0 | val_FM 0.1373
+  Trial 16 | Epoch  1 | val_FM 0.1058
+  Trial 16 | Epoch  2 | val_FM 0.1020
+  Trial 16 | Epoch  3 | val_FM 0.0800
+  Trial 16 | Epoch  4 | val_FM 0.0791
+  Trial 16 | Epoch  5 | val_FM 0.0745
+  Trial 16 | Epoch  6 | val_FM 0.0701
+  Trial 16 | Epoch  7 | val_FM 0.0675
+  Trial 16 | Epoch  8 | val_FM 0.0645
+  Trial 16 | Epoch  9 | val_FM 0.0673
+  Trial 16 | Epoch 10 | val_FM 0.0625
+  Trial 16 | Epoch 11 | val_FM 0.0628
+  Trial 16 | Epoch 12 | val_FM 0.0614
+  Trial 16 | Epoch 13 | val_FM 0.0625
+  Trial 16 | Epoch 14 | val_FM 0.0641
+  Trial 16 | Epoch 15 | val_FM 0.0623
+  Trial 16 | Epoch 16 | val_FM 0.0613
+  Trial 16 | Epoch 17 | val_FM 0.0578
+  Trial 16 | Epoch 18 | val_FM 0.0606
+  Trial 16 | Epoch 19 | val_FM 0.0599
+[I 2026-09-14 15:21:00,500] Trial 16 finished with value: 0.05780771514096486 and parameters: {'lr': 0.0008128144542002004, 'batch_size': 64, 'weight_decay': 1.2621465425800696e-05, 'dropout': 0.3488410642593258}. Best is trial 7 with value: 0.05417336857892939.
+  Trial 20 | Epoch  0 | val_FM 0.1196
+  Trial 20 | Epoch  1 | val_FM 0.0883
+  Trial 20 | Epoch  2 | val_FM 0.1016
+  Trial 20 | Epoch  3 | val_FM 0.0836
+  Trial 20 | Epoch  4 | val_FM 0.0795
+  Trial 20 | Epoch  5 | val_FM 0.0751
+  Trial 20 | Epoch  6 | val_FM 0.0668
+  Trial 20 | Epoch  7 | val_FM 0.0652
+  Trial 20 | Epoch  8 | val_FM 0.0699
+  Trial 20 | Epoch  9 | val_FM 0.0670
+  Trial 20 | Epoch 10 | val_FM 0.0623
+  Trial 20 | Epoch 11 | val_FM 0.0670
+  Trial 20 | Epoch 12 | val_FM 0.0631
+  Trial 20 | Epoch 13 | val_FM 0.0682
+  Trial 20 | Epoch 14 | val_FM 0.0664
+  Trial 20 | Epoch 15 | val_FM 0.0572
+  Trial 20 | Epoch 16 | val_FM 0.0575
+  Trial 20 | Epoch 17 | val_FM 0.0596
+  Trial 20 | Epoch 18 | val_FM 0.0653
+  Trial 20 | Epoch 19 | val_FM 0.0665
+[I 2026-09-14 15:23:22,400] Trial 20 finished with value: 0.0571822940244102 and parameters: {'lr': 0.0025722944505546493, 'batch_size': 64, 'weight_decay': 5.4741903112714186e-05, 'dropout': 0.04746771499406351}. Best is trial 7 with value: 0.05417336857892939.
+  Trial 24 | Epoch  0 | val_FM 0.1132
+  Trial 24 | Epoch  1 | val_FM 0.0911
+  Trial 24 | Epoch  2 | val_FM 0.0777
+  Trial 24 | Epoch  3 | val_FM 0.0725
+  Trial 24 | Epoch  4 | val_FM 0.0703
+  Trial 24 | Epoch  5 | val_FM 0.0667
+  Trial 24 | Epoch  6 | val_FM 0.0670
+  Trial 24 | Epoch  7 | val_FM 0.0665
+  Trial 24 | Epoch  8 | val_FM 0.0649
+  Trial 24 | Epoch  9 | val_FM 0.0620
+  Trial 24 | Epoch 10 | val_FM 0.0636
+  Trial 24 | Epoch 11 | val_FM 0.0686
+  Trial 24 | Epoch 12 | val_FM 0.0709
+  Trial 24 | Epoch 13 | val_FM 0.0624
+  Trial 24 | Epoch 14 | val_FM 0.0634
+  Trial 24 | Epoch 15 | val_FM 0.0604
+  Trial 24 | Epoch 16 | val_FM 0.0575
+  Trial 24 | Epoch 17 | val_FM 0.0595
+  Trial 24 | Epoch 18 | val_FM 0.0677
+  Trial 24 | Epoch 19 | val_FM 0.0573
+[I 2026-09-14 15:27:48,762] Trial 24 finished with value: 0.057305431982777155 and parameters: {'lr': 0.001263702223399062, 'batch_size': 32, 'weight_decay': 3.748110731101068e-05, 'dropout': 0.14918800560009945}. Best is trial 7 with value: 0.05417336857892939.
+
+--- Fase 2, arch #2: gru=512, mlp=32 ---
+
+[I 2026-09-14 15:27:48,771] A new study created in RDB with name: fish_fm_phase2_arch2
+  Trial 0 | Epoch  0 | val_FM 0.1957
+  Trial 0 | Epoch  1 | val_FM 0.1724
+  Trial 0 | Epoch  2 | val_FM 0.1670
+  Trial 0 | Epoch  3 | val_FM 0.1548
+  Trial 0 | Epoch  4 | val_FM 0.1563
+  Trial 0 | Epoch  5 | val_FM 0.1500
+  Trial 0 | Epoch  6 | val_FM 0.1523
+  Trial 0 | Epoch  7 | val_FM 0.1486
+  Trial 0 | Epoch  8 | val_FM 0.1466
+  Trial 0 | Epoch  9 | val_FM 0.1544
+  Trial 0 | Epoch 10 | val_FM 0.1525
+  Trial 0 | Epoch 11 | val_FM 0.1421
+  Trial 0 | Epoch 12 | val_FM 0.1457
+  Trial 0 | Epoch 13 | val_FM 0.1505
+  Trial 0 | Epoch 14 | val_FM 0.1371
+  Trial 0 | Epoch 15 | val_FM 0.1418
+  Trial 0 | Epoch 16 | val_FM 0.1367
+  Trial 0 | Epoch 17 | val_FM 0.1420
+  Trial 0 | Epoch 18 | val_FM 0.1392
+  Trial 0 | Epoch 19 | val_FM 0.1365
+[I 2026-09-14 15:30:06,497] Trial 0 finished with value: 0.13646338027871513 and parameters: {'lr': 0.0005583479071836972, 'batch_size': 64, 'weight_decay': 0.005792332106448344, 'dropout': 0.11063479412044964}. Best is trial 0 with value: 0.13646338027871513.
+  Trial 3 | Epoch  0 | val_FM 0.1743
+  Trial 3 | Epoch  1 | val_FM 0.1544
+  Trial 3 | Epoch  2 | val_FM 0.1626
+  Trial 3 | Epoch  3 | val_FM 0.1484
+  Trial 3 | Epoch  4 | val_FM 0.1433
+  Trial 3 | Epoch  5 | val_FM 0.1380
+  Trial 3 | Epoch  6 | val_FM 0.1424
+  Trial 3 | Epoch  7 | val_FM 0.1741
+  Trial 3 | Epoch  8 | val_FM 0.1391
+  Trial 3 | Epoch  9 | val_FM 0.1298
+  Trial 3 | Epoch 10 | val_FM 0.1372
+  Trial 3 | Epoch 11 | val_FM 0.1363
+  Trial 3 | Epoch 12 | val_FM 0.1380
+  Trial 3 | Epoch 13 | val_FM 0.1256
+  Trial 3 | Epoch 14 | val_FM 0.1291
+  Trial 3 | Epoch 15 | val_FM 0.1333
+  Trial 3 | Epoch 16 | val_FM 0.1419
+  Trial 3 | Epoch 17 | val_FM 0.1253
+  Trial 3 | Epoch 18 | val_FM 0.1271
+  Trial 3 | Epoch 19 | val_FM 0.1336
+[I 2026-09-14 15:34:28,559] Trial 3 finished with value: 0.12533795429607394 and parameters: {'lr': 0.002099434646796591, 'batch_size': 32, 'weight_decay': 0.002671689376432257, 'dropout': 0.20451339669321697}. Best is trial 5 with value: 0.07868818822619203.
+  Trial 8 | Epoch  0 | val_FM 0.2252
+  Trial 8 | Epoch  1 | val_FM 0.2021
+  Trial 8 | Epoch  2 | val_FM 0.1911
+  Trial 8 | Epoch  3 | val_FM 0.1854
+  Trial 8 | Epoch  4 | val_FM 0.1830
+  Trial 8 | Epoch  5 | val_FM 0.1713
+[I 2026-09-14 15:35:46,866] Trial 8 pruned. 
+  Trial 11 | Epoch  0 | val_FM 0.1348
+  Trial 11 | Epoch  1 | val_FM 0.1212
+  Trial 11 | Epoch  2 | val_FM 0.1052
+  Trial 11 | Epoch  3 | val_FM 0.1010
+  Trial 11 | Epoch  4 | val_FM 0.0982
+  Trial 11 | Epoch  5 | val_FM 0.1074
+  Trial 11 | Epoch  6 | val_FM 0.0940
+  Trial 11 | Epoch  7 | val_FM 0.1016
+  Trial 11 | Epoch  8 | val_FM 0.0861
+  Trial 11 | Epoch  9 | val_FM 0.0885
+  Trial 11 | Epoch 10 | val_FM 0.0838
+  Trial 11 | Epoch 11 | val_FM 0.0830
+  Trial 11 | Epoch 12 | val_FM 0.0774
+  Trial 11 | Epoch 13 | val_FM 0.0779
+  Trial 11 | Epoch 14 | val_FM 0.0843
+  Trial 11 | Epoch 15 | val_FM 0.0749
+  Trial 11 | Epoch 16 | val_FM 0.0777
+  Trial 11 | Epoch 17 | val_FM 0.0724
+  Trial 11 | Epoch 18 | val_FM 0.0743
+  Trial 11 | Epoch 19 | val_FM 0.0739
+[I 2026-09-14 15:40:24,527] Trial 11 finished with value: 0.07243264271709762 and parameters: {'lr': 0.0005012812028463156, 'batch_size': 32, 'weight_decay': 8.269635392097693e-05, 'dropout': 0.19932144146928316}. Best is trial 9 with value: 0.059802726963414.
+  Trial 25 | Epoch  0 | val_FM 0.1306
+  Trial 25 | Epoch  1 | val_FM 0.0997
+  Trial 25 | Epoch  2 | val_FM 0.0862
+  Trial 25 | Epoch  3 | val_FM 0.0884
+  Trial 25 | Epoch  4 | val_FM 0.0802
+  Trial 25 | Epoch  5 | val_FM 0.0845
+  Trial 25 | Epoch  6 | val_FM 0.0743
+  Trial 25 | Epoch  7 | val_FM 0.0698
+  Trial 25 | Epoch  8 | val_FM 0.0676
+  Trial 25 | Epoch  9 | val_FM 0.0653
+  Trial 25 | Epoch 10 | val_FM 0.0644
+  Trial 25 | Epoch 11 | val_FM 0.0661
+  Trial 25 | Epoch 12 | val_FM 0.0756
+  Trial 25 | Epoch 13 | val_FM 0.0611
+  Trial 25 | Epoch 14 | val_FM 0.0623
+  Trial 25 | Epoch 15 | val_FM 0.0616
+  Trial 25 | Epoch 16 | val_FM 0.0629
+  Trial 25 | Epoch 17 | val_FM 0.0651
+  Trial 25 | Epoch 18 | val_FM 0.0683
+  Trial 25 | Epoch 19 | val_FM 0.0620
+[I 2026-09-14 15:41:43,567] Trial 25 finished with value: 0.06112760612620162 and parameters: {'lr': 0.001579473664266104, 'batch_size': 128, 'weight_decay': 1.0682337718570642e-05, 'dropout': 0.1579705594859484}. Best is trial 24 with value: 0.05776127084315597.
+  Trial 28 | Epoch  0 | val_FM 0.1251
+  Trial 28 | Epoch  1 | val_FM 0.1148
+  Trial 28 | Epoch  2 | val_FM 0.0952
+  Trial 28 | Epoch  3 | val_FM 0.0856
+  Trial 28 | Epoch  4 | val_FM 0.0881
+  Trial 28 | Epoch  5 | val_FM 0.0896
+  Trial 28 | Epoch  6 | val_FM 0.0860
+  Trial 28 | Epoch  7 | val_FM 0.0862
+  Trial 28 | Epoch  8 | val_FM 0.0835
+  Trial 28 | Epoch  9 | val_FM 0.0817
+  Trial 28 | Epoch 10 | val_FM 0.0821
+[I 2026-09-14 15:42:29,294] Trial 28 pruned. 
+  Trial 30 | Epoch  0 | val_FM 0.1165
+  Trial 30 | Epoch  1 | val_FM 0.1153
+  Trial 30 | Epoch  2 | val_FM 0.0972
+  Trial 30 | Epoch  3 | val_FM 0.0925
+  Trial 30 | Epoch  4 | val_FM 0.0816
+  Trial 30 | Epoch  5 | val_FM 0.0842
+  Trial 30 | Epoch  6 | val_FM 0.0824
+  Trial 30 | Epoch  7 | val_FM 0.0867
+  Trial 30 | Epoch  8 | val_FM 0.0753
+  Trial 30 | Epoch  9 | val_FM 0.0659
+  Trial 30 | Epoch 10 | val_FM 0.0820
+  Trial 30 | Epoch 11 | val_FM 0.0656
+  Trial 30 | Epoch 12 | val_FM 0.0602
+  Trial 30 | Epoch 13 | val_FM 0.0607
+  Trial 30 | Epoch 14 | val_FM 0.0588
+  Trial 30 | Epoch 15 | val_FM 0.0645
+  Trial 30 | Epoch 16 | val_FM 0.0643
+  Trial 30 | Epoch 17 | val_FM 0.0601
+  Trial 30 | Epoch 18 | val_FM 0.0582
+  Trial 30 | Epoch 19 | val_FM 0.0623
+[I 2026-09-14 15:43:52,437] Trial 30 finished with value: 0.05824296164338465 and parameters: {'lr': 0.0017681425642085175, 'batch_size': 128, 'weight_decay': 6.743450458810779e-05, 'dropout': 0.04695171974325249}. Best is trial 24 with value: 0.05776127084315597.
+  Trial 31 | Epoch  0 | val_FM 0.1319
+  Trial 31 | Epoch  1 | val_FM 0.1008
+  Trial 31 | Epoch  2 | val_FM 0.1008
+  Trial 31 | Epoch  3 | val_FM 0.0835
+  Trial 31 | Epoch  4 | val_FM 0.0853
+  Trial 31 | Epoch  5 | val_FM 0.0845
+  Trial 31 | Epoch  6 | val_FM 0.0748
+  Trial 31 | Epoch  7 | val_FM 0.0726
+  Trial 31 | Epoch  8 | val_FM 0.0692
+  Trial 31 | Epoch  9 | val_FM 0.0686
+  Trial 31 | Epoch 10 | val_FM 0.0727
+  Trial 31 | Epoch 11 | val_FM 0.0618
+  Trial 31 | Epoch 12 | val_FM 0.0616
+  Trial 31 | Epoch 13 | val_FM 0.0665
+  Trial 31 | Epoch 14 | val_FM 0.0597
+  Trial 31 | Epoch 15 | val_FM 0.0596
+  Trial 31 | Epoch 16 | val_FM 0.0584
+  Trial 31 | Epoch 17 | val_FM 0.0579
+  Trial 31 | Epoch 18 | val_FM 0.0563
+  Trial 31 | Epoch 19 | val_FM 0.0583
+[I 2026-09-14 15:45:09,401] Trial 31 finished with value: 0.05629786587767787 and parameters: {'lr': 0.0018892183877962947, 'batch_size': 128, 'weight_decay': 5.323791400199205e-05, 'dropout': 0.05100308831007283}. Best is trial 31 with value: 0.05629786587767787.
+
+=== Migliori iperparametri FM - Fase 2 ===
+  lr: 0.0018892183877962947
+  batch_size: 128
+  weight_decay: 5.323791400199205e-05
+  dropout: 0.05100308831007283
+  best val_FM: 0.0563
+
+Risultati salvati in /home/gemma/tesi/aquabot/src/net/Estimator/tuning/tuning_results/best_fm_phase2.txt

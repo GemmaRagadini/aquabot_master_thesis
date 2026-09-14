@@ -32,7 +32,8 @@ class GRUMLPEstimator(nn.Module):
     """
 
     def __init__(self, out_channels, in_channels=N_INPUT_CHANNELS,
-                 gru_hidden=256, mlp_hidden=256, p=P, ctx_dim=CTX_DIM):
+                 gru_hidden=256, mlp_hidden=256, p=P, ctx_dim=CTX_DIM,
+                 dropout=0.0):
         super().__init__()
         self.p = p
         self.out_channels = out_channels
@@ -48,11 +49,15 @@ class GRUMLPEstimator(nn.Module):
         )
 
         # Stadio 2: MLP sull'ultimo hidden state + contesto.
+        # dropout tra i due blocchi lineari: regolarizzazione (utile per FM che
+        # tende a overfittare). dropout=0.0 -> nn.Dropout e' un no-op.
         self.mlp = nn.Sequential(
             nn.Linear(gru_hidden + ctx_dim, mlp_hidden),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(mlp_hidden, mlp_hidden // 2),
             nn.ReLU(),
+            nn.Dropout(dropout),
         )
 
         # Testa unica: proietta a P * out_channels, poi reshape a (batch, P, out_channels).
@@ -70,13 +75,14 @@ class GRUMLPEstimator(nn.Module):
 
 def build_models(gru_hidden_im=128, mlp_hidden_im=64,
                  gru_hidden_fm=256, mlp_hidden_fm=256,
+                 dropout_im=0.0, dropout_fm=0.0,
                  p=P, ctx_dim=CTX_DIM):
     """Istanzia le due reti con lo stesso ingresso condiviso.
     IM predice comandi (1 canale), FM predice sensori (2 canali)."""
     IM = GRUMLPEstimator(out_channels=N_CMD_CHANNELS,
                          gru_hidden=gru_hidden_im, mlp_hidden=mlp_hidden_im,
-                         p=p, ctx_dim=ctx_dim)
+                         dropout=dropout_im, p=p, ctx_dim=ctx_dim)
     FM = GRUMLPEstimator(out_channels=N_SENS_CHANNELS,
                          gru_hidden=gru_hidden_fm, mlp_hidden=mlp_hidden_fm,
-                         p=p, ctx_dim=ctx_dim)
+                         dropout=dropout_fm, p=p, ctx_dim=ctx_dim)
     return IM, FM

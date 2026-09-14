@@ -1,0 +1,106 @@
+Device: cuda | threads: 4
+Tuning della SOLA FM (IM fissa). Metrica: val loss di FM.
+=== FASE 1 | 4 trial (questo worker) | 20 epoche ===
+
+Caricamento dataset...
+Trovati 55 trial.
+Dataset grezzo: 55 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/Estimator/tuning/../../../../src/net/scaler/scalers_joint.pkl (nessun refit).
+Dataset: 41225 campioni da 55 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+ctx_dim: 4
+[I 2026-09-14 13:26:40,122] Using an existing study with name 'fish_fm_phase1' instead of creating a new one.
+[W 2026-09-14 13:26:40,225] `GridSampler` is re-evaluating a configuration because the grid has been exhausted. This may happen due to a timing issue during distributed optimization or when re-running optimizations on already finished studies.
+[W 2026-09-14 13:26:40,252] `GridSampler` is re-evaluating a configuration because the grid has been exhausted. This may happen due to a timing issue during distributed optimization or when re-running optimizations on already finished studies.
+[W 2026-09-14 13:26:40,278] `GridSampler` is re-evaluating a configuration because the grid has been exhausted. This may happen due to a timing issue during distributed optimization or when re-running optimizations on already finished studies.
+[W 2026-09-14 13:26:40,324] `GridSampler` is re-evaluating a configuration because the grid has been exhausted. This may happen due to a timing issue during distributed optimization or when re-running optimizations on already finished studies.
+  Trial 29 | Epoch  0 | val_FM 0.1334
+  Trial 30 | Epoch  0 | val_FM 0.1061
+  Trial 28 | Epoch  0 | val_FM 0.1097
+  Trial 29 | Epoch  1 | val_FM 0.1111
+  Trial 31 | Epoch  0 | val_FM 0.1192
+  Trial 30 | Epoch  1 | val_FM 0.0891
+  Trial 28 | Epoch  1 | val_FM 0.0881
+  Trial 29 | Epoch  2 | val_FM 0.0957
+  Trial 30 | Epoch  2 | val_FM 0.0865
+  Trial 29 | Epoch  3 | val_FM 0.1094
+  Trial 28 | Epoch  2 | val_FM 0.0990
+  Trial 31 | Epoch  1 | val_FM 0.0969
+  Trial 30 | Epoch  3 | val_FM 0.0814
+  Trial 29 | Epoch  4 | val_FM 0.0835
+  Trial 28 | Epoch  3 | val_FM 0.0679
+  Trial 30 | Epoch  4 | val_FM 0.0715
+  Trial 29 | Epoch  5 | val_FM 0.0804
+  Trial 31 | Epoch  2 | val_FM 0.0915
+  Trial 30 | Epoch  5 | val_FM 0.0631
+  Trial 29 | Epoch  6 | val_FM 0.0843
+  Trial 28 | Epoch  4 | val_FM 0.0713
+  Trial 30 | Epoch  6 | val_FM 0.0668
+  Trial 29 | Epoch  7 | val_FM 0.0760
+  Trial 28 | Epoch  5 | val_FM 0.0625
+  Trial 31 | Epoch  3 | val_FM 0.0809
+  Trial 29 | Epoch  8 | val_FM 0.0790
+  Trial 30 | Epoch  7 | val_FM 0.0586
+  Trial 28 | Epoch  6 | val_FM 0.0636
+  Trial 29 | Epoch  9 | val_FM 0.0751
+  Trial 30 | Epoch  8 | val_FM 0.0569
+  Trial 29 | Epoch 10 | val_FM 0.0730
+  Trial 31 | Epoch  4 | val_FM 0.0799
+  Trial 28 | Epoch  7 | val_FM 0.0574
+  Trial 30 | Epoch  9 | val_FM 0.0600
+  Trial 29 | Epoch 11 | val_FM 0.0739
+  Trial 30 | Epoch 10 | val_FM 0.0705
+  Trial 28 | Epoch  8 | val_FM 0.0654
+  Trial 29 | Epoch 12 | val_FM 0.0738
+  Trial 31 | Epoch  5 | val_FM 0.0760
+  Trial 30 | Epoch 11 | val_FM 0.0581
+  Trial 29 | Epoch 13 | val_FM 0.0680
+  Trial 28 | Epoch  9 | val_FM 0.0671
+  Trial 30 | Epoch 12 | val_FM 0.0606
+  Trial 29 | Epoch 14 | val_FM 0.0721
+  Trial 28 | Epoch 10 | val_FM 0.0642
+  Trial 31 | Epoch  6 | val_FM 0.0697
+  Trial 30 | Epoch 13 | val_FM 0.0541
+  Trial 29 | Epoch 15 | val_FM 0.0719
+  Trial 28 | Epoch 11 | val_FM 0.0569
+  Trial 29 | Epoch 16 | val_FM 0.0693
+  Trial 30 | Epoch 14 | val_FM 0.0543
+  Trial 29 | Epoch 17 | val_FM 0.0716
+  Trial 31 | Epoch  7 | val_FM 0.0671
+  Trial 30 | Epoch 15 | val_FM 0.0559
+  Trial 28 | Epoch 12 | val_FM 0.0517
+  Trial 29 | Epoch 18 | val_FM 0.0696
+  Trial 30 | Epoch 16 | val_FM 0.0564
+  Trial 28 | Epoch 13 | val_FM 0.0617
+  Trial 29 | Epoch 19 | val_FM 0.0690
+[I 2026-09-14 13:31:45,604] Trial 29 finished with value: 0.06798344446967046 and parameters: {'gru_hidden': 64, 'mlp_hidden': 32}. Best is trial 17 with value: 0.05313098608376154.
+  Trial 31 | Epoch  8 | val_FM 0.0668
+  Trial 30 | Epoch 17 | val_FM 0.0553
+  Trial 28 | Epoch 14 | val_FM 0.0600
+  Trial 30 | Epoch 18 | val_FM 0.0532
+  Trial 31 | Epoch  9 | val_FM 0.0579
+  Trial 28 | Epoch 15 | val_FM 0.0544
+  Trial 30 | Epoch 19 | val_FM 0.0528
+[I 2026-09-14 13:32:16,686] Trial 30 finished with value: 0.05281118440192217 and parameters: {'gru_hidden': 512, 'mlp_hidden': 64}. Best is trial 30 with value: 0.05281118440192217.
+  Trial 31 | Epoch 10 | val_FM 0.0579
+  Trial 28 | Epoch 16 | val_FM 0.0573
+  Trial 31 | Epoch 11 | val_FM 0.0552
+  Trial 28 | Epoch 17 | val_FM 0.0597
+  Trial 31 | Epoch 12 | val_FM 0.0569
+  Trial 28 | Epoch 18 | val_FM 0.0564
+  Trial 31 | Epoch 13 | val_FM 0.0624
+  Trial 28 | Epoch 19 | val_FM 0.0589
+[I 2026-09-14 13:32:54,898] Trial 28 finished with value: 0.05171475083463722 and parameters: {'gru_hidden': 512, 'mlp_hidden': 256}. Best is trial 28 with value: 0.05171475083463722.
+  Trial 31 | Epoch 14 | val_FM 0.0521
+  Trial 31 | Epoch 15 | val_FM 0.0548
+  Trial 31 | Epoch 16 | val_FM 0.0523
+  Trial 31 | Epoch 17 | val_FM 0.0588
+  Trial 31 | Epoch 18 | val_FM 0.0550
+  Trial 31 | Epoch 19 | val_FM 0.0546
+[I 2026-09-14 13:33:33,728] Trial 31 finished with value: 0.052074319110830235 and parameters: {'gru_hidden': 256, 'mlp_hidden': 32}. Best is trial 28 with value: 0.05171475083463722.
+
+=== Migliori iperparametri FM - Fase 1 ===
+  gru_hidden: 512
+  mlp_hidden: 256
+  best val_FM: 0.0517
+
+Risultati salvati in /home/gemma/tesi/aquabot/src/net/Estimator/tuning/tuning_results/best_fm_phase1.txt

@@ -1,0 +1,36 @@
+=== Fase 1 - architettura FM (top 2) ===
+  (lr 1e-3, batch 64, wd 0, dropout 0 - fissi)
+
+  #1  val_FM=0.0517
+    gru_hidden: 512
+    mlp_hidden: 256
+
+  #2  val_FM=0.0517
+    gru_hidden: 512
+    mlp_hidden: 32
+
+=== Fase 2 - training (top 2 per arch) ===
+
+  -- arch #1 --
+  #1  val_FM=0.0542
+    lr: 0.0004913150126071172
+    batch_size: 32
+    weight_decay: 1.5752013159405922e-05
+    dropout: 0.09069207035016284
+  #2  val_FM=0.0543
+    lr: 0.0008347441989203522
+    batch_size: 64
+    weight_decay: 1.23828300085673e-05
+    dropout: 0.07015861439479924
+
+  -- arch #2 --
+  #1  val_FM=0.0563
+    lr: 0.0018892183877962947
+    batch_size: 128
+    weight_decay: 5.323791400199205e-05
+    dropout: 0.05100308831007283
+  #2  val_FM=0.0578
+    lr: 0.0015660198460898667
+    batch_size: 128
+    weight_decay: 2.8065380669496887e-05
+    dropout: 0.15832727016608442
