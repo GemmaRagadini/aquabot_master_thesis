@@ -68,8 +68,7 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 - RIPARTIRE DA : 
 - rileggere slide  
 - riguardare codice 
-- fare slide metriche 
-- anche con P = 10
+
 
 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 

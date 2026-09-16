@@ -21,8 +21,10 @@ Metriche di DEFAULT sui soli trial di VALIDATION (episodi mai visti). Con
 --all_trials si includono anche i trial di train, etichettati in 'split'.
 
 Uso:
-python3 src/net/Estimator/checkpoints_joint/metrics_per_trial_joint.py 
---checkpoint src/net/Estimator/checkpoints_joint/best_P1.pt
+  python3 src/net/Estimator/checkpoints_joint/metrics_per_trial_joint.py --checkpoint src/net/Estimator/checkpoints_joint/bestP10.pt 
+  --all_trials 
+  --csv_out name
+
 
 """
 import argparse
@@ -225,6 +227,10 @@ def channel_metrics(pred_norm, true_norm, last_norm, scaler):
         "rmse_f_avg": _avg(rmse_k), "mae_f_avg": _avg(mae_k),
         "rmse_fut_pct_avg": _avg(rmse_pct_k), "mae_fut_pct_avg": _avg(mae_pct_k),
         "skill_rmse_avg": _avg(skill_rmse_k), "skill_mae_avg": _avg(skill_mae_k),
+        # ultimo passo (t+P): orizzonte pieno, il caso piu' difficile
+        "rmse_f_P": rmse_k[-1], "mae_f_P": mae_k[-1],
+        "rmse_fut_pct_P": rmse_pct_k[-1], "mae_fut_pct_P": mae_pct_k[-1],
+        "skill_rmse_P": skill_rmse_k[-1], "skill_mae_P": skill_mae_k[-1],
         # pooling one-step tra trial (primo passo)
         "err_fut": e_f_1, "err_persist": e_p_1, "true_real": true_real_1,
         # pooling per-orizzonte tra trial (liste lunghe P)
@@ -254,6 +260,13 @@ def build_wide_row(trial_name, split, n_win, per_channel, channels):
         row[f"{ch}_MAE_avg"]         = m["mae_f_avg"]
         row[f"{ch}_MAE_pct_avg"]     = m["mae_fut_pct_avg"]
         row[f"{ch}_skill_mae_avg"]   = m["skill_mae_avg"]
+        # --- ultimo passo (t+P): orizzonte pieno ---
+        row[f"{ch}_RMSE_P"]          = m["rmse_f_P"]
+        row[f"{ch}_RMSE_pct_P"]      = m["rmse_fut_pct_P"]
+        row[f"{ch}_skill_rmse_P"]    = m["skill_rmse_P"]
+        row[f"{ch}_MAE_P"]           = m["mae_f_P"]
+        row[f"{ch}_MAE_pct_P"]       = m["mae_fut_pct_P"]
+        row[f"{ch}_skill_mae_P"]     = m["skill_mae_P"]
         # baseline persistenza (primo passo), utile come riferimento
         row[f"{ch}_RMSE_persist"]    = m["rmse_persist"]
         row[f"{ch}_MAE_persist"]     = m["mae_persist"]
@@ -384,7 +397,9 @@ def main():
         keys = ["rmse_f", "mae_f", "rmse_persist", "mae_persist",
                 "rmse_fut_pct", "mae_fut_pct", "skill_rmse", "skill_mae",
                 "rmse_f_avg", "mae_f_avg", "rmse_fut_pct_avg", "mae_fut_pct_avg",
-                "skill_rmse_avg", "skill_mae_avg"]
+                "skill_rmse_avg", "skill_mae_avg",
+                "rmse_f_P", "mae_f_P", "rmse_fut_pct_P", "mae_fut_pct_P",
+                "skill_rmse_P", "skill_mae_P"]
         agg = {k: _nanmean([md[ch][k] for md in metric_dicts]) for k in keys}
         agg["P"] = P_seen
         mean_channel[ch] = agg
@@ -436,6 +451,10 @@ def main():
             "rmse_f_avg": _avg(rmse_k), "mae_f_avg": _avg(mae_k),
             "rmse_fut_pct_avg": _avg(rmse_pct_k), "mae_fut_pct_avg": _avg(mae_pct_k),
             "skill_rmse_avg": _avg(skill_rmse_k), "skill_mae_avg": _avg(skill_mae_k),
+            # ultimo passo (t+P) pooled: orizzonte pieno
+            "rmse_f_P": rmse_k[-1], "mae_f_P": mae_k[-1],
+            "rmse_fut_pct_P": rmse_pct_k[-1], "mae_fut_pct_P": mae_pct_k[-1],
+            "skill_rmse_P": skill_rmse_k[-1], "skill_mae_P": skill_mae_k[-1],
         }
         n_pool = n_k0
     pooled_split = "POOLED_val" if not args.all_trials else "POOLED_all"
