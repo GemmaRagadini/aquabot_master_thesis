@@ -249,11 +249,30 @@ def main():
                     help="numero di passi del rollout. Default: tutto il trial.")
     ap.add_argument("--list_trials", action="store_true")
     ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "closed_loop_joint.png"))
+    ap.add_argument("--p", type=int, default=None,
+                    help="orizzonte P per costruire i target del dataset. Default: "
+                         "il P salvato nel checkpoint. Passalo solo per forzare.")
     args = ap.parse_args()
 
     device = torch.device(args.device)
 
-    ds = FishJointDataset(args.dataset_dir, scaler_path=args.scaler_path)
+    # leggo il P dal checkpoint prima di costruire il dataset (target coerenti).
+    # Tollerante: se non leggibile (es. --list_trials), uso il default costante.
+    P_ckpt = None
+    try:
+        _ck = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+        P_ckpt = _ck.get("P", None)
+    except Exception:
+        pass
+    P_ds = args.p if args.p is not None else P_ckpt
+    if args.p is not None and P_ckpt is not None and args.p != P_ckpt:
+        print(f"[avviso] --p={args.p} diverso dal P del checkpoint ({P_ckpt}): "
+              f"uso --p={args.p}.", file=sys.stderr)
+    ds_kwargs = {"scaler_path": args.scaler_path}
+    if P_ds is not None:
+        ds_kwargs["p"] = P_ds
+
+    ds = FishJointDataset(args.dataset_dir, **ds_kwargs)
     try:
         val_idxs = val_trial_indices(ds)   # costruisce finestre/scaler
     except Exception as e:

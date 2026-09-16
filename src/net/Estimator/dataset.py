@@ -6,6 +6,11 @@ from torch.utils.data import Dataset, Subset
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 
+
+
+#USO 
+# python3 src/net/Estimator/dataset.py <DATASET PATH> <SCALER PATH> 
+
 # H: lunghezza della finestra di storia in ingresso (H comandi + H sensori passati).
 # A 10 Hz di logging effettivo, 20 timestep = 2 s = un ciclo completo a 0.5 Hz
 # (freq minima), cosi' la finestra contiene sempre almeno un'oscillazione intera.

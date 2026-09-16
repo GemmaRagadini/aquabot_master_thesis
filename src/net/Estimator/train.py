@@ -40,7 +40,7 @@ def cycle_loss(IM, FM, seq_cmd, seq_sens, ctx, pred_cmd, pred_sens,
 
 
 def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc,
-          weight_decay=0.0):
+          weight_decay=0.0, best_name="best.pt"):
     train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     print(f"Split per-trial: {len(train_ds)} finestre train | {len(val_ds)} finestre val")
 
@@ -122,7 +122,7 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc,
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            save_checkpoint(IM, FM, dataset.norm_stats, checkpoint_dir, name="best.pt")
+            save_checkpoint(IM, FM, dataset.norm_stats, checkpoint_dir, name=best_name)
 
     print(f"\nTraining completato. Best val loss: {best_val_loss:.4f}")
     return IM, FM, {
@@ -146,6 +146,21 @@ def save_checkpoint(IM, FM, norm_stats, checkpoint_dir, name="checkpoint.pt"):
     }, path)
 
 
+def checkpoint_names(tag=None):
+    """Nomi dei due checkpoint a partire da un tag opzionale.
+
+    tag=None  -> ('best.pt', 'fish_joint.pt')            [default storici]
+    tag='p10' -> ('best_p10.pt', 'fish_joint_p10.pt')    [run distinta]
+
+    Il tag serve a NON sovrascrivere i checkpoint quando si allenano config
+    diverse (es. P=1 vs P=10, Fase A vs Fase B). Il tag non cambia il modello:
+    P e dimensioni restano quelli di model.py/dataset.py e degli argomenti.
+    """
+    if not tag:
+        return "best.pt", "fish_joint.pt"
+    return f"best_{tag}.pt", f"fish_joint_{tag}.pt"
+
+
 if __name__ == '__main__':
     assert MODEL_P == DATA_P, f"P disallineato: model={MODEL_P} dataset={DATA_P}"
 
@@ -153,6 +168,10 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_joint'))
     parser.add_argument('--epochs',         type=int,   default=80)
+    parser.add_argument('--p',              type=int,   default=MODEL_P,
+                        help=f'orizzonte di predizione P (default: {MODEL_P}, dalla '
+                             f'costante di model.py). Setta P da CLI senza editare i '
+                             f'file: costruisce dataset e reti con questo P.')
     parser.add_argument('--lr',             type=float, default=0.0003585794155087849)
     parser.add_argument('--batch_size',     type=int,   default=32)
     parser.add_argument('--gru_hidden_im',  type=int,   default=128)
@@ -171,7 +190,25 @@ if __name__ == '__main__':
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
     parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers_joint.pkl'))
+    parser.add_argument('--tag',            default=None,
+                        help="tag per distinguere la run: i checkpoint diventano "
+                             "best_<tag>.pt e fish_joint_<tag>.pt (default: senza "
+                             "tag -> best.pt e fish_joint.pt). Non modifica il "
+                             "modello, solo i nomi dei file salvati.")
     args = parser.parse_args()
+
+    # P da CLI. Le costanti dei file devono essere allineate tra loro (assert),
+    # ma --p puo' forzare un P diverso senza editarle: avviso l'utente.
+    if args.p != MODEL_P:
+        print(f"[avviso] --p={args.p} diverso dalla costante dei file "
+              f"(model={MODEL_P}, dataset={DATA_P}). Uso --p={args.p} per dataset "
+              f"e reti. Assicurati che sia voluto.")
+    P = args.p
+
+    best_name, final_name = checkpoint_names(args.tag)
+    if args.tag:
+        print(f"Tag run: '{args.tag}' -> checkpoint: {best_name}, {final_name}")
+    print(f"Orizzonte di predizione P = {P}")
 
     torch.set_num_threads(args.threads)
     DEVICE = torch.device(args.device)
@@ -181,12 +218,14 @@ if __name__ == '__main__':
 
     print("Caricamento dataset...")
     os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
-    dataset = FishJointDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
+    dataset = FishJointDataset(args.dataset_dir, p=P,
+                               scaler_path=args.scaler_path).to(DEVICE)
 
     IM, FM = build_models(
         gru_hidden_im=args.gru_hidden_im, mlp_hidden_im=args.mlp_hidden_im,
         gru_hidden_fm=args.gru_hidden_fm, mlp_hidden_fm=args.mlp_hidden_fm,
         dropout_im=args.dropout_im, dropout_fm=args.dropout_fm,
+        p=P,
     )
     IM = IM.to(DEVICE); FM = FM.to(DEVICE)
     n_im = sum(p.numel() for p in IM.parameters())
@@ -198,11 +237,11 @@ if __name__ == '__main__':
         IM, FM, dataset,
         epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
         checkpoint_dir=args.checkpoint_dir, lambda_cyc=args.lambda_cyc,
-        weight_decay=args.weight_decay,
+        weight_decay=args.weight_decay, best_name=best_name,
     )
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
-    final_path = os.path.join(args.checkpoint_dir, "fish_joint.pt")
+    final_path = os.path.join(args.checkpoint_dir, final_name)
     torch.save({
         "im_state":   {k: v.cpu() for k, v in IM.state_dict().items()},
         "fm_state":   {k: v.cpu() for k, v in FM.state_dict().items()},
@@ -235,8 +274,12 @@ if __name__ == '__main__':
     ax2.set_title("IM (comando) vs FM (sensori)", fontsize=14, fontweight='bold')
     ax2.legend(fontsize=11); ax2.grid(True)
 
-    fig.suptitle("Joint IM+FM — Training & Validation Loss", fontsize=16, fontweight='bold')
+    suptitle = "Joint IM+FM — Training & Validation Loss"
+    if args.tag:
+        suptitle += f"  [{args.tag}]"
+    fig.suptitle(suptitle, fontsize=16, fontweight='bold')
     plt.tight_layout()
-    plot_path = os.path.join(args.checkpoint_dir, "loss_curve.png")
+    loss_curve_name = f"loss_curve_{args.tag}.png" if args.tag else "loss_curve.png"
+    plot_path = os.path.join(args.checkpoint_dir, loss_curve_name)
     plt.savefig(plot_path, dpi=150)
     print(f"Loss curve salvata in {plot_path}")

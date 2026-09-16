@@ -13,12 +13,10 @@ in input e' sempre quella vera, non autoregressiva).
 Con P>1 viene plottato il PRIMO passo predetto (indice 0 della finestra P).
 
 Uso:
-  python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --checkpoint src/net/Estimator/checkpoints_joint/best.pt
-  python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --list_trials      # scegline uno che e' 'val'
-  python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --checkpoint src/net/Estimator/checkpoints_joint/best.pt --trial trial_XX.csv
---step k # sceglie quale passo tra i P predetti plottare 
---t_start 5 --t_end 15 # zoom su una parte 
-  """
+  python3 plot_prediction_joint.py --checkpoint checkpoints_joint/best.pt
+  python3 plot_prediction_joint.py --list_trials      # scegline uno che e' 'val'
+  python3 plot_prediction_joint.py --checkpoint checkpoints_joint/best.pt --trial trial_XX.csv
+"""
 import argparse
 import os
 import sys
@@ -175,11 +173,33 @@ def main():
     parser.add_argument("--step", type=int, default=0,
                         help="quale dei P passi predetti plottare: 0=t+1 (primo, "
                              "default) ... P-1=t+P (ultimo). Con P=1 solo 0 e' valido.")
+    parser.add_argument("--p", type=int, default=None,
+                        help="orizzonte P per costruire i target del dataset. Default: "
+                             "il P salvato nel checkpoint. Passalo solo per forzare.")
     parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions_joint.png"))
     args = parser.parse_args()
 
     device = torch.device(args.device)
-    dataset = FishJointDataset(args.dataset_dir, scaler_path=args.scaler_path)
+
+    # leggo il P dal checkpoint PRIMA di costruire il dataset, cosi' i target
+    # hanno lo stesso orizzonte del modello. Tollerante: se il checkpoint non e'
+    # leggibile (es. solo --list_trials), ricado sul default della costante.
+    P_ckpt = None
+    try:
+        _ck = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+        P_ckpt = _ck.get("P", None)
+    except Exception:
+        pass
+    P_ds = args.p if args.p is not None else (P_ckpt if P_ckpt is not None else None)
+    if args.p is not None and P_ckpt is not None and args.p != P_ckpt:
+        print(f"[avviso] --p={args.p} diverso dal P del checkpoint ({P_ckpt}): "
+              f"uso --p={args.p}.", file=sys.stderr)
+
+    # p=None -> il costruttore usa il default della costante dataset.P
+    ds_kwargs = {"scaler_path": args.scaler_path}
+    if P_ds is not None:
+        ds_kwargs["p"] = P_ds
+    dataset = FishJointDataset(args.dataset_dir, **ds_kwargs)
 
     try:
         val_trial_idxs = prepare_dataset(dataset)
