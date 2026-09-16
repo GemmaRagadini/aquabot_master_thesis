@@ -13,10 +13,12 @@ in input e' sempre quella vera, non autoregressiva).
 Con P>1 viene plottato il PRIMO passo predetto (indice 0 della finestra P).
 
 Uso:
-  python3 plot_prediction_joint.py --checkpoint checkpoints_joint/best.pt
-  python3 plot_prediction_joint.py --list_trials      # scegline uno che e' 'val'
-  python3 plot_prediction_joint.py --checkpoint checkpoints_joint/best.pt --trial trial_XX.csv
-"""
+  python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --checkpoint src/net/Estimator/checkpoints_joint/best.pt
+  python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --list_trials      # scegline uno che e' 'val'
+  python3 src/net/Estimator/checkpoints_joint/plot_prediction_joint.py --checkpoint src/net/Estimator/checkpoints_joint/best.pt --trial trial_XX.csv
+--step k # sceglie quale passo tra i P predetti plottare 
+--t_start 5 --t_end 15 # zoom su una parte 
+  """
 import argparse
 import os
 import sys
@@ -90,9 +92,10 @@ def resolve_trial(dataset, trial_arg, val_trial_idxs):
     raise ValueError(f"'{trial_arg}' ambiguo, trovati {[names[i] for i in matches]}.")
 
 
-def run_models_on_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
+def run_models_on_trial(dataset, IM, FM, device, trial_idx, step=0, batch_size=256):
     """Fa girare entrambe le reti sulle finestre (contigue e ordinate) del trial.
-    Ritorna target e predizioni per FM (sensori) e IM (comando), al primo passo P."""
+    Ritorna target e predizioni per FM (sensori) e IM (comando), al passo
+    'step' dell'orizzonte P (step=0 -> t+1, ..., step=P-1 -> t+P)."""
     mask = dataset.window_trial == trial_idx
     idxs = np.nonzero(mask)[0]
     idxs.sort()
@@ -102,6 +105,11 @@ def run_models_on_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
     ctx      = dataset.context[idxs]
     tgt_sens = dataset.tgt_sens[idxs]     # (n, P, 2)
     tgt_cmd  = dataset.tgt_cmd[idxs]      # (n, P, 1)
+
+    P = tgt_cmd.shape[1]
+    if not (0 <= step < P):
+        raise ValueError(f"--step {step} fuori range: il modello ha P={P} "
+                         f"(passi validi: 0..{P - 1}).")
 
     fm_pred, im_pred = [], []
     with torch.no_grad():
@@ -117,15 +125,18 @@ def run_models_on_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
 
     fm_pred = torch.cat(fm_pred, dim=0)
     im_pred = torch.cat(im_pred, dim=0)
-    # primo passo predetto (P=1 -> l'unico; P>1 -> il primo)
-    return idxs, tgt_sens[:, 0, :], fm_pred[:, 0, :], tgt_cmd[:, 0, :], im_pred[:, 0, :]
+    # passo scelto dell'orizzonte
+    return (idxs, P,
+            tgt_sens[:, step, :], fm_pred[:, step, :],
+            tgt_cmd[:, step, :],  im_pred[:, step, :])
 
 
-def real_time_axis(dataset_dir, trial_name, h, n_windows):
+def real_time_axis(dataset_dir, trial_name, h, n_windows, step=0):
     df = pd.read_csv(Path(dataset_dir) / trial_name)
     t_full = df["t_rel_sec"].values.astype(np.float32)
-    # il target della finestra i (input 0:H a t=i-1) e' a t=i -> asse da h in poi
-    t_future = t_full[h: h + n_windows]
+    # il target della finestra i (input 0:H a t=i-1) e' a t=i per il primo passo;
+    # il passo 'step' predice t=i+step -> l'asse slitta di 'step'.
+    t_future = t_full[h + step: h + step + n_windows]
     if len(t_future) != n_windows:
         t_future = np.arange(n_windows, dtype=np.float32) / 20.0
     return t_future
@@ -161,6 +172,9 @@ def main():
                         help="istante iniziale (s) della finestra da plottare. Default: inizio.")
     parser.add_argument("--t_end", type=float, default=None,
                         help="istante finale (s) della finestra da plottare. Default: fine.")
+    parser.add_argument("--step", type=int, default=0,
+                        help="quale dei P passi predetti plottare: 0=t+1 (primo, "
+                             "default) ... P-1=t+P (ultimo). Con P=1 solo 0 e' valido.")
     parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions_joint.png"))
     args = parser.parse_args()
 
@@ -207,9 +221,16 @@ def main():
     IM.load_state_dict(ckpt["im_state"]); IM.to(device).eval()
     FM.load_state_dict(ckpt["fm_state"]); FM.to(device).eval()
 
-    idxs, tgt_sens, fm_pred, tgt_cmd, im_pred = run_models_on_trial(
-        dataset, IM, FM, device, trial_idx)
-    t_axis = real_time_axis(args.dataset_dir, trial_name, dataset.h, len(idxs))
+    if not (0 <= args.step < P):
+        print(f"[errore] --step {args.step} fuori range: il checkpoint ha P={P} "
+              f"(passi validi: 0..{P - 1}).", file=sys.stderr)
+        sys.exit(1)
+
+    idxs, P_run, tgt_sens, fm_pred, tgt_cmd, im_pred = run_models_on_trial(
+        dataset, IM, FM, device, trial_idx, step=args.step)
+    t_axis = real_time_axis(args.dataset_dir, trial_name, dataset.h,
+                            len(idxs), step=args.step)
+    print(f"P={P_run} | passo plottato: {args.step} (t+{args.step + 1})")
 
     # --- finestra temporale opzionale (in secondi) ---
     t_lo = args.t_start if args.t_start is not None else float(t_axis[0])
@@ -249,7 +270,12 @@ def main():
 
     axes[-1].set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
     win_txt = f"  [{t_axis[0]:.1f}–{t_axis[-1]:.1f}s]" if (args.t_start is not None or args.t_end is not None) else ""
-    fig.suptitle(f"Predizioni reali IM + FM — trial {trial_name}{win_txt}",
+    # mostra sempre P; se P>1, specifica quale passo dell'orizzonte e' plottato
+    if P_run > 1:
+        step_txt = f"  ·  P={P_run}, passo t+{args.step + 1} ({args.step + 1}/{P_run})"
+    else:
+        step_txt = f"  ·  P={P_run}"
+    fig.suptitle(f"Predizioni reali IM + FM — trial {trial_name}{win_txt}{step_txt}",
                  color=COL_TEXT, fontsize=13, fontweight="bold", x=0.01, ha="left", y=0.995)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(args.out, dpi=160, facecolor=COL_SURFACE)

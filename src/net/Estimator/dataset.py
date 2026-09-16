@@ -12,8 +12,8 @@ from sklearn.preprocessing import StandardScaler
 H = 20
 
 # P: orizzonte di predizione. Le teste (IM e FM) sputano P passi in un colpo solo.
-# Parte da 1 (one-step, come la vecchia testa future). Alzalo per predire piu' avanti.
-P = 1
+# DEVE ESSERE UGUALE A P IN MODEL
+P = 10
 
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad",
                "tail_freq_hz", "center_rad", "t_rel_sec"]
@@ -398,7 +398,7 @@ class FishJointDataset(Dataset):
 
 if __name__ == '__main__':
     import sys
-    log_dir     = sys.argv[1] if len(sys.argv) > 1 else "../../logs/ds"
+    log_dir     = sys.argv[1] if len(sys.argv) > 1 else "src/net/dataset"
     scaler_path = sys.argv[2] if len(sys.argv) > 2 else str(Path(log_dir) / "scalers_joint.pkl")
 
     ds = FishJointDataset(log_dir, scaler_path=scaler_path)

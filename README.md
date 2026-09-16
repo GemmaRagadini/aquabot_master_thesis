@@ -66,13 +66,26 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 
 # Cosa fare ora
 - RIPARTIRE DA : 
-- rifai slide 
-- guarda i grafici di previsione dopo il nuovo modello 
+- rileggere slide  
+- riguardare codice 
+- fare slide metriche 
+- anche con P = 10
 
 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 - Auto regressione singolo modello ??
 - superare le modalità
+
+# RIASSUNTO 
+Progetto: modello congiunto IM+FM per robot-pesce 
+
+Architettura. Due reti GRU+MLP (model_joint.py) che condividono lo stesso ingresso [C_1:H, S_1:H, ctx] — storia di H=20 comandi + H sensori + contesto. Testa singola a P passi (P=1 ora). IM (inversa) predice il comando, FM (diretta) predice i sensori [sensor_diff, current]. Contesto = [amp, freq, center, dt], CTX_DIM=4. Scaler unico condiviso (scalers_joint.pkl), split per-trial leak-free.
+
+File pronti: model_joint.py (con dropout), dataset_joint.py, train_joint.py (loss IM/FM separate, dropout+weight_decay), tune_joint.py (tuning 3 fasi solo FM), plot_prediction_joint.py (open-loop, deduce dimensioni dal checkpoint), closed_loop_test_joint.py, master_node.py (formula unica, solo std/sweep/turning, log con center_rad + real_position_rad), collect_dataset.sh (55 trial), trial_launch.py, plot_trial.py.
+
+Stato: Fase A completata. Training congiunto funziona, IM va a zero (comando facile), FM overfittava ma il tuning con dropout+weight_decay ha chiuso il gap train/val. Modello robusto. Open-loop predictions buone.
+
+Prossimo passo: Fase B — implementare la cycle_loss in train_joint.py (già predisposta, ora è NotImplementedError) e accendere lambda_cyc con warm-up. Il closed_loop_test_joint.py è lo strumento per misurare se il ciclo migliora la tenuta dell'anello.
 
 # Requirements 
 uv pip install -r requirements.txt

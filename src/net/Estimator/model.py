@@ -4,7 +4,7 @@ import torch.nn as nn
 # H: lunghezza finestra di storia in ingresso. P: orizzonte di predizione.
 # Devono combaciare con dataset_joint.py.
 H = 20
-P = 1
+P = 10
 
 CTX_DIM = 4
 
