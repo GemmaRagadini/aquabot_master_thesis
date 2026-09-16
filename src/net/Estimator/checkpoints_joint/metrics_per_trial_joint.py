@@ -21,9 +21,9 @@ Metriche di DEFAULT sui soli trial di VALIDATION (episodi mai visti). Con
 --all_trials si includono anche i trial di train, etichettati in 'split'.
 
 Uso:
-  python3 metrics_per_trial_joint.py --checkpoint checkpoints_joint/best.pt
-  python3 metrics_per_trial_joint.py --checkpoint checkpoints_joint/best.pt --all_trials
-  python3 metrics_per_trial_joint.py --checkpoint checkpoints_joint/best.pt --csv_out metrics_joint.csv
+python3 src/net/Estimator/checkpoints_joint/metrics_per_trial_joint.py 
+--checkpoint src/net/Estimator/checkpoints_joint/best_P1.pt
+
 """
 import argparse
 import os

@@ -31,8 +31,10 @@ Da li' il rollout e' autoregressivo (tranne il contesto, sempre vero).
 Uso
 ---
 python3 src/net/Estimator/checkpoints_joint/closed_loop_test.py 
---checkpoint  src/net/Estimator/checkpoints_joint/best.pt --scaler_path src/net/scaler/scalers_joint.pkl 
---dataset_dir src/net/dataset --steps 200 --trial trial_20260910_150907.csv [--list_trials]
+--checkpoint src/net/Estimator/checkpoints_joint/best_P10.pt
+--list_trials  
+--trial 
+--steps 200
 """
 import argparse
 import os
