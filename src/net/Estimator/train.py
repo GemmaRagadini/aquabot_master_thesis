@@ -15,8 +15,8 @@ REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 # in repo: from net.Joint.model import ... / from net.Joint.dataset import ...
-from model   import build_models, P as MODEL_P
-from dataset import FishJointDataset, CTX_DIM, P as DATA_P
+from model   import build_models, P as MODEL_P, H as MODEL_H
+from dataset import FishJointDataset, CTX_DIM, P as DATA_P, H as DATA_H
 
 random.seed(42)
 np.random.seed(42)
@@ -24,22 +24,117 @@ torch.manual_seed(42)
 
 DEVICE = torch.device("cpu")
 
+# ---------------------------------------------------------------------------
+# MODALITA' DI TRAINING (--train_mode), tutte con l'architettura a hidden
+# incrociato. Vedi anche --detach_cross (ortogonale) e --tag (per non
+# sovrascrivere checkpoint/curve tra run diverse).
+#
+#   supervised : 1 passo teacher-forced. loss = loss_im + loss_fm.
+#                
+#   rollout    : closed-loop rollout. Le predizioni t+1
+#                rientrano nei buffer per K passi (BPTT sul rollout); loss =
+#                media MSE sui K passi
+# 
+#   combo      : supervised + lambda(t) * rollout, con warm-up su lambda.
+#                
+#
+# --detach_cross: stacca l'hidden incrociato (h_fm->IM e h_im->FM). Ogni rete
+#                 viene aggiornata solo dalla propria loss (gradienti separati).
+#                 Vale per tutti i modi.
+#
+# NOTA: il rollout supervisiona i K passi contro i target [t+1..t+K] gia'
+# presenti nell'item del dataset, quindi serve K <= P. Con P=1 il rollout
+# degenera a 1 passo (== supervised): per usarlo davvero allena con P>1.
+# ---------------------------------------------------------------------------
 
-def cycle_loss(IM, FM, seq_cmd, seq_sens, ctx, pred_cmd, pred_sens,
-               tgt_cmd, tgt_sens, mse):
-    """FASE B — termine di consistenza closed-loop.
 
-    In Fase A NON viene chiamato (lambda_cyc=0). Lo isolo qui cosi' in Fase B
-    modifichi solo questa funzione (in particolare la ricomposizione della
-    finestra scorsa quando P>1) senza toccare il resto del training.
+def forward_pair(IM, FM, seq_cmd, seq_sens, ctx, detach_cross=False):
+    """Forward accoppiato a 1 passo con hidden incrociato.
 
-    Idea: scorri la finestra in avanti di P mettendo le predizioni al posto dei
-    valori futuri veri, rivaluta le reti e chiedi coerenza. Placeholder one-step.
-    """
-    raise NotImplementedError("Ciclo attivato in Fase B.")
+    detach_cross=True stacca l'hidden dell'ALTRA rete (h_fm verso IM, h_im
+    verso FM): ogni rete resta aggiornata solo dalla propria loss."""
+    h_im = IM.encode(seq_cmd)    # (B, gru_hidden_im)
+    h_fm = FM.encode(seq_sens)   # (B, gru_hidden_fm)
+    cross_to_im = h_fm.detach() if detach_cross else h_fm
+    cross_to_fm = h_im.detach() if detach_cross else h_im
+    pred_cmd  = IM.decode(h_im, cross_to_im, ctx)   # (B, P, 1)
+    pred_sens = FM.decode(h_fm, cross_to_fm, ctx)   # (B, P, 2)
+    return pred_cmd, pred_sens
 
 
-def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc,
+def rollout_loss(IM, FM, seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, mse,
+                 K, detach_cross=False):
+    """Closed-loop rollout differenziabile (loss di ciclo, self+cross accoppiati).
+
+    A ogni passo entrambe le reti predicono t+1 (indice 0 dell'orizzonte); le
+    predizioni rientrano nei rispettivi buffer (comandi/sensori) e, via hidden
+    incrociato, raggiungono anche l'altra rete al passo successivo. Il gradiente
+    passa attraverso tutto il rollout (BPTT): niente .detach() sulle predizioni
+    rimesse in input.
+
+    Il contesto statico [amp, freq, center] e' tenuto costante lungo il rollout
+    (regime lentamente variabile): teacher forcing solo sul contesto.
+
+    Supervisione: il passo k contro il target vero t+1+k (tgt_*[:, k]). Richiede
+    K <= P (i target disponibili nell'item)."""
+    P = tgt_cmd.shape[1]
+    K = min(K, P)
+
+    buf_cmd  = seq_cmd.clone()    # (B, H, 1)
+    buf_sens = seq_sens.clone()   # (B, H, 2)
+
+    loss = seq_cmd.new_zeros(())
+    for k in range(K):
+        h_im = IM.encode(buf_cmd)
+        h_fm = FM.encode(buf_sens)
+        cross_to_im = h_fm.detach() if detach_cross else h_fm
+        cross_to_fm = h_im.detach() if detach_cross else h_im
+        pc = IM.decode(h_im, cross_to_im, ctx)   # (B, P, 1)
+        ps = FM.decode(h_fm, cross_to_fm, ctx)   # (B, P, 2)
+        c1 = pc[:, :1, :]                         # (B, 1, 1)  passo t+1
+        s1 = ps[:, :1, :]                         # (B, 1, 2)
+
+        loss = loss + mse(c1[:, 0], tgt_cmd[:, k]) + mse(s1[:, 0], tgt_sens[:, k])
+
+        # avanza i buffer di uno: butta il piu' vecchio, appende la predizione
+        buf_cmd  = torch.cat([buf_cmd[:, 1:, :],  c1], dim=1)
+        buf_sens = torch.cat([buf_sens[:, 1:, :], s1], dim=1)
+
+    return loss / K
+
+
+def compute_losses(IM, FM, batch, mse, mode, detach_cross, K, lam_roll):
+    """Calcola la loss per un batch secondo il modo scelto.
+    Ritorna (loss_totale, loss_im, loss_fm, loss_roll) — gli ultimi tre come
+    scalari per il logging (loss_im/loss_fm sempre a 1 passo, per confronto tra
+    modi; loss_roll = 0 se non usato)."""
+    seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ = batch
+
+    # termine a 1 passo (sempre calcolato: comparabile tra i modi)
+    pred_cmd, pred_sens = forward_pair(IM, FM, seq_cmd, seq_sens, ctx, detach_cross)
+    loss_im = mse(pred_cmd,  tgt_cmd)
+    loss_fm = mse(pred_sens, tgt_sens)
+    loss_sup = loss_im + loss_fm
+
+    loss_roll = seq_cmd.new_zeros(())
+    if mode in ("rollout", "combo"):
+        loss_roll = rollout_loss(IM, FM, seq_cmd, seq_sens, ctx,
+                                 tgt_cmd, tgt_sens, mse, K, detach_cross)
+
+    if mode == "supervised":
+        loss = loss_sup
+    elif mode == "rollout":
+        loss = loss_roll
+    elif mode == "combo":
+        loss = loss_sup + lam_roll * loss_roll
+    else:
+        raise ValueError(f"train_mode sconosciuto: {mode}")
+
+    return loss, loss_im, loss_fm, loss_roll
+
+
+def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
+          mode, detach_cross, rollout_steps, lambda_roll, roll_warmup,
           weight_decay=0.0, best_name="best.pt"):
     train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     print(f"Split per-trial: {len(train_ds)} finestre train | {len(val_ds)} finestre val")
@@ -53,109 +148,96 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir, lambda_cyc,
     mse = nn.MSELoss()
 
     best_val_loss = float('inf')
-    train_losses, val_losses = [], []
-    train_im_losses, train_fm_losses = [], []
-    val_im_losses,   val_fm_losses   = [], []
+    hist = {k: [] for k in ("train", "val", "train_im", "train_fm",
+                            "val_im", "val_fm", "train_roll", "val_roll")}
 
     for epoch in range(epochs):
+        # lambda del rollout: warm-up lineare 0 -> lambda_roll su roll_warmup epoche
+        if mode == "combo":
+            lam = lambda_roll * min(1.0, epoch / max(1, roll_warmup))
+        elif mode == "rollout":
+            lam = lambda_roll
+        else:
+            lam = 0.0
+
         IM.train(); FM.train()
-        train_loss = 0.0
-        train_im = 0.0
-        train_fm = 0.0
-        for seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ in train_loader:
-            # ingresso condiviso [C_T, S_T] -> (batch, H, 3)
-            seq = torch.cat([seq_cmd, seq_sens], dim=-1)
-
-            pred_cmd,  _ = IM(seq, ctx)     # (batch, P, 1)
-            pred_sens, _ = FM(seq, ctx)     # (batch, P, 2)
-
-            loss_im = mse(pred_cmd,  tgt_cmd)
-            loss_fm = mse(pred_sens, tgt_sens)
-            loss = loss_im + loss_fm
-
-            # --- FASE B: aggancio del ciclo ---
-            if lambda_cyc > 0:
-                loss = loss + lambda_cyc * cycle_loss(
-                    IM, FM, seq_cmd, seq_sens, ctx,
-                    pred_cmd, pred_sens, tgt_cmd, tgt_sens, mse)
+        tr_loss = tr_im = tr_fm = tr_roll = 0.0
+        for batch in train_loader:
+            loss, l_im, l_fm, l_roll = compute_losses(
+                IM, FM, batch, mse, mode, detach_cross, rollout_steps, lam)
 
             if not torch.isfinite(loss):
                 raise RuntimeError(
-                    f"Loss non finita a epoch {epoch}: training divergente "
-                    f"(riduci lr / lambda_cyc) o dati sporchi (check_nan.py)")
+                    f"Loss non finita a epoch {epoch} (mode={mode}): training "
+                    f"divergente (riduci lr / lambda_roll / rollout_steps) o dati "
+                    f"sporchi (check_nan.py)")
 
             optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(params, max_norm=1.0)
             optimizer.step()
-            train_loss += loss.item()
-            train_im   += loss_im.item()
-            train_fm   += loss_fm.item()
+            tr_loss += loss.item(); tr_im += l_im.item()
+            tr_fm += l_fm.item();   tr_roll += l_roll.item()
 
         IM.eval(); FM.eval()
-        val_loss = 0.0
-        val_im = 0.0
-        val_fm = 0.0
+        va_loss = va_im = va_fm = va_roll = 0.0
         with torch.no_grad():
-            for seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ in val_loader:
-                seq = torch.cat([seq_cmd, seq_sens], dim=-1)
-                pred_cmd,  _ = IM(seq, ctx)
-                pred_sens, _ = FM(seq, ctx)
-                l_im = mse(pred_cmd,  tgt_cmd)
-                l_fm = mse(pred_sens, tgt_sens)
-                val_im   += l_im.item()
-                val_fm   += l_fm.item()
-                val_loss += (l_im + l_fm).item()
+            for batch in val_loader:
+                loss, l_im, l_fm, l_roll = compute_losses(
+                    IM, FM, batch, mse, mode, detach_cross, rollout_steps, lam)
+                va_loss += loss.item(); va_im += l_im.item()
+                va_fm += l_fm.item();   va_roll += l_roll.item()
 
-        nbt = len(train_loader)
-        nbv = len(val_loader)
-        train_loss /= nbt; train_im /= nbt; train_fm /= nbt
-        val_loss   /= nbv; val_im   /= nbv; val_fm   /= nbv
-        scheduler.step(val_loss)
-        train_losses.append(train_loss); val_losses.append(val_loss)
-        train_im_losses.append(train_im); train_fm_losses.append(train_fm)
-        val_im_losses.append(val_im);     val_fm_losses.append(val_fm)
+        nbt, nbv = len(train_loader), len(val_loader)
+        tr_loss/=nbt; tr_im/=nbt; tr_fm/=nbt; tr_roll/=nbt
+        va_loss/=nbv; va_im/=nbv; va_fm/=nbv; va_roll/=nbv
+        scheduler.step(va_loss)
+        hist["train"].append(tr_loss); hist["val"].append(va_loss)
+        hist["train_im"].append(tr_im); hist["train_fm"].append(tr_fm)
+        hist["val_im"].append(va_im);   hist["val_fm"].append(va_fm)
+        hist["train_roll"].append(tr_roll); hist["val_roll"].append(va_roll)
 
-        print(f"Epoch {epoch:3d} | train {train_loss:.4f} (IM {train_im:.4f} FM {train_fm:.4f}) "
-              f"| val {val_loss:.4f} (IM {val_im:.4f} FM {val_fm:.4f}) "
+        roll_txt = f" roll {tr_roll:.4f}/{va_roll:.4f} (λ={lam:.2f})" if mode != "supervised" else ""
+        print(f"Epoch {epoch:3d} | train {tr_loss:.4f} (IM {tr_im:.4f} FM {tr_fm:.4f}) "
+              f"| val {va_loss:.4f} (IM {va_im:.4f} FM {va_fm:.4f}){roll_txt} "
               f"| lr {optimizer.param_groups[0]['lr']:.2e}")
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if va_loss < best_val_loss:
+            best_val_loss = va_loss
             save_checkpoint(IM, FM, dataset.norm_stats, checkpoint_dir, name=best_name)
 
-    print(f"\nTraining completato. Best val loss: {best_val_loss:.4f}")
-    return IM, FM, {
-        "train": train_losses, "val": val_losses,
-        "train_im": train_im_losses, "train_fm": train_fm_losses,
-        "val_im": val_im_losses, "val_fm": val_fm_losses,
+    print(f"\nTraining completato ({mode}). Best val loss: {best_val_loss:.4f}")
+    return IM, FM, hist
+
+
+def _ckpt_dict(IM, FM, norm_stats):
+    return {
+        "im_state":   {k: v.cpu() for k, v in IM.state_dict().items()},
+        "fm_state":   {k: v.cpu() for k, v in FM.state_dict().items()},
+        "norm_stats": norm_stats,
+        "im_input_size": IM.gru.input_size,   # 1 (comandi)
+        "fm_input_size": FM.gru.input_size,   # 2 (sensori)
+        "im_gru_hidden": IM.gru_hidden,
+        "fm_gru_hidden": FM.gru_hidden,
+        "im_cross_hidden": IM.cross_hidden,   # = fm_gru_hidden
+        "fm_cross_hidden": FM.cross_hidden,   # = im_gru_hidden
+        "ctx_static":    CTX_DIM,             # 3 (amp, freq, center)
+        "H":             MODEL_H,
+        "P":             IM.p,
     }
 
 
 def save_checkpoint(IM, FM, norm_stats, checkpoint_dir, name="checkpoint.pt"):
     os.makedirs(checkpoint_dir, exist_ok=True)
-    path = os.path.join(checkpoint_dir, name)
-    torch.save({
-        "im_state":   {k: v.cpu() for k, v in IM.state_dict().items()},
-        "fm_state":   {k: v.cpu() for k, v in FM.state_dict().items()},
-        "norm_stats": norm_stats,
-        "im_input_size": IM.gru.input_size,
-        "fm_input_size": FM.gru.input_size,
-        "ctx_dim":    IM.ctx_dim,
-        "P":          IM.p,
-    }, path)
+    torch.save(_ckpt_dict(IM, FM, norm_stats), os.path.join(checkpoint_dir, name))
 
 
 def checkpoint_names(tag=None):
     """Nomi dei due checkpoint a partire da un tag opzionale.
-
-    tag=None  -> ('best.pt', 'fish_joint.pt')            [default storici]
-    tag='p10' -> ('best_p10.pt', 'fish_joint_p10.pt')    [run distinta]
-
-    Il tag serve a NON sovrascrivere i checkpoint quando si allenano config
-    diverse (es. P=1 vs P=10, Fase A vs Fase B). Il tag non cambia il modello:
-    P e dimensioni restano quelli di model.py/dataset.py e degli argomenti.
-    """
+    tag=None  -> ('best.pt', 'fish_joint.pt')
+    tag='rollout' -> ('best_rollout.pt', 'fish_joint_rollout.pt')
+    Il tag serve a NON sovrascrivere i checkpoint tra run diverse (es. i vari
+    --train_mode). Non cambia il modello."""
     if not tag:
         return "best.pt", "fish_joint.pt"
     return f"best_{tag}.pt", f"fish_joint_{tag}.pt"
@@ -163,58 +245,81 @@ def checkpoint_names(tag=None):
 
 if __name__ == '__main__':
     assert MODEL_P == DATA_P, f"P disallineato: model={MODEL_P} dataset={DATA_P}"
+    assert MODEL_H == DATA_H, f"H disallineato: model={MODEL_H} dataset={DATA_H}"
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_joint'))
     parser.add_argument('--epochs',         type=int,   default=80)
     parser.add_argument('--p',              type=int,   default=MODEL_P,
-                        help=f'orizzonte di predizione P (default: {MODEL_P}, dalla '
-                             f'costante di model.py). Setta P da CLI senza editare i '
-                             f'file: costruisce dataset e reti con questo P.')
+                        help=f'orizzonte di predizione P (default: {MODEL_P}). Per il '
+                             f'rollout serve P>1 (i K passi si supervisionano sui '
+                             f'target t+1..t+K dell item).')
     parser.add_argument('--lr',             type=float, default=0.0003585794155087849)
     parser.add_argument('--batch_size',     type=int,   default=32)
     parser.add_argument('--gru_hidden_im',  type=int,   default=128)
     parser.add_argument('--mlp_hidden_im',  type=int,   default=64)
     parser.add_argument('--gru_hidden_fm',  type=int,   default=256)
     parser.add_argument('--mlp_hidden_fm',  type=int,   default=128)
-    parser.add_argument('--dropout_im',     type=float, default=0.0,
-                        help='dropout nell MLP di IM (di norma 0: IM non overfitta).')
-    parser.add_argument('--dropout_fm',     type=float, default=0.10842905375567242,
-                        help='dropout nell MLP di FM (dal tuning: regolarizza FM).')
-    parser.add_argument('--weight_decay',   type=float, default=2.5314946929205504e-05,
-                        help='weight decay dell Adam (dal tuning: regolarizza).')
-    parser.add_argument('--lambda_cyc',     type=float, default=0.0,
-                        help='FASE A: 0 (reti allenate sui dati reali, nessun ciclo). '
-                             'FASE B: accendi con warm-up.')
+    parser.add_argument('--dropout_im',     type=float, default=0.0)
+    parser.add_argument('--dropout_fm',     type=float, default=0.10842905375567242)
+    parser.add_argument('--weight_decay',   type=float, default=2.5314946929205504e-05)
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
     parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers_joint.pkl'))
     parser.add_argument('--tag',            default=None,
-                        help="tag per distinguere la run: i checkpoint diventano "
-                             "best_<tag>.pt e fish_joint_<tag>.pt (default: senza "
-                             "tag -> best.pt e fish_joint.pt). Non modifica il "
-                             "modello, solo i nomi dei file salvati.")
+                        help="tag per distinguere la run (checkpoint best_<tag>.pt / "
+                             "fish_joint_<tag>.pt e curva loss_curve_<tag>.png). Se "
+                             "assente, usa il train_mode come tag (tranne 'supervised').")
+
+    # --- selezione dello schema di training ---
+    parser.add_argument('--train_mode', default='supervised',
+                        choices=['supervised', 'rollout', 'combo'],
+                        help="supervised: 1 passo teacher-forced (Fase A). "
+                             "rollout: closed-loop differenziabile (K passi). "
+                             "combo: supervised + lambda*rollout con warm-up.")
+    parser.add_argument('--detach_cross', action='store_true',
+                        help="stacca l'hidden incrociato: ogni rete aggiornata solo "
+                             "dalla propria loss (gradienti separati). Vale per tutti i modi.")
+    parser.add_argument('--rollout_steps', type=int, default=None,
+                        help="K passi del rollout (modi rollout/combo). Default: P. "
+                             "Viene comunque limitato a P.")
+    parser.add_argument('--lambda_roll', type=float, default=1.0,
+                        help="peso del termine di rollout (modi rollout/combo).")
+    parser.add_argument('--roll_warmup', type=int, default=10,
+                        help="epoche di warm-up lineare di lambda_roll (solo combo).")
     args = parser.parse_args()
 
-    # P da CLI. Le costanti dei file devono essere allineate tra loro (assert),
-    # ma --p puo' forzare un P diverso senza editarle: avviso l'utente.
     if args.p != MODEL_P:
         print(f"[avviso] --p={args.p} diverso dalla costante dei file "
-              f"(model={MODEL_P}, dataset={DATA_P}). Uso --p={args.p} per dataset "
-              f"e reti. Assicurati che sia voluto.")
+              f"(model={MODEL_P}, dataset={DATA_P}). Uso --p={args.p}.")
     P = args.p
 
-    best_name, final_name = checkpoint_names(args.tag)
-    if args.tag:
-        print(f"Tag run: '{args.tag}' -> checkpoint: {best_name}, {final_name}")
+    K = args.rollout_steps if args.rollout_steps is not None else P
+    if args.train_mode in ("rollout", "combo"):
+        if P == 1:
+            print(f"[avviso] train_mode={args.train_mode} con P=1: il rollout degenera "
+                  f"a 1 passo (== supervised). Allena con --p>1 per un vero rollout.",
+                  file=sys.stderr)
+        if K > P:
+            print(f"[avviso] rollout_steps={K} > P={P}: limito K a {P}.", file=sys.stderr)
+            K = P
+
+    # tag di default = train_mode (cosi' le run non si sovrascrivono), tranne supervised
+    tag = args.tag if args.tag is not None else (
+        None if args.train_mode == "supervised" else args.train_mode)
+    best_name, final_name = checkpoint_names(tag)
+    print(f"Train mode: {args.train_mode} | detach_cross={args.detach_cross} | "
+          f"K={K} | lambda_roll={args.lambda_roll} | warmup={args.roll_warmup}")
+    if tag:
+        print(f"Tag run: '{tag}' -> checkpoint: {best_name}, {final_name}")
     print(f"Orizzonte di predizione P = {P}")
 
     torch.set_num_threads(args.threads)
     DEVICE = torch.device(args.device)
     if DEVICE.type == "cuda":
         torch.backends.cudnn.benchmark = True
-    print(f"Device: {DEVICE} | threads: {args.threads} | lambda_cyc: {args.lambda_cyc}")
+    print(f"Device: {DEVICE} | threads: {args.threads}")
 
     print("Caricamento dataset...")
     os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
@@ -231,55 +336,55 @@ if __name__ == '__main__':
     n_im = sum(p.numel() for p in IM.parameters())
     n_fm = sum(p.numel() for p in FM.parameters())
     print(f"Parametri: IM={n_im} | FM={n_fm} | tot={n_im + n_fm}")
+    print(f"Hidden incrociato: IM h={IM.gru_hidden}<-cross {IM.cross_hidden} | "
+          f"FM h={FM.gru_hidden}<-cross {FM.cross_hidden} | ctx statico={CTX_DIM}")
 
-    print("\nInizio training congiunto...")
+    print(f"\nInizio training congiunto (mode={args.train_mode})...")
     IM, FM, hist = train(
         IM, FM, dataset,
         epochs=args.epochs, lr=args.lr, batch_size=args.batch_size,
-        checkpoint_dir=args.checkpoint_dir, lambda_cyc=args.lambda_cyc,
+        checkpoint_dir=args.checkpoint_dir,
+        mode=args.train_mode, detach_cross=args.detach_cross,
+        rollout_steps=K, lambda_roll=args.lambda_roll, roll_warmup=args.roll_warmup,
         weight_decay=args.weight_decay, best_name=best_name,
     )
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     final_path = os.path.join(args.checkpoint_dir, final_name)
-    torch.save({
-        "im_state":   {k: v.cpu() for k, v in IM.state_dict().items()},
-        "fm_state":   {k: v.cpu() for k, v in FM.state_dict().items()},
-        "norm_stats": dataset.norm_stats,
-        "im_input_size": IM.gru.input_size,
-        "fm_input_size": FM.gru.input_size,
-        "ctx_dim":    IM.ctx_dim,
-        "P":          IM.p,
-    }, final_path)
+    torch.save(_ckpt_dict(IM, FM, dataset.norm_stats), final_path)
     print(f"Checkpoint finale salvato in {final_path}")
 
     epochs_x = range(1, len(hist["train"]) + 1)
     best_epoch = hist["val"].index(min(hist["val"])) + 1
 
-    # due pannelli: sinistra loss totale, destra IM vs FM separate
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
 
     ax1.plot(epochs_x, hist["train"], color='steelblue', linewidth=1.5, label='Train loss')
     ax1.plot(epochs_x, hist["val"],   color='tomato',    linewidth=1.5, label='Val loss')
+    if args.train_mode != "supervised":
+        ax1.plot(epochs_x, hist["train_roll"], color='seagreen', linewidth=1.2,
+                 alpha=0.8, label='Train rollout')
+        ax1.plot(epochs_x, hist["val_roll"], color='seagreen', linewidth=1.2,
+                 alpha=0.8, linestyle='--', label='Val rollout')
     ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
     ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE)", fontsize=13)
-    ax1.set_title("Totale (IM + FM)", fontsize=14, fontweight='bold')
-    ax1.legend(fontsize=11); ax1.grid(True)
+    ax1.set_title(f"Totale — mode={args.train_mode}", fontsize=14, fontweight='bold')
+    ax1.legend(fontsize=10); ax1.grid(True)
 
-    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train')
-    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val')
-    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train')
-    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val')
+    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train (1 passo)')
+    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val (1 passo)')
+    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train (1 passo)')
+    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val (1 passo)')
     ax2.set_xlabel("Epoch", fontsize=13); ax2.set_ylabel("Loss (MSE)", fontsize=13)
-    ax2.set_title("IM (comando) vs FM (sensori)", fontsize=14, fontweight='bold')
-    ax2.legend(fontsize=11); ax2.grid(True)
+    ax2.set_title("IM (comando) vs FM (sensori) — 1 passo", fontsize=14, fontweight='bold')
+    ax2.legend(fontsize=10); ax2.grid(True)
 
-    suptitle = "Joint IM+FM — Training & Validation Loss"
-    if args.tag:
-        suptitle += f"  [{args.tag}]"
+    suptitle = f"Joint IM+FM — {args.train_mode}"
+    if tag:
+        suptitle += f"  [{tag}]"
     fig.suptitle(suptitle, fontsize=16, fontweight='bold')
     plt.tight_layout()
-    loss_curve_name = f"loss_curve_{args.tag}.png" if args.tag else "loss_curve.png"
+    loss_curve_name = f"loss_curve_{tag}.png" if tag else "loss_curve.png"
     plot_path = os.path.join(args.checkpoint_dir, loss_curve_name)
     plt.savefig(plot_path, dpi=150)
     print(f"Loss curve salvata in {plot_path}")

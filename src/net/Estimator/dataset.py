@@ -21,37 +21,43 @@ H = 20
 P = 10
 
 NEEDED_COLS = ["present_current_ma", "tail_target_rad", "tail_amp_rad",
-               "tail_freq_hz", "center_rad", "t_rel_sec"]
+               "tail_freq_hz", "center_rad"]
 
-# canali in ingresso alle DUE reti (entrambe ricevono lo stesso ingresso):
-#   comando:  [cmd]                       -> 1 canale  (C_T)
-#   sensori:  [sensor_diff, current]      -> 2 canali  (S_T)
+# canali temporali (GRU) delle DUE reti — ora ASIMMETRICI (Opzione B):
+#   IM (inversa): GRU sui soli comandi          [cmd]                  -> 1 canale
+#   FM (diretta): GRU sui soli sensori          [sensor_diff, current] -> 2 canali
+# La storia dell'ALTRO segnale non entra nella GRU: viene appiattita e
+# iniettata nel contesto dell'MLP (costruita in train.py, non qui).
 N_CMD_CHANNELS  = 1
 N_SENS_CHANNELS = 2
 
-# CTX_DIM: contesto statico [amp, freq, center, dt] iniettato nell'MLP di
+# CTX_DIM: contesto statico [amp, freq, center] iniettato nell'MLP di
 # ENTRAMBE le reti (non nella GRU).
 #   center = tail_bias_rad + tail_bias_rand_rad  (centro di oscillazione;
 #            il feedback sensoriale bias_offset e' ignorato: spento in training)
-#   dt     = diff(t_rel_sec)  (jitter reale dei timestep ROS)
-CTX_DIM = 4
+CTX_DIM = 3
 
 
 class FishJointDataset(Dataset):
     """Dataset unico per l'addestramento congiunto di IM (inversa) e FM (diretta).
 
     Ogni finestra restituisce TUTTO cio' che serve a entrambe le reti:
-      seq_cmd   (H, 1)   storia comandi         -> C_T
-      seq_sens  (H, 2)   storia sensori         -> S_T
-      ctx       (4,)     contesto statico [amp, freq, center, dt]
+      seq_cmd   (H, 1)   storia comandi
+      seq_sens  (H, 2)   storia sensori
+      ctx       (3,)     contesto statico [amp, freq, center]
       tgt_cmd   (P, 1)   comandi futuri (target IM)
       tgt_sens  (P, 2)   sensori futuri (target FM)
       label     (2,)     [amp_des, freq_des] fisici, ancorati a t=i-1
 
-    Lo scaler e' UNICO e condiviso (chiavi: sd, vf, cmd, amp, freq, center, dt):
-    cosi' le due
-    reti normalizzano gli stessi segnali allo stesso modo, requisito per chiudere
-    il ciclo in Fase B. Fit solo sui trial di train (niente leak).
+    NB (Opzione B): il dataset resta simmetrico e restituisce seq_cmd/seq_sens
+    separati. E' train.py che compone i contesti asimmetrici, appiattendo la
+    finestra dell'altro segnale nell'MLP:
+      IM -> GRU(seq_cmd)  + ctx=[amp,freq,center | seq_sens appiattita]
+      FM -> GRU(seq_sens) + ctx=[amp,freq,center | seq_cmd  appiattita]
+
+    Lo scaler e' UNICO e condiviso (chiavi: sd, vf, cmd, amp, freq, center):
+    cosi' le due reti normalizzano gli stessi segnali allo stesso modo, requisito
+    per chiudere il ciclo in Fase B. Fit solo sui trial di train (niente leak).
     """
 
     def __init__(self, log_dir: str, h: int = H, p: int = P, scaler_path: str = None):
@@ -163,13 +169,6 @@ class FishJointDataset(Dataset):
         # e' solo diagnostica, spento in training/test.
         center = df["center_rad"].values.astype(np.float32)
 
-        # dt = jitter reale dei timestep ROS, ricavato da t_rel (non c'e' colonna dt).
-        # Il primo campione non ha un dt a monte: replico il secondo valore.
-        t_rel = df["t_rel_sec"].values.astype(np.float32)
-        dt = np.diff(t_rel, prepend=t_rel[0]).astype(np.float32)
-        if len(dt) > 1:
-            dt[0] = dt[1]
-
         return {
             "sensor_diff_cal": sensor_diff_cal.astype(np.float32),
             "sensor_mean_cal": sensor_mean_cal.astype(np.float32),
@@ -178,7 +177,6 @@ class FishJointDataset(Dataset):
             "amp_des":         amp_des,
             "freq_des":        freq_des,
             "center":          center,
-            "dt":              dt,
             "offset_diff":     float(offset),
             "offset_mean":     float(offset_mean),
         }
@@ -192,7 +190,6 @@ class FishJointDataset(Dataset):
         all_amp    = np.concatenate([e["amp_des"]         for e in episodes]).reshape(-1, 1)
         all_freq   = np.concatenate([e["freq_des"]        for e in episodes]).reshape(-1, 1)
         all_center = np.concatenate([e["center"]          for e in episodes]).reshape(-1, 1)
-        all_dt     = np.concatenate([e["dt"]              for e in episodes]).reshape(-1, 1)
 
         self.scalers = {
             "sd":     StandardScaler().fit(all_sd),
@@ -201,7 +198,6 @@ class FishJointDataset(Dataset):
             "amp":    StandardScaler().fit(all_amp),
             "freq":   StandardScaler().fit(all_freq),
             "center": StandardScaler().fit(all_center),
-            "dt":     StandardScaler().fit(all_dt),
         }
         for sc in self.scalers.values():
             sc.scale_ = np.maximum(sc.scale_, 1e-3)
@@ -221,8 +217,6 @@ class FishJointDataset(Dataset):
             "freq_std":    float(self.scalers["freq"].scale_[0]),
             "center_mean": float(self.scalers["center"].mean_[0]),
             "center_std":  float(self.scalers["center"].scale_[0]),
-            "dt_mean":     float(self.scalers["dt"].mean_[0]),
-            "dt_std":      float(self.scalers["dt"].scale_[0]),
         }
 
     # ---------- costruzione finestre ----------
@@ -235,7 +229,6 @@ class FishJointDataset(Dataset):
         amp_n    = sc["amp"].transform(ep["amp_des"].reshape(-1, 1)).ravel()
         freq_n   = sc["freq"].transform(ep["freq_des"].reshape(-1, 1)).ravel()
         center_n = sc["center"].transform(ep["center"].reshape(-1, 1)).ravel()
-        dt_n     = sc["dt"].transform(ep["dt"].reshape(-1, 1)).ravel()
 
         amp_des  = ep["amp_des"]
         freq_des = ep["freq_des"]
@@ -251,12 +244,11 @@ class FishJointDataset(Dataset):
             tgt_sens = np.stack([sd_n[i:i + p], vf_n[i:i + p]], axis=1)  # (P, 2)
 
             # contesto statico ancorato a t=i-1 (ultimo istante di input):
-            # [amp, freq, center, dt], tutti normalizzati.
+            # [amp, freq, center], tutti normalizzati.
             ctx = np.array([
                 amp_n[i - 1],
                 freq_n[i - 1],
                 center_n[i - 1],
-                dt_n[i - 1],
             ], dtype=np.float32)
 
             label = np.array([amp_des[i - 1], freq_des[i - 1]], dtype=np.float32)
@@ -311,7 +303,7 @@ class FishJointDataset(Dataset):
         scaler_path = self._scaler_path
         if scaler_path is not None and Path(scaler_path).exists():
             self.scalers = self.load_scalers(scaler_path)
-            needed = {"sd", "vf", "cmd", "amp", "freq", "center", "dt"}
+            needed = {"sd", "vf", "cmd", "amp", "freq", "center"}
             missing = [k for k in needed if k not in self.scalers]
             if missing:
                 raise ValueError(
@@ -411,7 +403,7 @@ if __name__ == '__main__':
     seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, label = ds[0]
     print(f"seq_cmd:  {seq_cmd.shape}   (H, {N_CMD_CHANNELS})")
     print(f"seq_sens: {seq_sens.shape}   (H, {N_SENS_CHANNELS})")
-    print(f"ctx:      {ctx.shape}   ({CTX_DIM},)")
+    print(f"ctx:      {ctx.shape}   ({CTX_DIM},)  [statico: amp, freq, center]")
     print(f"tgt_cmd:  {tgt_cmd.shape}   (P, {N_CMD_CHANNELS})")
     print(f"tgt_sens: {tgt_sens.shape}   (P, {N_SENS_CHANNELS})")
     print(f"label:    {label.shape}")

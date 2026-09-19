@@ -3,25 +3,29 @@ Test in loop chiuso (closed-loop rollout) del modello CONGIUNTO (IM + FM).
 
 Idea
 ----
-Le due reti condividono lo STESSO ingresso [C_1:H, S_1:H, ctx] e lo STESSO
-scaler. Ad ogni tick:
+Le due reti condividono lo STESSO scaler e, ad ogni tick, la stessa finestra di
+storia (comandi e sensori). Architettura a HIDDEN INCROCIATO:
 
-    buffer [C, S] --> [FM] --> sensori(t+1)
-                  |-> [IM] --> comando(t+1)
+    buf_cmd --> [GRU_IM] --> h_im ┐
+    buf_sens -> [GRU_FM] --> h_fm ┤
+                                  ├─> MLP_IM([h_im, h_fm, ctx]) -> comando(t+1)
+                                  └─> MLP_FM([h_fm, h_im, ctx]) -> sensori(t+1)
 
 Entrambe le predizioni (istante t+1) rientrano nei buffer condivisi a fine tick,
 e si avanza di un solo passo. Nessun teacher forcing dopo il warmup (tranne il
-contesto della diretta, vedi sotto).
+contesto, vedi sotto).
 
-Contesto della diretta e dell'inversa
--------------------------------------
-Nel modello congiunto ENTRAMBE le reti ricevono il contesto statico
-[amp, freq, center, dt] (CTX_DIM=4), ancorato a t (ultimo istante di input),
-identico a dataset_joint._build_windows. In closed-loop il contesto e' fornito
-"vero" dal trial (teacher forcing SOLO sul contesto): isola l'errore sulla
-DINAMICA di sensori/comando dall'errore di stima del regime.
-amp/freq/center/dt sono normalizzati con lo scaler condiviso (chiavi
-'amp','freq','center','dt').
+Nota sull'accoppiamento: ogni MLP consuma l'hidden dell'ALTRA GRU, quindi per
+predire il comando con IM serve comunque la finestra dei sensori (per h_fm) e
+viceversa. In closed-loop entrambi i buffer sono aggiornati, quindi e' coerente.
+
+Contesto
+--------
+ENTRAMBE le reti ricevono il contesto statico [amp, freq, center] (CTX_DIM=3),
+ancorato a t (ultimo istante di input), identico a dataset._build_windows. In
+closed-loop il contesto e' fornito "vero" dal trial (teacher forcing SOLO sul
+contesto): isola l'errore sulla DINAMICA di sensori/comando dall'errore di stima
+del regime. amp/freq/center sono normalizzati con lo scaler condiviso.
 
 Warmup
 ------
@@ -30,10 +34,10 @@ Da li' il rollout e' autoregressivo (tranne il contesto, sempre vero).
 
 Uso
 ---
-python3 src/net/Estimator/checkpoints_joint/closed_loop_test.py 
+python3 src/net/Estimator/checkpoints_joint/closed_loop_test.py
 --checkpoint src/net/Estimator/checkpoints_joint/best_P10.pt
---list_trials  
---trial 
+--list_trials
+--trial
 --steps 200
 """
 import argparse
@@ -67,6 +71,7 @@ COL_GRID     = "#e1e0d9"
 COL_BASELINE = "#c3c2b7"
 COL_SIGNAL   = "#0b0b0b"
 COL_MODEL    = "#2a78d6"
+COL_ERROR    = "#c1666b"   # residuo (rollout - reale), asse destro
 
 CHANNEL_UNIT = {"sensor_diff": "unita' sensore", "current": "mA", "cmd": "rad"}
 
@@ -126,32 +131,31 @@ def build_real_from_dataset(ds, trial_idx):
         "sensor_diff": np.asarray(ep["sensor_diff_cal"], dtype=np.float64),
         "current":     np.asarray(ep["current"],         dtype=np.float64),
         "cmd":         np.asarray(ep["cmd_servo"],        dtype=np.float64),
-        # contesto vero del trial: [amp, freq, center, dt]
+        # contesto vero del trial: [amp, freq, center]
         "amp_des":     np.asarray(ep["amp_des"],  dtype=np.float64),
         "freq_des":    np.asarray(ep["freq_des"], dtype=np.float64),
         "center":      np.asarray(ep["center"],   dtype=np.float64),
-        "dt":          np.asarray(ep["dt"],       dtype=np.float64),
     }
 
 
 def build_true_context(real, scalers, t):
-    """Contesto 'vero' [amp, freq, center, dt] ancorato all'istante t (ultimo
-    input), tutti normalizzati con lo scaler condiviso. Identico all'ancoraggio
-    di dataset_joint._build_windows (ctx a i-1)."""
+    """Contesto 'vero' [amp, freq, center] ancorato all'istante t (ultimo input),
+    tutti normalizzati con lo scaler condiviso. Identico all'ancoraggio di
+    dataset._build_windows (ctx a i-1)."""
     amp    = float(norm(scalers["amp"],    real["amp_des"][t])[0])
     freq   = float(norm(scalers["freq"],   real["freq_des"][t])[0])
     center = float(norm(scalers["center"], real["center"][t])[0])
-    dt     = float(norm(scalers["dt"],     real["dt"][t])[0])
-    return np.array([amp, freq, center, dt], dtype=np.float32)
+    return np.array([amp, freq, center], dtype=np.float32)
 
 
 # ------------------------------- rollout -------------------------------
 def closed_loop_rollout(IM, FM, scalers, real, h, n_steps, device):
     """Un tick = un avanzamento temporale di uno.
 
-    Entrambe le reti ricevono la finestra condivisa [C, S] (ultimi H comandi e
-    sensori) + contesto vero a t. FM -> sensori a t+1, IM -> comando a t+1.
-    Le predizioni entrano nei buffer a FINE tick.
+    Ogni GRU codifica la propria finestra (comandi -> h_im, sensori -> h_fm);
+    ogni MLP decodifica con l'hidden proprio + quello INCROCIATO + contesto vero
+    a t. FM -> sensori a t+1, IM -> comando a t+1. Le predizioni entrano nei
+    buffer a FINE tick.
 
     Allineamento: i buffer terminano all'indice h-1 (t=h-1), primo istante
     predetto = h. start = h; la curva vera si allinea con slice(start, start+n).
@@ -179,21 +183,26 @@ def closed_loop_rollout(IM, FM, scalers, real, h, n_steps, device):
         for k in range(n_steps):
             t_last = start + k - 1     # ultimo istante di input (al tick 0: h-1)
 
-            # ingresso condiviso [C, S] normalizzato -> (1, H, 3)
+            # finestre normalizzate SEPARATE: comandi (H,1) e sensori (H,2)
             cmd_n = norm(sc_cmd, buf_cmd)
             sd_n  = norm(sc_sd,  buf_sd)
             vf_n  = norm(sc_vf,  buf_vf)
-            seq = torch.tensor(
-                np.stack([cmd_n, sd_n, vf_n], axis=1),
-                dtype=torch.float32, device=device).reshape(1, h, 3)
+            seq_cmd = torch.tensor(
+                np.asarray(cmd_n, dtype=np.float32),
+                dtype=torch.float32, device=device).reshape(1, h, 1)
+            seq_sens = torch.tensor(
+                np.stack([sd_n, vf_n], axis=1),
+                dtype=torch.float32, device=device).reshape(1, h, 2)
 
             # contesto vero a t
             ctx_vec = build_true_context(real, scalers, t_last)
             ctx = torch.tensor(ctx_vec, dtype=torch.float32, device=device).reshape(1, -1)
 
-            # FM -> sensori a t+1 (primo passo P), IM -> comando a t+1
-            pred_sens, _ = FM(seq, ctx)      # (1, P, 2)
-            pred_cmd_t, _ = IM(seq, ctx)     # (1, P, 1)
+            # hidden incrociato: encode di entrambe, poi decode incrociando
+            h_im = IM.encode(seq_cmd)               # GRU_IM sui comandi
+            h_fm = FM.encode(seq_sens)              # GRU_FM sui sensori
+            pred_cmd_t = IM.decode(h_im, h_fm, ctx)  # (1, P, 1) comando a t+1
+            pred_sens  = FM.decode(h_fm, h_im, ctx)  # (1, P, 2) sensori a t+1
             ps = pred_sens[0, 0, :].cpu().numpy()    # [sd_n, vf_n] a t+1
             pc = float(pred_cmd_t[0, 0, 0].cpu())    # cmd_n a t+1
 
@@ -223,16 +232,40 @@ def closed_loop_rollout(IM, FM, scalers, real, h, n_steps, device):
 def panel(ax, t, true_real, pred_real, unit, title):
     ax.set_facecolor(COL_SURFACE)
     ax.grid(True, color=COL_GRID, linewidth=0.8, zorder=0)
-    for spine in ("top", "right"):
+    for spine in ("top",):
         ax.spines[spine].set_visible(False)
     for spine in ("left", "bottom"):
         ax.spines[spine].set_color(COL_BASELINE)
-    ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="segnale reale")
-    ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="rollout closed-loop")
+
+    # --- asse destro: errore (rollout - reale) ---
+    axr = ax.twinx()
+    axr.set_facecolor(COL_SURFACE)
+    diff = np.asarray(pred_real) - np.asarray(true_real)
+    axr.axhline(0.0, color=COL_ERROR, linewidth=0.8, alpha=0.5, zorder=1)
+    axr.fill_between(t, 0.0, diff, color=COL_ERROR, alpha=0.15, linewidth=0, zorder=1)
+    l_err, = axr.plot(t, diff, color=COL_ERROR, linewidth=1.0, alpha=0.9,
+                      zorder=2, label="errore (pred − reale)")
+    amax = float(np.nanmax(np.abs(diff))) if diff.size else 1.0
+    amax = amax if amax > 0 else 1.0
+    axr.set_ylim(-amax * 1.05, amax * 1.05)
+    axr.spines["top"].set_visible(False)
+    axr.spines["left"].set_visible(False)
+    axr.spines["right"].set_color(COL_ERROR)
+    axr.tick_params(axis="y", colors=COL_ERROR, labelsize=8)
+    axr.set_ylabel(f"errore [{unit}]", color=COL_ERROR, fontsize=9)
+
+    # --- asse sinistro: segnale e rollout (sopra all'errore) ---
+    l_true, = ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="segnale reale")
+    l_pred, = ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="rollout closed-loop")
+    ax.set_zorder(axr.get_zorder() + 1)
+    ax.patch.set_visible(False)
+
     ax.set_title(title, color=COL_TEXT, fontsize=12, fontweight="bold", loc="left", pad=10)
     ax.set_ylabel(unit, color=COL_TEXT_SEC, fontsize=9)
     ax.tick_params(colors=COL_MUTED, labelsize=8)
-    ax.legend(loc="upper right", frameon=False, fontsize=8, labelcolor=COL_TEXT_SEC)
+    ax.legend([l_true, l_pred, l_err],
+              ["segnale reale", "rollout closed-loop", "errore (pred − reale)"],
+              loc="upper right", frameon=False, fontsize=8, labelcolor=COL_TEXT_SEC)
 
 
 def main():
@@ -296,21 +329,22 @@ def main():
 
     h = ds.h
     scalers = ds.scalers
-    for k in ("sd", "vf", "cmd", "amp", "freq", "center", "dt"):
+    for k in ("sd", "vf", "cmd", "amp", "freq", "center"):
         if k not in scalers:
             raise ValueError(f"scaler condiviso: manca la chiave '{k}' in {args.scaler_path}")
 
     # --- modello: due reti dal checkpoint, dimensioni dedotte dai pesi ---
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     P = ckpt.get("P", 1)
-    ctx_dim = ckpt.get("ctx_dim", int(ds.context.shape[-1]))
+    ctx_static = ckpt.get("ctx_static", int(ds.context.shape[-1]))
     gh_im, mh_im = dims_from_state(ckpt["im_state"])
     gh_fm, mh_fm = dims_from_state(ckpt["fm_state"])
-    print(f"Dimensioni dal checkpoint: IM gru={gh_im} mlp={mh_im} | FM gru={gh_fm} mlp={mh_fm}")
+    print(f"Dimensioni dal checkpoint: IM gru={gh_im} mlp={mh_im} | FM gru={gh_fm} mlp={mh_fm} "
+          f"| ctx_static={ctx_static}")
 
     IM, FM = build_models(gru_hidden_im=gh_im, mlp_hidden_im=mh_im,
                           gru_hidden_fm=gh_fm, mlp_hidden_fm=mh_fm,
-                          p=P, ctx_dim=ctx_dim)
+                          p=P, ctx_static=ctx_static)
     IM.load_state_dict(ckpt["im_state"]); IM.to(device).eval()
     FM.load_state_dict(ckpt["fm_state"]); FM.to(device).eval()
 
@@ -323,7 +357,7 @@ def main():
 
     print(f"Trial: {trial_name} | campioni={len(real['cmd'])} | h={h} | "
           f"passi rollout={n_steps}")
-    print("Modalita': closed-loop completo (FM + IM), contesto vero dal trial")
+    print("Modalita': closed-loop completo (FM + IM, hidden incrociato), contesto vero dal trial")
 
     pred = closed_loop_rollout(IM, FM, scalers, real, h, n_steps, device)
     start, n = pred["start"], pred["n_steps"]
@@ -333,7 +367,7 @@ def main():
             "current":     real["current"][sl],
             "cmd":         real["cmd"][sl]}
 
-    # asse temporale reale dal CSV
+    # asse temporale reale dal CSV (t_rel_sec resta nel CSV grezzo; se assente 20 Hz)
     df = pd.read_csv(Path(args.dataset_dir) / trial_name)
     if "t_rel_sec" in df.columns:
         t_full = df["t_rel_sec"].values.astype(np.float64)

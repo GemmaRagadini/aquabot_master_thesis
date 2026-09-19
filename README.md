@@ -70,10 +70,19 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 - riguardare codice 
 
 
+- dataset nuovo grande generato con formula unica e variazioni rendomiche dei tre parametri di generazione della sinusoide 
+- evidenziare in una slide la differenza nel valore della corrente per un trial con e senza coda
+- Tre versioni di allenamento: 1 con FM e IM separati senza autoregressione, 1 con FM e IM separati con autoregressione ed una con i modelli collegati (output di FM che entra nel contesto di IM e viceversa). Tutti e tre con test open loop e closed loop + metriche 
+- fare il tuning tutto in un unico grosso passo e non più tre fasi 
+- aggiungere gli interevalli in cui ho fatto variare i parametri nella generazione del dataset  
+- aggiungere l'autocorrelazione nel test closed loop 
+- esplicitare come sono calcolati i valori delle metriche delle tabelle  
+- normalizzare per il numero di campioni le curve di training e validation set nel plot della loss , fare anche log scaling sull'asse y 
+- nei grafici open e closed loop plottare anche la differenza tra segnale reale  e segnare predetto 
+- quando P > 1 fare un grafico che evidenzi  che per ogni volta che un certo valore viene predetto , il valore predetto si avvicina sempre di più alla media 
 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
-- Auto regressione singolo modello ??
-- superare le modalità
+
 
 # RIASSUNTO 
 Progetto: modello congiunto IM+FM per robot-pesce 
