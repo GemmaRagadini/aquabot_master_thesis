@@ -28,41 +28,13 @@ ros2 launch aquabot_bringup system_launch.py
 # write csv 
 ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
 
-
-## Data collection 
-
-src/aquabot_bringup/launch/collect_dataset.sh lancia ( 4 + 3 ) * REPS trial e salva i dati in /logs per il pretraining. 4 a freq fissa e amp_sweep , 3 viceversa. 
-NB. prima va lanciato system_launch.py
-
 root in aquabot
 
-# Rete
-source .venv/bin/activate
-python3 src/net/SensorEstimator/dataset.py ./src/net/dataset ./src/net/scaler/scalers.pkl
-python3 src/net/SensorEstimator/train.py
-
-
-python src/net/SensorEstimator/channel_loss.py
- 
- 
-## Tuning dei parametri 
-./src/net/SensorEstimator/run_tuning.sh <fase 1 - 2 - 3> [n_worker]
-python3 src/net/SensorEstimator/tuning_status.py --watch
-
-
-## Inversa 
-python3 src/net/InverseEstimator/dataset_inverse.py ./src/net/dataset ./src/net/scaler/scalers_inverse.pkl
-python3 src/net/InverseEstimator/train_inverse.py 
-
-## Tuning parametri  
-./src/net/InverseEstimator/run_tuning_inverse.sh <fase 1 - 2 - 3> [n_worker]
-python3 src/net/InverseEstimator/tuning_status_inverse.py --watch
-
-# Check loss 
-python3 src/net/SensorEstimator/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimator/checkpoints/channel_loss.2json
-
-# Real values 
-python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/net/scaler/scalers.pkl --mse-json ./src/net/SensorEstimatos/checkpoints/channel_loss.json
+# 4 TRAINING  
+1.supervised — la Fase A, il riferimento.
+2.supervised + --detach_cross — ablation: serve il cross-gradient o no?
+3.rollout — closed-loop differenziabile.
+4. combo — supervised + λ·rollout con warm-up.
 
 # Cosa fare ora
 - RIPARTIRE DA : 
@@ -77,8 +49,6 @@ python3  ./src/net/SensorEstimatos/checkpoints/real_results.py --scaler ./src/ne
 - aggiungere gli interevalli in cui ho fatto variare i parametri nella generazione del dataset  
 - aggiungere l'autocorrelazione nel test closed loop 
 - esplicitare come sono calcolati i valori delle metriche delle tabelle  
-- normalizzare per il numero di campioni le curve di training e validation set nel plot della loss , fare anche log scaling sull'asse y 
-- nei grafici open e closed loop plottare anche la differenza tra segnale reale  e segnare predetto 
 - quando P > 1 fare un grafico che evidenzi  che per ogni volta che un certo valore viene predetto , il valore predetto si avvicina sempre di più alla media 
 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 

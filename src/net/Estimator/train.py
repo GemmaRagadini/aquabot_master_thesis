@@ -25,26 +25,50 @@ torch.manual_seed(42)
 DEVICE = torch.device("cpu")
 
 # ---------------------------------------------------------------------------
-# MODALITA' DI TRAINING (--train_mode), tutte con l'architettura a hidden
-# incrociato. Vedi anche --detach_cross (ortogonale) e --tag (per non
-# sovrascrivere checkpoint/curve tra run diverse).
-#
-#   supervised : 1 passo teacher-forced. loss = loss_im + loss_fm.
-#                
-#   rollout    : closed-loop rollout. Le predizioni t+1
-#                rientrano nei buffer per K passi (BPTT sul rollout); loss =
-#                media MSE sui K passi
-# 
-#   combo      : supervised + lambda(t) * rollout, con warm-up su lambda.
-#                
-#
-# --detach_cross: stacca l'hidden incrociato (h_fm->IM e h_im->FM). Ogni rete
-#                 viene aggiornata solo dalla propria loss (gradienti separati).
-#                 Vale per tutti i modi.
-#
-# NOTA: il rollout supervisiona i K passi contro i target [t+1..t+K] gia'
-# presenti nell'item del dataset, quindi serve K <= P. Con P=1 il rollout
-# degenera a 1 passo (== supervised): per usarlo davvero allena con P>1.
+#MODI DI TRAINING (--train_mode):
+"""
+  supervised : 1 passo teacher-forced. loss = loss_im + loss_fm
+
+  rollout    : closed-loop differenziabile su K passi (le predizioni rientrano nei
+               buffer, BPTT sul rollout). Insegna stabilita' in autoregressione.
+
+  combo      : supervised + lambda(t)*rollout, con warm-up lineare di lambda.
+
+  FLAG ortogonale:
+  --detach_cross : stacca l'hidden incrociato -> ogni rete aggiornata solo dalla
+                   propria loss (gradienti separati). Vale per tutti i modi.
+
+NOTE:
+  - Il rollout supervisiona i K passi sui target t+1..t+K dell'item -> serve K<=P.
+    Con P=1 degenera a 1 passo (== supervised): per un vero rollout allena con P>1.
+  - Nel log e nel plot, IM/FM sono SEMPRE la loss a 1 passo (comparabile tra i modi),
+    anche quando la loss ottimizzata e' il rollout.
+  - Lo scaler condiviso (--scaler_path) va tenuto UGUALE tra i run per confrontarli:
+    il primo run lo fitta sul train e lo salva, i successivi lo riusano.
+  - --tag distingue i file salvati (best_<tag>.pt, fish_joint_<tag>.pt,
+    loss_curve_<tag>.png); senza tag, il modo diventa il tag (tranne 'supervised').
+  - I checkpoint salvano P, H, dimensioni GRU/MLP e ctx_static: gli script di
+    valutazione li rileggono da li'.
+
+USO:
+  # supervised, orizzonte P=10 (1 s a 10 Hz)
+  python3 src/net/Estimator/train.py --train_mode supervised --p 10 --tag sup_p10 \
+      -
+
+  # ablation gradienti separati
+  python3 src/net/Estimator/train.py --train_mode supervised --p 10 --detach_cross \
+      --tag sup_p10_detach
+
+  # rollout
+  python3 src/net/Estimator/train.py --train_mode rollout --p 10 --rollout_steps 5 \
+
+  # combo
+    python3 src/net/Estimator/train.py --train_mode combo --p 10 --lambda_roll 1.0 \
+      --roll_warmup 10
+
+Output in --checkpoint_dir: best_<tag>.pt (miglior val), fish_joint_<tag>.pt (finale),
+loss_curve_<tag>.png.
+"""
 # ---------------------------------------------------------------------------
 
 
@@ -142,6 +166,12 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size)
 
+    # numero TOTALE di finestre (campioni), non di batch: serve a normalizzare le
+    # loss per campione (medie confrontabili tra train e val, indipendenti da come
+    # sono spezzati i batch e dall'ultimo batch piu' piccolo).
+    n_train = len(train_ds)
+    n_val   = len(val_ds)
+
     params = list(IM.parameters()) + list(FM.parameters())
     optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
@@ -176,8 +206,12 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
             loss.backward()
             nn.utils.clip_grad_norm_(params, max_norm=1.0)
             optimizer.step()
-            tr_loss += loss.item(); tr_im += l_im.item()
-            tr_fm += l_fm.item();   tr_roll += l_roll.item()
+            # accumulo pesato per la dimensione REALE del batch: cosi' la somma,
+            # divisa per il numero di campioni, e' una vera media per campione
+            # (l'ultimo batch piu' piccolo pesa meno, com'e' giusto).
+            bs = batch[0].shape[0]
+            tr_loss += loss.item()   * bs; tr_im += l_im.item()   * bs
+            tr_fm   += l_fm.item()   * bs; tr_roll += l_roll.item() * bs
 
         IM.eval(); FM.eval()
         va_loss = va_im = va_fm = va_roll = 0.0
@@ -185,12 +219,13 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
             for batch in val_loader:
                 loss, l_im, l_fm, l_roll = compute_losses(
                     IM, FM, batch, mse, mode, detach_cross, rollout_steps, lam)
-                va_loss += loss.item(); va_im += l_im.item()
-                va_fm += l_fm.item();   va_roll += l_roll.item()
+                bs = batch[0].shape[0]
+                va_loss += loss.item()   * bs; va_im += l_im.item()   * bs
+                va_fm   += l_fm.item()   * bs; va_roll += l_roll.item() * bs
 
-        nbt, nbv = len(train_loader), len(val_loader)
-        tr_loss/=nbt; tr_im/=nbt; tr_fm/=nbt; tr_roll/=nbt
-        va_loss/=nbv; va_im/=nbv; va_fm/=nbv; va_roll/=nbv
+        # normalizzazione per numero di CAMPIONI (finestre), non di batch
+        tr_loss/=n_train; tr_im/=n_train; tr_fm/=n_train; tr_roll/=n_train
+        va_loss/=n_val;   va_im/=n_val;   va_fm/=n_val;   va_roll/=n_val
         scheduler.step(va_loss)
         hist["train"].append(tr_loss); hist["val"].append(va_loss)
         hist["train_im"].append(tr_im); hist["train_fm"].append(tr_fm)
@@ -367,17 +402,19 @@ if __name__ == '__main__':
         ax1.plot(epochs_x, hist["val_roll"], color='seagreen', linewidth=1.2,
                  alpha=0.8, linestyle='--', label='Val rollout')
     ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
-    ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE)", fontsize=13)
-    ax1.set_title(f"Totale — mode={args.train_mode}", fontsize=14, fontweight='bold')
-    ax1.legend(fontsize=10); ax1.grid(True)
+    ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE) — per sample", fontsize=13)
+    ax1.set_yscale('log')   # scala log: la coda della curva (convergenza/overfitting) resta leggibile
+    ax1.set_title(f"Total — mode={args.train_mode}", fontsize=14, fontweight='bold')
+    ax1.legend(fontsize=10); ax1.grid(True, which='both')
 
-    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train (1 passo)')
-    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val (1 passo)')
-    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train (1 passo)')
-    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val (1 passo)')
-    ax2.set_xlabel("Epoch", fontsize=13); ax2.set_ylabel("Loss (MSE)", fontsize=13)
-    ax2.set_title("IM (comando) vs FM (sensori) — 1 passo", fontsize=14, fontweight='bold')
-    ax2.legend(fontsize=10); ax2.grid(True)
+    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train (1-step)')
+    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val (1-step)')
+    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train (1-step)')
+    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val (1-step)')
+    ax2.set_xlabel("Epoch", fontsize=13); ax2.set_ylabel("Loss (MSE) — per sample", fontsize=13)
+    ax2.set_yscale('log')   # scala log anche qui
+    ax2.set_title("IM (command) vs FM (sensors) — 1-step", fontsize=14, fontweight='bold')
+    ax2.legend(fontsize=10); ax2.grid(True, which='both')
 
     suptitle = f"Joint IM+FM — {args.train_mode}"
     if tag:
