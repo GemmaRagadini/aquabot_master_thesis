@@ -26,7 +26,7 @@ def generate_launch_description():
         parameters=[{
             'sensor_topic': '/sensor_reading',
             'target_topic': '/aquabot/dynamixel/target_position',
-            'mode': 'random_continuous',
+            'mode': 'amp_sweep',
             'trial_duration_sec': TRIAL_DURATION,
 
             # centro reale
@@ -103,7 +103,7 @@ def generate_launch_description():
             ExecuteProcess(
                 cmd=[
                     'ros2', 'service', 'call', '/trial',
-                    'std_srvs/srv/SetBool', '{data: false}'
+                    'std_srvs/srv/SetBool', '{data: true}'
                 ],
                 output='screen'
             )
@@ -126,7 +126,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         master_node,
-        # dynamixel_node,
+        dynamixel_node,
         arduino_node,
         start_trial,
         stop_trial,

@@ -15,25 +15,25 @@
 # [0.385, 1.422].
 #
 # Uso:
-#   ./collect_random.sh                 # run completo (default 2700s = 45min)
-#   ./collect_random.sh --secs 180      # TEST breve di 3 minuti
-#   ./collect_random.sh --dry-run       # stampa i comandi, non esegue nulla
-#   ./collect_random.sh --secs 120 --dry-run
+#   ./collect_dataset_random.sh                 # run completo (default 2700s = 45min)
+#   ./collect_dataset_random.sh --secs 180      # TEST breve di 3 minuti
+#   ./collect_dataset_random.sh --dry-run       # stampa i comandi, non esegue nulla
+#   ./collect_dataset_random.sh --secs 120 --dry-run
 
 DRY_RUN=false
-DURATION=2700     # secondi. 2700=45min (copertura quasi completa), 3600=1h
+DURATION=3600     # secondi => 1h
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --dry-run|--dry_run) DRY_RUN=true; shift ;;
-        --secs|--seconds)    DURATION="$2"; shift 2 ;;
-        *) echo "argomento sconosciuto: $1"; exit 1 ;;
-    esac
+case "$1" in
+--dry-run|--dry_run) DRY_RUN=true; shift ;;
+--secs|--seconds)    DURATION="$2"; shift 2 ;;
+*) echo "argomento sconosciuto: $1"; exit 1 ;;
+esac
 done
 $DRY_RUN && echo "[DRY RUN] Nessun comando verra' eseguito."
 
 # --- Range esplorati (UNIONE dei vecchi gruppi) ---
-AMP_MIN=0.15      # min visto in freq_sweep/combined_sweep
+AMP_MIN=0.10      # abbassato ~3 gradi (era 0.15 rad = 8.6 deg; ora 0.10 rad = 5.7 deg)
 AMP_MAX=0.518     # massimo fisico (< 0.519). NON superare.
 FREQ_MIN=0.3      # min visto in amp_sweep/combined_sweep
 FREQ_MAX=1.5      # max visto in combined_sweep
@@ -44,7 +44,7 @@ HOLD=4.0          # ogni quanti secondi cambia un parametro
 STEP_PROB=0.5     # 0.5 = meta' cambi netti, meta' continui
 
 run() {
-    if $DRY_RUN; then echo "  >> $*"; else eval "$@"; fi
+if $DRY_RUN; then echo "  >> $*"; else eval "$@"; fi
 }
 set_param() { run "ros2 param set /master_node $1 $2"; }
 start_trial() { run "ros2 service call /trial std_srvs/srv/SetBool '{data: true}'"; }
