@@ -42,7 +42,6 @@ root in aquabot
 - riguardare codice 
 
 
-- dataset nuovo grande generato con formula unica e variazioni rendomiche dei tre parametri di generazione della sinusoide 
 - evidenziare in una slide la differenza nel valore della corrente per un trial con e senza coda
 - fare il tuning tutto in un unico grosso passo e non più tre fasi 
 - aggiungere gli interevalli in cui ho fatto variare i parametri nella generazione del dataset  
