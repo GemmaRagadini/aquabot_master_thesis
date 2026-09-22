@@ -41,8 +41,15 @@ DEVICE = torch.device("cpu")
 NOTE:
   - Il rollout supervisiona i K passi sui target t+1..t+K dell'item -> serve K<=P.
     Con P=1 degenera a 1 passo (== supervised): per un vero rollout allena con P>1.
-  - Nel log e nel plot, IM/FM sono SEMPRE la loss a 1 passo (comparabile tra i modi),
-    anche quando la loss ottimizzata e' il rollout.
+  - DUE LOSS DISTINTE, non confonderle:
+      * sup  (loss_im + loss_fm) = MSE sull'INTERO orizzonte P della testa diretta
+        -> e' cio' che OTTIMIZZA la predizione diretta t+1..t+P.
+      * roll = closed-loop su K passi (BPTT) -> OTTIMIZZA la stabilita' in
+        autoregressione, ma supervisiona solo la slice t+1 reimmessa nei buffer.
+    In 'combo' la loss totale e' sup + lambda*roll: alleni ENTRAMBI gli usi.
+  - IM/FM nel log e nel plot sono la diagnostica a t+1 (slice 0), NON entrano nella
+    loss ottimizzata: servono solo a leggere il t+1 in modo comparabile tra i modi.
+    (Prima erano la media su tutto P: con slice non allenate davano ~0.5 fuorvianti.)
   - Lo scaler condiviso (--scaler_path) va tenuto UGUALE tra i run per confrontarli:
     il primo run lo fitta sul train e lo salva, i successivi lo riusano.
   - --tag distingue i file salvati (best_<tag>.pt, fish_joint_<tag>.pt,
@@ -62,7 +69,7 @@ USO:
   # rollout
   python3 src/net/Estimator/train.py --train_mode rollout --p 10 --rollout_steps 5 \
 
-  # combo
+  # combo (diretto a P passi + closed-loop: entrambi gli usi)
     python3 src/net/Estimator/train.py --train_mode combo --p 10 --lambda_roll 1.0 \
       --roll_warmup 10
 
@@ -129,16 +136,29 @@ def rollout_loss(IM, FM, seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, mse,
 
 def compute_losses(IM, FM, batch, mse, mode, detach_cross, K, lam_roll):
     """Calcola la loss per un batch secondo il modo scelto.
-    Ritorna (loss_totale, loss_im, loss_fm, loss_roll) — gli ultimi tre come
-    scalari per il logging (loss_im/loss_fm sempre a 1 passo, per confronto tra
-    modi; loss_roll = 0 se non usato)."""
+
+    Ritorna (loss, loss_im1, loss_fm1, loss_roll, loss_sup):
+      - loss      : la loss OTTIMIZZATA (dipende dal modo).
+      - loss_im1  : diagnostica IM a t+1 (slice 0), staccata dal grafo, solo log.
+      - loss_fm1  : diagnostica FM a t+1 (slice 0), staccata dal grafo, solo log.
+      - loss_roll : termine closed-loop (0 se non usato), scalare per il log.
+      - loss_sup  : termine diretto full-horizon = loss_im + loss_fm (media su P),
+                    scalare per il log; e' cio' che ottimizza la predizione diretta.
+
+    NB: loss_im1/loss_fm1 NON entrano nella loss ottimizzata; l'ottimizzazione
+    della testa diretta usa loss_sup (tutto l'orizzonte)."""
     seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ = batch
 
-    # termine a 1 passo (sempre calcolato: comparabile tra i modi)
+    # forward diretto a P passi (usa TUTTO l'orizzonte): OTTIMIZZA t+1..t+P
     pred_cmd, pred_sens = forward_pair(IM, FM, seq_cmd, seq_sens, ctx, detach_cross)
-    loss_im = mse(pred_cmd,  tgt_cmd)
+    loss_im = mse(pred_cmd,  tgt_cmd)     # media su tutto l'orizzonte P
     loss_fm = mse(pred_sens, tgt_sens)
     loss_sup = loss_im + loss_fm
+
+    # diagnostica SOLO a t+1 (slice 0): comparabile tra i modi, fuori dal grafo.
+    # e' cio' che le curve 'IM/FM @t+1' mostrano nel plot.
+    loss_im1 = mse(pred_cmd[:, :1],  tgt_cmd[:, :1]).detach()
+    loss_fm1 = mse(pred_sens[:, :1], tgt_sens[:, :1]).detach()
 
     loss_roll = seq_cmd.new_zeros(())
     if mode in ("rollout", "combo"):
@@ -154,7 +174,7 @@ def compute_losses(IM, FM, batch, mse, mode, detach_cross, K, lam_roll):
     else:
         raise ValueError(f"train_mode sconosciuto: {mode}")
 
-    return loss, loss_im, loss_fm, loss_roll
+    return loss, loss_im1, loss_fm1, loss_roll, loss_sup
 
 
 def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
@@ -179,7 +199,8 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
 
     best_val_loss = float('inf')
     hist = {k: [] for k in ("train", "val", "train_im", "train_fm",
-                            "val_im", "val_fm", "train_roll", "val_roll")}
+                            "val_im", "val_fm", "train_roll", "val_roll",
+                            "train_sup", "val_sup")}
 
     for epoch in range(epochs):
         # lambda del rollout: warm-up lineare 0 -> lambda_roll su roll_warmup epoche
@@ -191,9 +212,9 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
             lam = 0.0
 
         IM.train(); FM.train()
-        tr_loss = tr_im = tr_fm = tr_roll = 0.0
+        tr_loss = tr_im = tr_fm = tr_roll = tr_sup = 0.0
         for batch in train_loader:
-            loss, l_im, l_fm, l_roll = compute_losses(
+            loss, l_im, l_fm, l_roll, l_sup = compute_losses(
                 IM, FM, batch, mse, mode, detach_cross, rollout_steps, lam)
 
             if not torch.isfinite(loss):
@@ -212,29 +233,35 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
             bs = batch[0].shape[0]
             tr_loss += loss.item()   * bs; tr_im += l_im.item()   * bs
             tr_fm   += l_fm.item()   * bs; tr_roll += l_roll.item() * bs
+            tr_sup  += l_sup.item()  * bs
 
         IM.eval(); FM.eval()
-        va_loss = va_im = va_fm = va_roll = 0.0
+        va_loss = va_im = va_fm = va_roll = va_sup = 0.0
         with torch.no_grad():
             for batch in val_loader:
-                loss, l_im, l_fm, l_roll = compute_losses(
+                loss, l_im, l_fm, l_roll, l_sup = compute_losses(
                     IM, FM, batch, mse, mode, detach_cross, rollout_steps, lam)
                 bs = batch[0].shape[0]
                 va_loss += loss.item()   * bs; va_im += l_im.item()   * bs
                 va_fm   += l_fm.item()   * bs; va_roll += l_roll.item() * bs
+                va_sup  += l_sup.item()  * bs
 
         # normalizzazione per numero di CAMPIONI (finestre), non di batch
-        tr_loss/=n_train; tr_im/=n_train; tr_fm/=n_train; tr_roll/=n_train
-        va_loss/=n_val;   va_im/=n_val;   va_fm/=n_val;   va_roll/=n_val
+        tr_loss/=n_train; tr_im/=n_train; tr_fm/=n_train; tr_roll/=n_train; tr_sup/=n_train
+        va_loss/=n_val;   va_im/=n_val;   va_fm/=n_val;   va_roll/=n_val;   va_sup/=n_val
         scheduler.step(va_loss)
         hist["train"].append(tr_loss); hist["val"].append(va_loss)
         hist["train_im"].append(tr_im); hist["train_fm"].append(tr_fm)
         hist["val_im"].append(va_im);   hist["val_fm"].append(va_fm)
         hist["train_roll"].append(tr_roll); hist["val_roll"].append(va_roll)
+        hist["train_sup"].append(tr_sup);   hist["val_sup"].append(va_sup)
 
+        # sup: diretto full-horizon; roll: closed-loop. Mostrati fuori da 'supervised'
+        # (dove sup==total e roll==0).
+        sup_txt  = f" sup {tr_sup:.4f}/{va_sup:.4f}"  if mode != "supervised" else ""
         roll_txt = f" roll {tr_roll:.4f}/{va_roll:.4f} (λ={lam:.2f})" if mode != "supervised" else ""
-        print(f"Epoch {epoch:3d} | train {tr_loss:.4f} (IM {tr_im:.4f} FM {tr_fm:.4f}) "
-              f"| val {va_loss:.4f} (IM {va_im:.4f} FM {va_fm:.4f}){roll_txt} "
+        print(f"Epoch {epoch:3d} | train {tr_loss:.4f} (IM@1 {tr_im:.4f} FM@1 {tr_fm:.4f}) "
+              f"| val {va_loss:.4f} (IM@1 {va_im:.4f} FM@1 {va_fm:.4f}){sup_txt}{roll_txt} "
               f"| lr {optimizer.param_groups[0]['lr']:.2e}")
 
         if va_loss < best_val_loss:
@@ -394,26 +421,35 @@ if __name__ == '__main__':
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
 
-    ax1.plot(epochs_x, hist["train"], color='steelblue', linewidth=1.5, label='Train loss')
-    ax1.plot(epochs_x, hist["val"],   color='tomato',    linewidth=1.5, label='Val loss')
-    if args.train_mode != "supervised":
+    # --- pannello sinistro: loss totale + (in combo) le due componenti ---
+    ax1.plot(epochs_x, hist["train"], color='steelblue', linewidth=1.5, label='Train total')
+    ax1.plot(epochs_x, hist["val"],   color='tomato',    linewidth=1.5, label='Val total')
+    # In 'rollout' total == roll (curve identiche): NON le ridisegno, era la
+    # duplicazione che rendeva la legenda illeggibile. In 'combo' sup e roll sono
+    # davvero diversi -> li mostro entrambi.
+    if args.train_mode == "combo":
+        ax1.plot(epochs_x, hist["train_sup"], color='darkorange', linewidth=1.2,
+                 alpha=0.9, label='Train sup (diretto P)')
+        ax1.plot(epochs_x, hist["val_sup"], color='darkorange', linewidth=1.2,
+                 alpha=0.9, linestyle='--', label='Val sup (diretto P)')
         ax1.plot(epochs_x, hist["train_roll"], color='seagreen', linewidth=1.2,
-                 alpha=0.8, label='Train rollout')
+                 alpha=0.8, label='Train rollout (closed-loop)')
         ax1.plot(epochs_x, hist["val_roll"], color='seagreen', linewidth=1.2,
-                 alpha=0.8, linestyle='--', label='Val rollout')
+                 alpha=0.8, linestyle='--', label='Val rollout (closed-loop)')
     ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
     ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE) — per sample", fontsize=13)
     ax1.set_yscale('log')   # scala log: la coda della curva (convergenza/overfitting) resta leggibile
     ax1.set_title(f"Total — mode={args.train_mode}", fontsize=14, fontweight='bold')
     ax1.legend(fontsize=10); ax1.grid(True, which='both')
 
-    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train (1-step)')
-    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val (1-step)')
-    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train (1-step)')
-    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val (1-step)')
+    # --- pannello destro: diagnostica a t+1 (slice 0), comparabile tra i modi ---
+    ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train @t+1')
+    ax2.plot(epochs_x, hist["val_im"],   color='steelblue', linewidth=1.5, linestyle='--', label='IM val @t+1')
+    ax2.plot(epochs_x, hist["train_fm"], color='seagreen',  linewidth=1.5, label='FM train @t+1')
+    ax2.plot(epochs_x, hist["val_fm"],   color='seagreen',  linewidth=1.5, linestyle='--', label='FM val @t+1')
     ax2.set_xlabel("Epoch", fontsize=13); ax2.set_ylabel("Loss (MSE) — per sample", fontsize=13)
     ax2.set_yscale('log')   # scala log anche qui
-    ax2.set_title("IM (command) vs FM (sensors) — 1-step", fontsize=14, fontweight='bold')
+    ax2.set_title("IM (command) vs FM (sensors) — @t+1", fontsize=14, fontweight='bold')
     ax2.legend(fontsize=10); ax2.grid(True, which='both')
 
     suptitle = f"Joint IM+FM — {args.train_mode}"

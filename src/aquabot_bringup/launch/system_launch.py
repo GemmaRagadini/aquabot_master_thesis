@@ -26,7 +26,7 @@ def generate_launch_description():
         parameters=[{
             'sensor_topic': '/sensor_reading',
             'target_topic': '/aquabot/dynamixel/target_position',
-            'mode': 'amp_sweep',
+            'mode': 'random_continuous',
             'trial_duration_sec': TRIAL_DURATION,
 
             # centro reale
@@ -126,7 +126,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         master_node,
-        dynamixel_node,
+        # dynamixel_node,
         arduino_node,
         start_trial,
         stop_trial,

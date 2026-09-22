@@ -44,7 +44,6 @@ root in aquabot
 
 - dataset nuovo grande generato con formula unica e variazioni rendomiche dei tre parametri di generazione della sinusoide 
 - evidenziare in una slide la differenza nel valore della corrente per un trial con e senza coda
-- Tre versioni di allenamento: 1 con FM e IM separati senza autoregressione, 1 con FM e IM separati con autoregressione ed una con i modelli collegati (output di FM che entra nel contesto di IM e viceversa). Tutti e tre con test open loop e closed loop + metriche 
 - fare il tuning tutto in un unico grosso passo e non più tre fasi 
 - aggiungere gli interevalli in cui ho fatto variare i parametri nella generazione del dataset  
 - aggiungere l'autocorrelazione nel test closed loop 
@@ -54,16 +53,21 @@ root in aquabot
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 
 
-# RIASSUNTO 
-Progetto: modello congiunto IM+FM per robot-pesce 
+1. Screening dei candidati — solo metriche, niente plot ancora.
+Alleni le poche varianti che vuoi confrontare (combo, magari rollout, l'ablation detach_cross, eventualmente uno o due λ). Per ognuna guardi solo la tabella di metrics_per_trial_joint.py con --steps first avg last. Qui non ti servono ancora i plot: la tabella basta a dire chi vince. È veloce e ti evita di generare grafici per modelli che poi scarti.
 
-Architettura. Due reti GRU+MLP (model_joint.py) che condividono lo stesso ingresso [C_1:H, S_1:H, ctx] — storia di H=20 comandi + H sensori + contesto. Testa singola a P passi (P=1 ora). IM (inversa) predice il comando, FM (diretta) predice i sensori [sensor_diff, current]. Contesto = [amp, freq, center, dt], CTX_DIM=4. Scaler unico condiviso (scalers_joint.pkl), split per-trial leak-free.
+2. Scelta del vincitore.
+Dal master CSV scegli il modello migliore secondo il criterio che conta per te (di solito: skill vs persist positivo sul closed-loop + RMSE basso a last per il diretto a P passi). Uno solo.
 
-File pronti: model_joint.py (con dropout), dataset_joint.py, train_joint.py (loss IM/FM separate, dropout+weight_decay), tune_joint.py (tuning 3 fasi solo FM), plot_prediction_joint.py (open-loop, deduce dimensioni dal checkpoint), closed_loop_test_joint.py, master_node.py (formula unica, solo std/sweep/turning, log con center_rad + real_position_rad), collect_dataset.sh (55 trial), trial_launch.py, plot_trial.py.
+3. Tuning — ma solo sul vincitore.
+Qui sta l'inversione rispetto a come l'hai messo tu: il tuning viene dopo lo screening, non prima. Non ha senso ottimizzare λ o gli hidden su un'architettura che poi non scegli. Fai il tuning fine solo sulla configurazione che ha vinto lo screening.
 
-Stato: Fase A completata. Training congiunto funziona, IM va a zero (comando facile), FM overfittava ma il tuning con dropout+weight_decay ha chiuso il gap train/val. Modello robusto. Open-loop predictions buone.
+4. Riallenamento finale.
+Il run "buono" definitivo, con i parametri scelti, tag pulito, magari epoche più lunghe se non era a plateau.
 
-Prossimo passo: Fase B — implementare la cycle_loss in train_joint.py (già predisposta, ora è NotImplementedError) e accendere lambda_cyc con warm-up. Il closed_loop_test_joint.py è lo strumento per misurare se il ciclo migliora la tenuta dell'anello.
+5. SOLO ORA i plot, tutti insieme.
+Curve di training, plot delle predizioni (vero vs predetto nel tempo), tabella metriche finale. Li generi in blocco, con lo stesso stile, alla fine, così sulle slide sono coerenti tra loro.
+
 
 # Requirements 
 uv pip install -r requirements.txt

@@ -2,6 +2,7 @@
 import math
 import csv
 import os
+import random
 import rclpy
 from datetime import datetime
 from rclpy.node import Node
@@ -67,6 +68,36 @@ class MasterNode(Node):
         self.declare_parameter("turning_bias_amp_rad", 0.4)
         self.declare_parameter("turning_bias_freq_hz", 0.08)
 
+        # --- NUOVA MODALITA': random_continuous ---------------------------------
+        # Invece di girare i trial una modalita' alla volta, questa modalita' fa
+        # variare in modo casuale amp/freq/center e va avanti all'infinito ("per
+        # tanto di fila"). Ogni 'random_hold_sec' secondi estrae nuovi target
+        # casuali per ciascun parametro (ognuno nel suo range). Il TIPO di
+        # transizione e' scelto PER SINGOLO parametro, cosi' puoi averne alcuni
+        # netti e altri continui contemporaneamente:
+        #   'step' -> salto netto al nuovo valore all'istante dell'estrazione
+        #   'ramp' -> interpolazione lineare (morbida) fino al prossimo hold
+        #   'walk' -> random walk: il nuovo target e' relativo al precedente,
+        #             raggiunto con rampa morbida (deriva graduale)
+        # Le modalita' esistenti (std, *_sweep, turning_*) restano invariate.
+        self.declare_parameter('random_hold_sec', 4.0)
+        # Transizione per parametro. Default 'mixed': a OGNI estrazione si tira a
+        # sorte se quel cambio sara' netto o continuo, cosi' nel dataset vengono
+        # fuori da soli sia cambi netti sia continui senza sceglierli a mano.
+        # Puoi comunque forzare un tipo fisso: 'step' | 'ramp' | 'walk'.
+        self.declare_parameter('random_amp_transition', 'mixed')     # mixed|step|ramp|walk
+        self.declare_parameter('random_freq_transition', 'mixed')    # mixed|step|ramp|walk
+        self.declare_parameter('random_center_transition', 'mixed')  # mixed|step|ramp|walk
+        # con 'mixed', probabilita' che un dato cambio sia netto (step) invece
+        # che continuo (ramp).
+        self.declare_parameter('random_step_prob', 0.5)
+        # limite massimo dell'offset del centro (|center - bias|). Il margine
+        # sicuro effettivo e' comunque min(questo, MAX_AMP_RAD - amp_corrente),
+        # cosi' bias +/- offset +/- amp resta dentro [tail_min, tail_max].
+        self.declare_parameter('random_center_max_rad', 0.20)
+        # seme RNG: <0 = non deterministico (default); >=0 = riproducibile
+        self.declare_parameter('random_seed', -1)
+
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min = float(self.get_parameter('freq_min_hz').value)
         self.freq_max = float(self.get_parameter('freq_max_hz').value)
@@ -92,6 +123,18 @@ class MasterNode(Node):
 
         self.turning_bias_amp = float(self.get_parameter("turning_bias_amp_rad").value)
         self.turning_bias_freq = float(self.get_parameter("turning_bias_freq_hz").value)
+
+        # random_continuous
+        self.random_hold = float(self.get_parameter('random_hold_sec').value)
+        self.random_amp_tr = str(self.get_parameter('random_amp_transition').value)
+        self.random_freq_tr = str(self.get_parameter('random_freq_transition').value)
+        self.random_center_tr = str(self.get_parameter('random_center_transition').value)
+        self.random_step_prob = float(self.get_parameter('random_step_prob').value)
+        self.random_center_max = float(self.get_parameter('random_center_max_rad').value)
+        self.random_seed = int(self.get_parameter('random_seed').value)
+        if self.random_seed >= 0:
+            random.seed(self.random_seed)
+            self.get_logger().info(f"random_continuous: seme RNG = {self.random_seed}")
 
         # pubblica il target della coda
         self.publisher = self.create_publisher(Float64, self.target_topic, 10)
@@ -126,6 +169,23 @@ class MasterNode(Node):
 
         self.phase_acc = 0.0
         self.last_control_time = None
+
+        # --- STATO random_continuous ---
+        # Ogni segmento va da (start) a (target) nell'arco di random_hold_sec.
+        # coff = offset del centro rispetto a bias (center = bias + coff).
+        self.rand_initialized  = False
+        self.rand_seg_t0       = 0.0
+        self.rand_amp_start    = self.amp
+        self.rand_amp_target   = self.amp
+        self.rand_freq_start   = self.freq
+        self.rand_freq_target  = self.freq
+        self.rand_coff_start   = 0.0
+        self.rand_coff_target  = 0.0
+        # transizione EFFETTIVA del segmento corrente (con 'mixed' e' sorteggiata
+        # a ogni estrazione e resta fissa per tutto il segmento)
+        self.rand_amp_eff   = 'ramp'
+        self.rand_freq_eff  = 'ramp'
+        self.rand_coff_eff  = 'ramp'
 
         # feedback diagnostico (mai nel moto)
         self.current_bias_offset = 0.0
@@ -172,6 +232,18 @@ class MasterNode(Node):
                 self.turning_bias_amp = float(p.value)
             elif p.name == 'turning_bias_freq_hz':
                 self.turning_bias_freq = float(p.value)
+            elif p.name == 'random_hold_sec':
+                self.random_hold = max(1e-3, float(p.value))
+            elif p.name == 'random_amp_transition':
+                self.random_amp_tr = str(p.value)
+            elif p.name == 'random_freq_transition':
+                self.random_freq_tr = str(p.value)
+            elif p.name == 'random_center_transition':
+                self.random_center_tr = str(p.value)
+            elif p.name == 'random_step_prob':
+                self.random_step_prob = clamp(float(p.value), 0.0, 1.0)
+            elif p.name == 'random_center_max_rad':
+                self.random_center_max = float(p.value)
         return SetParametersResult(successful=True)
 
     def sensor_callback(self, msg: Float32MultiArray):
@@ -239,6 +311,7 @@ class MasterNode(Node):
         self.phase_acc = 0.0
         self.current_center = self.bias
         self.current_bias_offset = 0.0
+        self.rand_initialized = False   # ri-inizializza random_continuous a ogni trial
         self.recording = True
         self.get_logger().info(f"Started trial -> {filename}")
 
@@ -351,6 +424,11 @@ class MasterNode(Node):
                 2.0 * math.pi * self.turning_bias_freq * t_rel)
             self._advance_phase(dt)
 
+        elif mode == 'random_continuous':
+            # variazione casuale continua di amp/freq/center (vedi metodi sotto)
+            self._update_random_continuous(t_rel, dt)
+            self._advance_phase(dt)   # fase continua: nessuno scalino sul segnale
+
         else:
             # fallback: fermo al centro
             self.current_amp = 0.0
@@ -364,6 +442,105 @@ class MasterNode(Node):
             return 2.0 * tau
         else:
             return 2.0 * (1.0 - tau)
+
+    # ------------------------------------------------------------------
+    #  MODALITA' random_continuous — variazione casuale, gira all'infinito
+    # ------------------------------------------------------------------
+    def _draw_target(self, transition: str, lo: float, hi: float,
+                     prev_target: float) -> float:
+        """Estrae il nuovo target di un parametro nel range [lo, hi].
+        'walk' = random walk: si sposta rispetto al target precedente (deriva);
+        'step'/'ramp' = valore assoluto uniforme nel range."""
+        if hi <= lo:
+            return lo
+        if transition == 'walk':
+            # passo casuale pari al massimo a meta' del range, poi clamp
+            delta = random.uniform(-0.5, 0.5) * (hi - lo)
+            return clamp(prev_target + delta, lo, hi)
+        return random.uniform(lo, hi)
+
+    def _seg_value(self, transition: str, start: float, target: float,
+                   alpha: float) -> float:
+        """Valore del parametro dentro il segmento corrente.
+        'step' -> salto netto (sta sul target per tutto il segmento);
+        'ramp'/'walk' -> interpolazione lineare morbida start->target."""
+        if transition == 'step':
+            return target
+        return start + (target - start) * alpha   # ramp / walk
+
+    def _resolve_transition(self, transition: str) -> str:
+        """Risolve la transizione effettiva di questo segmento.
+        'mixed' -> sorteggio netto/continuo (step con prob random_step_prob,
+        altrimenti ramp); un tipo fisso resta invariato."""
+        if transition == 'mixed':
+            return 'step' if random.random() < self.random_step_prob else 'ramp'
+        return transition
+
+    def _draw_random_segment(self, t_rel: float):
+        """Apre un nuovo segmento: sorteggia la transizione (netta/continua) e
+        nuovi target per amp/freq/center-offset. Il range del center-offset si
+        stringe in base all'amp target, cosi' bias +/- offset +/- amp resta
+        dentro [tail_min, tail_max]."""
+        self.rand_seg_t0 = t_rel
+        # 1) tipo di cambio per questo segmento (netto o continuo, per parametro)
+        self.rand_amp_eff  = self._resolve_transition(self.random_amp_tr)
+        self.rand_freq_eff = self._resolve_transition(self.random_freq_tr)
+        self.rand_coff_eff = self._resolve_transition(self.random_center_tr)
+        # 2) nuovi target
+        self.rand_amp_target = clamp(
+            self._draw_target(self.rand_amp_eff, self.amp_min, self.amp_max,
+                              self.rand_amp_target),
+            0.0, self.MAX_AMP_RAD)
+        self.rand_freq_target = self._draw_target(
+            self.rand_freq_eff, self.freq_min, self.freq_max,
+            self.rand_freq_target)
+        # margine sicuro per l'offset del centro dato l'amp target
+        margin = max(0.0, self.MAX_AMP_RAD - self.rand_amp_target)
+        cmax = min(max(0.0, self.random_center_max), margin)
+        self.rand_coff_target = self._draw_target(
+            self.rand_coff_eff, -cmax, cmax, self.rand_coff_target)
+
+    def _update_random_continuous(self, t_rel: float, dt: float):
+        """Aggiorna (amp, freq, center) in modo casuale e continuo.
+        La transizione e' scelta per singolo parametro (step/ramp/walk), quindi
+        alcuni parametri possono cambiare netti e altri in modo continuo."""
+        # prima entrata (o nuovo trial): parti dai valori correnti e pesca subito
+        if not self.rand_initialized:
+            self.rand_amp_start   = self.current_amp
+            self.rand_freq_start  = self.current_freq
+            self.rand_coff_start  = self.current_center - self.bias
+            self.rand_amp_target  = self.rand_amp_start
+            self.rand_freq_target = self.rand_freq_start
+            self.rand_coff_target = self.rand_coff_start
+            self.rand_initialized = True
+            self._draw_random_segment(t_rel)
+
+        hold = max(1e-3, self.random_hold)
+
+        # fine segmento -> il valore attuale diventa lo start e si pesca il nuovo
+        if (t_rel - self.rand_seg_t0) >= hold:
+            self.rand_amp_start  = self.current_amp
+            self.rand_freq_start = self.current_freq
+            self.rand_coff_start = self.current_center - self.bias
+            self._draw_random_segment(t_rel)
+
+        alpha = clamp((t_rel - self.rand_seg_t0) / hold, 0.0, 1.0)
+        self.current_amp = clamp(
+            self._seg_value(self.rand_amp_eff, self.rand_amp_start,
+                            self.rand_amp_target, alpha),
+            0.0, self.MAX_AMP_RAD)
+        self.current_freq = self._seg_value(
+            self.rand_freq_eff, self.rand_freq_start,
+            self.rand_freq_target, alpha)
+        coff = self._seg_value(
+            self.rand_coff_eff, self.rand_coff_start,
+            self.rand_coff_target, alpha)
+        # vincolo di sicurezza LIVE: |offset| + amp_corrente <= MAX_AMP, sempre.
+        # Cosi' theta = center + amp*sin(...) resta in [tail_min, tail_max] senza
+        # dover tosare la sinusoide col clamp finale (che falserebbe il log).
+        cap = max(0.0, self.MAX_AMP_RAD - self.current_amp)
+        coff = clamp(coff, -cap, cap)
+        self.current_center = self.bias + coff
 
     # ------------------------------------------------------------------
     #  FEEDBACK SENSORI — SOLO DIAGNOSTICA (mai nel moto)

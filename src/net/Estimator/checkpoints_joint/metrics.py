@@ -17,6 +17,7 @@ Flag principali:
   --baseline persist | none         baseline per skill score (default: persist)
   --channels sensor_diff current cmd (default: tutti)
   --agg      per_trial | pooled | both  righe riassuntive (default: both)
+  --summary_only                    scrivi solo MEDIA/pooled, non i singoli trial
   --all_trials                      includi anche i trial di train
   --overwrite                       ignora il master esistente e riscrivilo
 
@@ -246,7 +247,7 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--all_trials", action="store_true",
                     help="includi anche i trial di train (default: solo validation)")
-    ap.add_argument("--csv_out", default=os.path.join(SCRIPT_DIR, "metrics_master.csv"),
+    ap.add_argument("--csv_out", default=None,
                     help="CSV master: viene aggiornato per merge a ogni run")
     ap.add_argument("--overwrite", action="store_true",
                     help="ignora il master esistente e riscrivilo da zero")
@@ -267,6 +268,8 @@ def main():
                     help="quali canali (default: tutti).")
     ap.add_argument("--agg", default="both", choices=["per_trial", "pooled", "both"],
                     help="righe riassuntive da aggiungere (default: both).")
+    ap.add_argument("--summary_only", action="store_true",
+                    help="scrivi solo le righe MEDIA/pooled, non i singoli trial.")
     args = ap.parse_args()
 
     device = torch.device(args.device)
@@ -312,6 +315,8 @@ def main():
     trials = list(range(len(dataset.trial_names))) if args.all_trials else sorted(val_trials)
     print(f"trial considerati: {len(trials)} "
           f"({'tutti' if args.all_trials else 'solo validation'})")
+    if args.summary_only:
+        print("summary_only: i singoli trial non verranno scritti (solo MEDIA/pooled).")
 
     # accumulatori per il POOLED: per canale e passo, gli array reali di tutti i trial
     pool = {ch: None for ch in channels}   # ch -> lista P di dict{pred,true,persist}
@@ -344,10 +349,14 @@ def main():
                 pool[ch][k]["true"].append(tr)
                 pool[ch][k]["persist"].append(ps)
 
-        rows.append(row)
+        # le righe per-trial finiscono nel CSV solo se non e' summary_only,
+        # ma gli accumulatori (per_trial_metric_rows / pool) restano SEMPRE
+        # popolati: sono la base per MEDIA per-trial e pooled.
+        if not args.summary_only:
+            rows.append(row)
         per_trial_metric_rows.append(metric_only)
 
-    if not rows:
+    if not per_trial_metric_rows:
         print("Nessun trial elaborato.", file=sys.stderr)
         sys.exit(1)
 
