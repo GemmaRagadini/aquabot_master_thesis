@@ -39,13 +39,25 @@ DEVICE = torch.device("cpu")
                    propria loss (gradienti separati). Vale per tutti i modi.
 
 NOTE:
-  - Il rollout supervisiona i K passi sui target t+1..t+K dell'item -> serve K<=P.
-    Con P=1 degenera a 1 passo (== supervised): per un vero rollout allena con P>1.
+  - K (passi di rollout) e P (uscite della testa) sono INDIPENDENTI: nei modi
+    rollout/combo il dataset costruisce target lunghi T = K + P - 1. La loss
+    diretta usa i primi P; il rollout al passo k confronta tutte le P uscite con
+    tgt[k:k+P] e reimmette nei buffer solo t+1.
+      P=1 -> rollout classico (predittore a 1 passo allenato in autoregressione).
+      P>1 -> tutto l'orizzonte e' allenato anche in closed-loop.
+  - Selezione del best: in 'combo' si usa sup + lambda_roll*roll a peso FISSO e si
+    salva solo dopo il warm-up (prima il best poteva cadere a lambda~0 = supervised).
+    Lo scheduler usa la stessa metrica.
+  - Con T>P il numero di finestre per trial cala di T-P (coda del trial): tra run
+    con T diversi il set di validazione differisce di poche finestre per trial.
+    Lo scaler NON dipende da P/T (fit sui segnali interi, o caricato da file).
+  - --seed cambia solo l'inizializzazione/shuffle; lo split train/val resta fisso
+    (seed 42 in split_by_trial), quindi run con seed diversi sono confrontabili.
   - DUE LOSS DISTINTE, non confonderle:
       * sup  (loss_im + loss_fm) = MSE sull'INTERO orizzonte P della testa diretta
         -> e' cio' che OTTIMIZZA la predizione diretta t+1..t+P.
       * roll = closed-loop su K passi (BPTT) -> OTTIMIZZA la stabilita' in
-        autoregressione, ma supervisiona solo la slice t+1 reimmessa nei buffer.
+        autoregressione; supervisiona tutte le P uscite, reimmette solo t+1.
     In 'combo' la loss totale e' sup + lambda*roll: alleni ENTRAMBI gli usi.
   - IM/FM nel log e nel plot sono la diagnostica a t+1 (slice 0), NON entrano nella
     loss ottimizzata: servono solo a leggere il t+1 in modo comparabile tra i modi.
@@ -60,18 +72,19 @@ NOTE:
 USO:
   # supervised, orizzonte P=10 (1 s a 10 Hz)
   python3 src/net/Estimator/train.py --train_mode supervised --p 10 --tag sup_p10 \
-      -
+      
 
   # ablation gradienti separati
   python3 src/net/Estimator/train.py --train_mode supervised --p 10 --detach_cross \
       --tag sup_p10_detach
 
-  # rollout
-  python3 src/net/Estimator/train.py --train_mode rollout --p 10 --rollout_steps 5 \
+  # rollout (P=1, K=10: predittore a 1 passo allenato in closed-loop)
+  python3 src/net/Estimator/train.py --train_mode rollout --p 1 --rollout_steps 10 \
+      --tag roll_p1_k10
 
-  # combo (diretto a P passi + closed-loop: entrambi gli usi)
-    python3 src/net/Estimator/train.py --train_mode combo --p 10 --lambda_roll 1.0 \
-      --roll_warmup 10
+  # combo (P=1: supervised a 1 passo + closed-loop su K passi)
+  python3 src/net/Estimator/train.py --train_mode combo --p 1 --rollout_steps 10 \
+      --lambda_roll 1.0 --roll_warmup 10 --tag combo_p1_k10
 
 Output in --checkpoint_dir: best_<tag>.pt (miglior val), fish_joint_<tag>.pt (finale),
 loss_curve_<tag>.png.
@@ -106,10 +119,17 @@ def rollout_loss(IM, FM, seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, mse,
     Il contesto statico [amp, freq, center] e' tenuto costante lungo il rollout
     (regime lentamente variabile): teacher forcing solo sul contesto.
 
-    Supervisione: il passo k contro il target vero t+1+k (tgt_*[:, k]). Richiede
-    K <= P (i target disponibili nell'item)."""
-    P = tgt_cmd.shape[1]
-    K = min(K, P)
+    Supervisione su TUTTO l'orizzonte della testa: al passo k l'uscita (P passi)
+    e' confrontata con i target veri t+1+k .. t+k+P (tgt_*[:, k:k+P]). Nei buffer
+    rientra comunque solo t+1 (si avanza di un passo per volta).
+      - P=1  -> supervisione del solo passo t+1 (rollout classico a 1 passo).
+      - P>1  -> tutte le P uscite sono allenate in closed-loop.
+    Richiede target lunghi T >= K + P - 1 (train.py costruisce il dataset cosi')."""
+    T = tgt_cmd.shape[1]
+    P_head = IM.p
+    K = min(K, T - P_head + 1)
+    if K < 1:
+        raise ValueError(f"target troppo corti per il rollout: T={T}, P={P_head}")
 
     buf_cmd  = seq_cmd.clone()    # (B, H, 1)
     buf_sens = seq_sens.clone()   # (B, H, 2)
@@ -125,7 +145,9 @@ def rollout_loss(IM, FM, seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, mse,
         c1 = pc[:, :1, :]                         # (B, 1, 1)  passo t+1
         s1 = ps[:, :1, :]                         # (B, 1, 2)
 
-        loss = loss + mse(c1[:, 0], tgt_cmd[:, k]) + mse(s1[:, 0], tgt_sens[:, k])
+        # tutta l'uscita (P passi) contro i target da t+1+k in poi
+        loss = loss + mse(pc, tgt_cmd[:, k:k + P_head]) \
+                    + mse(ps, tgt_sens[:, k:k + P_head])
 
         # avanza i buffer di uno: butta il piu' vecchio, appende la predizione
         buf_cmd  = torch.cat([buf_cmd[:, 1:, :],  c1], dim=1)
@@ -151,8 +173,11 @@ def compute_losses(IM, FM, batch, mse, mode, detach_cross, K, lam_roll):
 
     # forward diretto a P passi (usa TUTTO l'orizzonte): OTTIMIZZA t+1..t+P
     pred_cmd, pred_sens = forward_pair(IM, FM, seq_cmd, seq_sens, ctx, detach_cross)
-    loss_im = mse(pred_cmd,  tgt_cmd)     # media su tutto l'orizzonte P
-    loss_fm = mse(pred_sens, tgt_sens)
+    # I target possono essere piu' lunghi di P (T = max(P, K), servono al
+    # rollout): la loss diretta usa solo i primi P passi, quelli della testa.
+    P_head = pred_cmd.shape[1]
+    loss_im = mse(pred_cmd,  tgt_cmd[:, :P_head])     # media su tutto l'orizzonte P
+    loss_fm = mse(pred_sens, tgt_sens[:, :P_head])
     loss_sup = loss_im + loss_fm
 
     # diagnostica SOLO a t+1 (slice 0): comparabile tra i modi, fuori dal grafo.
@@ -179,7 +204,13 @@ def compute_losses(IM, FM, batch, mse, mode, detach_cross, K, lam_roll):
 
 def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
           mode, detach_cross, rollout_steps, lambda_roll, roll_warmup,
-          weight_decay=0.0, best_name="best.pt"):
+          weight_decay_im=0.0, weight_decay_fm=0.0, clip_norm=1.0,
+          best_name="best.pt", meta=None,
+          save_checkpoints=True, on_epoch_end=None):
+    """on_epoch_end(epoch, va_sel, best_val, best_epoch) -> bool: hook opzionale
+    chiamato a fine epoca (lo usa il tuning Optuna per report/pruning/early stop).
+    Se ritorna True il training si ferma. save_checkpoints=False non scrive nulla
+    su disco (tuning)."""
     train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
     print(f"Split per-trial: {len(train_ds)} finestre train | {len(val_ds)} finestre val")
 
@@ -193,14 +224,26 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
     n_val   = len(val_ds)
 
     params = list(IM.parameters()) + list(FM.parameters())
-    optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
+    # AdamW: weight decay disaccoppiato dal gradiente (vero decadimento dei pesi,
+    # uguale per tutti i parametri), con un valore separato per ciascuna rete.
+    optimizer = torch.optim.AdamW(
+        [{"params": IM.parameters(), "weight_decay": weight_decay_im},
+         {"params": FM.parameters(), "weight_decay": weight_decay_fm}],
+        lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, factor=0.5)
     mse = nn.MSELoss()
 
     best_val_loss = float('inf')
-    hist = {k: [] for k in ("train", "val", "train_im", "train_fm",
+    best_epoch = -1
+    hist = {k: [] for k in ("train", "val", "val_sel", "train_im", "train_fm",
                             "val_im", "val_fm", "train_roll", "val_roll",
                             "train_sup", "val_sup")}
+
+    # In combo la loss ottimizzata (sup + lambda(t)*roll) cambia scala durante il
+    # warm-up: con lambda~0 e' piu' bassa per costruzione. Per scheduler e scelta
+    # del best si usa quindi una metrica a peso FISSO (lambda finale), e il best
+    # si salva solo a warm-up concluso, cosi' best_combo.pt e' davvero un combo.
+    min_save_epoch = roll_warmup if mode == "combo" else 0
 
     for epoch in range(epochs):
         # lambda del rollout: warm-up lineare 0 -> lambda_roll su roll_warmup epoche
@@ -225,7 +268,7 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
 
             optimizer.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm_(params, max_norm=1.0)
+            nn.utils.clip_grad_norm_(params, max_norm=clip_norm)
             optimizer.step()
             # accumulo pesato per la dimensione REALE del batch: cosi' la somma,
             # divisa per il numero di campioni, e' una vera media per campione
@@ -249,7 +292,14 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
         # normalizzazione per numero di CAMPIONI (finestre), non di batch
         tr_loss/=n_train; tr_im/=n_train; tr_fm/=n_train; tr_roll/=n_train; tr_sup/=n_train
         va_loss/=n_val;   va_im/=n_val;   va_fm/=n_val;   va_roll/=n_val;   va_sup/=n_val
-        scheduler.step(va_loss)
+
+        # metrica di selezione (scala costante lungo il training)
+        if mode == "combo":
+            va_sel = va_sup + lambda_roll * va_roll
+        else:
+            va_sel = va_loss
+        scheduler.step(va_sel)
+        hist["val_sel"].append(va_sel)
         hist["train"].append(tr_loss); hist["val"].append(va_loss)
         hist["train_im"].append(tr_im); hist["train_fm"].append(tr_fm)
         hist["val_im"].append(va_im);   hist["val_fm"].append(va_fm)
@@ -264,16 +314,26 @@ def train(IM, FM, dataset, epochs, lr, batch_size, checkpoint_dir,
               f"| val {va_loss:.4f} (IM@1 {va_im:.4f} FM@1 {va_fm:.4f}){sup_txt}{roll_txt} "
               f"| lr {optimizer.param_groups[0]['lr']:.2e}")
 
-        if va_loss < best_val_loss:
-            best_val_loss = va_loss
-            save_checkpoint(IM, FM, dataset.norm_stats, checkpoint_dir, name=best_name)
+        if epoch >= min_save_epoch and va_sel < best_val_loss:
+            best_val_loss = va_sel
+            best_epoch = epoch
+            if save_checkpoints:
+                save_checkpoint(IM, FM, dataset.norm_stats, checkpoint_dir, name=best_name,
+                                meta={**(meta or {}), "best_epoch": epoch})
 
-    print(f"\nTraining completato ({mode}). Best val loss: {best_val_loss:.4f}")
+        if on_epoch_end is not None and on_epoch_end(epoch, va_sel, best_val_loss, best_epoch):
+            break
+
+    sel_txt = f" (sup + {lambda_roll}*roll, da epoch {min_save_epoch})" if mode == "combo" else ""
+    print(f"\nTraining completato ({mode}). Best val{sel_txt}: {best_val_loss:.4f} "
+          f"a epoch {best_epoch}")
+    hist["best_epoch"] = best_epoch
+    hist["best_val"] = best_val_loss
     return IM, FM, hist
 
 
-def _ckpt_dict(IM, FM, norm_stats):
-    return {
+def _ckpt_dict(IM, FM, norm_stats, meta=None):
+    d = {
         "im_state":   {k: v.cpu() for k, v in IM.state_dict().items()},
         "fm_state":   {k: v.cpu() for k, v in FM.state_dict().items()},
         "norm_stats": norm_stats,
@@ -287,11 +347,16 @@ def _ckpt_dict(IM, FM, norm_stats):
         "H":             MODEL_H,
         "P":             IM.p,
     }
+    # metadati della run (train_mode, K, detach_cross, lambda, warmup, best_epoch):
+    # solo informativi, gli script di valutazione non ne dipendono.
+    if meta:
+        d["train_meta"] = dict(meta)
+    return d
 
 
-def save_checkpoint(IM, FM, norm_stats, checkpoint_dir, name="checkpoint.pt"):
+def save_checkpoint(IM, FM, norm_stats, checkpoint_dir, name="checkpoint.pt", meta=None):
     os.makedirs(checkpoint_dir, exist_ok=True)
-    torch.save(_ckpt_dict(IM, FM, norm_stats), os.path.join(checkpoint_dir, name))
+    torch.save(_ckpt_dict(IM, FM, norm_stats, meta), os.path.join(checkpoint_dir, name))
 
 
 def checkpoint_names(tag=None):
@@ -325,7 +390,11 @@ if __name__ == '__main__':
     parser.add_argument('--mlp_hidden_fm',  type=int,   default=128)
     parser.add_argument('--dropout_im',     type=float, default=0.0)
     parser.add_argument('--dropout_fm',     type=float, default=0.10842905375567242)
-    parser.add_argument('--weight_decay',   type=float, default=2.5314946929205504e-05)
+    # AdamW: weight decay separato per rete. NB: i valori trovati col vecchio Adam
+    # (L2 nel gradiente) non sono equivalenti -> rifare il tuning.
+    parser.add_argument('--weight_decay_im', type=float, default=0.0)
+    parser.add_argument('--weight_decay_fm', type=float, default=2.5314946929205504e-05)
+    parser.add_argument('--clip_norm',      type=float, default=1.0)
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
     parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers_joint.pkl'))
@@ -344,28 +413,43 @@ if __name__ == '__main__':
                         help="stacca l'hidden incrociato: ogni rete aggiornata solo "
                              "dalla propria loss (gradienti separati). Vale per tutti i modi.")
     parser.add_argument('--rollout_steps', type=int, default=None,
-                        help="K passi del rollout (modi rollout/combo). Default: P. "
-                             "Viene comunque limitato a P.")
+                        help="K passi del rollout (modi rollout/combo). Default: "
+                             "max(P, 10). Indipendente da P: il dataset costruisce "
+                             "target lunghi T=max(P,K), quindi funziona anche con P=1.")
     parser.add_argument('--lambda_roll', type=float, default=1.0,
                         help="peso del termine di rollout (modi rollout/combo).")
     parser.add_argument('--roll_warmup', type=int, default=10,
                         help="epoche di warm-up lineare di lambda_roll (solo combo).")
+    parser.add_argument('--seed', type=int, default=42,
+                        help="seed di inizializzazione pesi e shuffle. Lo split "
+                             "train/val NON dipende da questo (resta seed 42).")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
 
     if args.p != MODEL_P:
         print(f"[avviso] --p={args.p} diverso dalla costante dei file "
               f"(model={MODEL_P}, dataset={DATA_P}). Uso --p={args.p}.")
     P = args.p
 
-    K = args.rollout_steps if args.rollout_steps is not None else P
-    if args.train_mode in ("rollout", "combo"):
-        if P == 1:
-            print(f"[avviso] train_mode={args.train_mode} con P=1: il rollout degenera "
-                  f"a 1 passo (== supervised). Allena con --p>1 per un vero rollout.",
-                  file=sys.stderr)
-        if K > P:
-            print(f"[avviso] rollout_steps={K} > P={P}: limito K a {P}.", file=sys.stderr)
-            K = P
+    # K (passi di rollout) e' ora indipendente da P (uscite della testa).
+    # Il dataset costruisce target lunghi T = max(P, K): la loss diretta usa i
+    # primi P, il rollout i primi K. Cosi' il rollout ha senso anche con P=1.
+    K = args.rollout_steps if args.rollout_steps is not None else max(P, 10)
+    if K < 1:
+        parser.error("--rollout_steps deve essere >= 1")
+    uses_roll = args.train_mode in ("rollout", "combo")
+    if uses_roll and K == 1:
+        print(f"[avviso] train_mode={args.train_mode} con K=1: il rollout degenera "
+              f"a 1 passo (== supervised a t+1).", file=sys.stderr)
+    # al passo k del rollout servono i target t+1+k .. t+k+P  ->  T = K + P - 1
+    T = K + P - 1 if uses_roll else P
+    if uses_roll and P > 1:
+        print(f"[nota] P={P}>1 in {args.train_mode}: nel rollout si reimmette solo t+1, "
+              f"ma tutte le {P} uscite sono supervisionate a ogni passo (T={T}).",
+              file=sys.stderr)
 
     # tag di default = train_mode (cosi' le run non si sovrascrivono), tranne supervised
     tag = args.tag if args.tag is not None else (
@@ -375,7 +459,7 @@ if __name__ == '__main__':
           f"K={K} | lambda_roll={args.lambda_roll} | warmup={args.roll_warmup}")
     if tag:
         print(f"Tag run: '{tag}' -> checkpoint: {best_name}, {final_name}")
-    print(f"Orizzonte di predizione P = {P}")
+    print(f"Orizzonte di predizione P = {P} | orizzonte target dataset T = {T}")
 
     torch.set_num_threads(args.threads)
     DEVICE = torch.device(args.device)
@@ -385,7 +469,7 @@ if __name__ == '__main__':
 
     print("Caricamento dataset...")
     os.makedirs(os.path.dirname(args.scaler_path) or ".", exist_ok=True)
-    dataset = FishJointDataset(args.dataset_dir, p=P,
+    dataset = FishJointDataset(args.dataset_dir, p=T,
                                scaler_path=args.scaler_path).to(DEVICE)
 
     IM, FM = build_models(
@@ -401,6 +485,14 @@ if __name__ == '__main__':
     print(f"Hidden incrociato: IM h={IM.gru_hidden}<-cross {IM.cross_hidden} | "
           f"FM h={FM.gru_hidden}<-cross {FM.cross_hidden} | ctx statico={CTX_DIM}")
 
+    meta = {"train_mode": args.train_mode, "detach_cross": args.detach_cross,
+            "K": K if uses_roll else None, "T": T,
+            "lambda_roll": args.lambda_roll if uses_roll else None,
+            "roll_warmup": args.roll_warmup if args.train_mode == "combo" else None,
+            "tag": tag, "seed": args.seed,
+            "optimizer": "AdamW", "weight_decay_im": args.weight_decay_im,
+            "weight_decay_fm": args.weight_decay_fm, "clip_norm": args.clip_norm}
+
     print(f"\nInizio training congiunto (mode={args.train_mode})...")
     IM, FM, hist = train(
         IM, FM, dataset,
@@ -408,16 +500,19 @@ if __name__ == '__main__':
         checkpoint_dir=args.checkpoint_dir,
         mode=args.train_mode, detach_cross=args.detach_cross,
         rollout_steps=K, lambda_roll=args.lambda_roll, roll_warmup=args.roll_warmup,
-        weight_decay=args.weight_decay, best_name=best_name,
+        weight_decay_im=args.weight_decay_im, weight_decay_fm=args.weight_decay_fm,
+        clip_norm=args.clip_norm, best_name=best_name, meta=meta,
     )
 
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     final_path = os.path.join(args.checkpoint_dir, final_name)
-    torch.save(_ckpt_dict(IM, FM, dataset.norm_stats), final_path)
+    torch.save(_ckpt_dict(IM, FM, dataset.norm_stats,
+                          {**meta, "best_epoch": hist["best_epoch"]}), final_path)
     print(f"Checkpoint finale salvato in {final_path}")
 
     epochs_x = range(1, len(hist["train"]) + 1)
-    best_epoch = hist["val"].index(min(hist["val"])) + 1
+    # epoca del checkpoint best EFFETTIVAMENTE salvato (1-based per il plot)
+    best_epoch = hist["best_epoch"] + 1
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
 
@@ -436,6 +531,10 @@ if __name__ == '__main__':
                  alpha=0.8, label='Train rollout (closed-loop)')
         ax1.plot(epochs_x, hist["val_roll"], color='seagreen', linewidth=1.2,
                  alpha=0.8, linestyle='--', label='Val rollout (closed-loop)')
+        ax1.plot(epochs_x, hist["val_sel"], color='black', linewidth=1.2,
+                 linestyle=':', label=f'Val selezione (sup + {args.lambda_roll}·roll)')
+        ax1.axvspan(0.5, args.roll_warmup + 0.5, color='gray', alpha=0.08,
+                    label='warm-up (best non salvato)')
     ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
     ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE) — per sample", fontsize=13)
     ax1.set_yscale('log')   # scala log: la coda della curva (convergenza/overfitting) resta leggibile

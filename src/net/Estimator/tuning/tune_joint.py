@@ -1,187 +1,142 @@
 """
-Staged Optuna tuning per la rete FM (diretta) del modello congiunto.
+Tuning Optuna a FASE UNICA del modello congiunto IM + FM.
 
-Perche' solo FM: nel training congiunto IM (inversa, comando) va a zero quasi
-subito e generalizza perfetta -> non serve tunarla. FM (diretta, sensori) e' il
-collo di bottiglia (overfitting). Qui alleniamo ENTRAMBE le reti insieme (come
-in train_joint) ma cerchiamo solo gli iperparametri di FM; IM resta fissa a una
-config ragionevole. La metrica ottimizzata e' la val loss della SOLA FM.
+Tuna ENTRAMBE le reti: con l'hidden incrociato sono accoppiate (gru_hidden_im
+entra in FM come cross_hidden e viceversa), quindi ha senso cercarle insieme.
 
-Struttura a 3 fasi (come il vecchio tune.py della rete diretta):
-  Fase 1 - architettura FM (gru_hidden x mlp_hidden) con GridSampler
-  Fase 2 - training (lr, batch, weight_decay, dropout) con TPE sulle top-2 arch
-  Fase 3 - raffinamento attorno ai best delle fasi 1/2
+Non duplica il training: chiama direttamente train.train(), con lo stesso
+train_mode, la stessa loss e la stessa metrica di selezione del best:
+  supervised -> val sup (loss_im + loss_fm su tutto l'orizzonte P)
+  rollout    -> val rollout (closed-loop su K passi)
+  combo      -> val sup + lambda_roll * val roll, solo a warm-up concluso
+Quello che il tuning ottimizza e' quindi esattamente cio' che poi alleni.
 
+Il train_mode (e P, K, lambda_roll, warmup, detach_cross) e' FISSO per studio:
+scegli prima la modalita', poi lanci il tuning. Modi diversi hanno metriche non
+confrontabili -> studi diversi (il nome dello studio include modo e P).
+
+USO (dalla root della repo):
+  python src/net/Estimator/tuning/tune.py --train_mode supervised --p 10 --n_trials 50
 """
 import argparse
 import math
 import os
 import random
+import sys
 
 import numpy as np
 import optuna
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
 
-# flat import (come train_joint). In repo: from net.Joint.model import ...
-from net.Estimator.model   import build_models
-from net.Estimator.dataset import FishJointDataset
+SCRIPT_DIR    = os.path.dirname(os.path.abspath(__file__))
+ESTIMATOR_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+REPO_ROOT     = os.path.abspath(os.path.join(ESTIMATOR_DIR, "..", "..", ".."))
+sys.path.insert(0, ESTIMATOR_DIR)                 # train.py, model.py, dataset.py
+sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# epoche per fase ridotte: la val di FM tocca il minimo dopo ~10 epoche e poi
-# overfitta, quindi non serve girarne 50. Il best_val_fm (minimo lungo le
-# epoche) e' comunque catturato.
-EPOCHS_PER_PHASE = {1: 20, 2: 20, 3: 30}
-DEVICE = torch.device("cpu")
-
-# IM fissa: e' gia' a zero con qualunque config ragionevole, non la tuniamo.
-IM_ARCH = dict(gru_hidden_im=128, mlp_hidden_im=64, dropout_im=0.0)
-
+import train as T                                  # noqa: E402
+from model   import build_models, P as MODEL_P     # noqa: E402
+from dataset import FishJointDataset               # noqa: E402
 
 # ---------------------------------------------------------------- search space
+GRU_FM   = [64, 128, 256, 384, 512, 768, 1024]
+MLP_FM   = [32, 64, 128, 256, 512]
+GRU_IM   = [32, 64, 128, 256, 512]
+MLP_IM   = [16, 32, 64, 128, 256]
+BATCH    = [32, 64, 128, 256]
+LR       = (5e-5, 1e-2)
+WD       = (1e-6, 1e-1)
+DROP_FM  = (0.0, 0.5)
+DROP_IM  = (0.0, 0.3)
+CLIP     = [0.5, 1.0, 5.0]
 
-def suggest_phase1(trial):
-    """Fase 1 - architettura FM (GridSampler, 4x4 = 16 combinazioni)."""
-    gru_hidden = trial.suggest_categorical("gru_hidden", [64, 128, 256, 512])
-    mlp_hidden = trial.suggest_categorical("mlp_hidden", [32, 64, 128, 256])
+# config attuale di train.py: primo trial accodato, cosi' il tuning parte
+# almeno da li' (wd_im=0 non e' nel range log -> minimo del range)
+CURRENT_DEFAULTS = dict(
+    lr=0.0003585794155087849, batch_size=32,
+    gru_hidden_im=128, mlp_hidden_im=64, dropout_im=0.0, weight_decay_im=1e-6,
+    gru_hidden_fm=256, mlp_hidden_fm=128, dropout_fm=0.10842905375567242,
+    weight_decay_fm=2.5314946929205504e-05, clip_norm=1.0,
+)
+
+
+def suggest_params(trial):
     return dict(
-        gru_hidden=gru_hidden,
-        mlp_hidden=mlp_hidden,
-        lr=1e-3,
-        batch_size=64,
-        weight_decay=0.0,
-        dropout=0.0,
+        # FM
+        gru_hidden_fm   = trial.suggest_categorical("gru_hidden_fm", GRU_FM),
+        mlp_hidden_fm   = trial.suggest_categorical("mlp_hidden_fm", MLP_FM),
+        dropout_fm      = trial.suggest_float("dropout_fm", *DROP_FM),
+        weight_decay_fm = trial.suggest_float("weight_decay_fm", *WD, log=True),
+        # IM
+        gru_hidden_im   = trial.suggest_categorical("gru_hidden_im", GRU_IM),
+        mlp_hidden_im   = trial.suggest_categorical("mlp_hidden_im", MLP_IM),
+        dropout_im      = trial.suggest_float("dropout_im", *DROP_IM),
+        weight_decay_im = trial.suggest_float("weight_decay_im", *WD, log=True),
+        # condivisi
+        lr              = trial.suggest_float("lr", *LR, log=True),
+        batch_size      = trial.suggest_categorical("batch_size", BATCH),
+        clip_norm       = trial.suggest_categorical("clip_norm", CLIP),
     )
 
 
-def suggest_phase2(trial, best_arch):
-    """Fase 2 - lr, batch, weight_decay, dropout con TPE; architettura fissa."""
-    lr           = trial.suggest_float("lr", 1e-4, 5e-3, log=True)
-    batch_size   = trial.suggest_categorical("batch_size", [32, 64, 128])
-    weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-1, log=True)
-    dropout      = trial.suggest_float("dropout", 0.0, 0.35)
-    return dict(
-        gru_hidden=best_arch["gru_hidden"],
-        mlp_hidden=best_arch["mlp_hidden"],
-        lr=lr,
-        batch_size=batch_size,
-        weight_decay=weight_decay,
-        dropout=dropout,
-    )
+# ---------------------------------------------------------------- objective
 
+def make_objective(dataset, args, P, K, device):
+    min_epoch = args.roll_warmup if args.train_mode == "combo" else 0
 
-def suggest_phase3(trial, best_arch, best_training):
-    """Fase 3 - raffinamento attorno ai best delle fasi 1/2."""
-    arch_choices_gru = _neighbourhood([64, 128, 256, 512], best_arch["gru_hidden"])
-    arch_choices_mlp = _neighbourhood([32, 64, 128, 256],  best_arch["mlp_hidden"])
-    gru_hidden = trial.suggest_categorical("gru_hidden", arch_choices_gru)
-    mlp_hidden = trial.suggest_categorical("mlp_hidden", arch_choices_mlp)
+    def objective(trial):
+        hp = suggest_params(trial)
 
-    lr_center = best_training["lr"]
-    lr         = trial.suggest_float("lr", lr_center / 5, lr_center * 5, log=True)
-    batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
+        # seed per trial: riproducibile, e diverso tra trial
+        seed = 1000 + trial.number
+        random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
 
-    wd_center = best_training.get("weight_decay", 1e-4)
-    wd_lo = max(1e-5, wd_center / 5)
-    wd_hi = min(1e-1, wd_center * 5)
-    if wd_lo >= wd_hi:
-        wd_lo, wd_hi = 1e-5, 1e-1
-    weight_decay = trial.suggest_float("weight_decay", wd_lo, wd_hi, log=True)
+        IM, FM = build_models(
+            gru_hidden_im=hp["gru_hidden_im"], mlp_hidden_im=hp["mlp_hidden_im"],
+            gru_hidden_fm=hp["gru_hidden_fm"], mlp_hidden_fm=hp["mlp_hidden_fm"],
+            dropout_im=hp["dropout_im"], dropout_fm=hp["dropout_fm"], p=P)
+        IM, FM = IM.to(device), FM.to(device)
 
-    do_center = best_training.get("dropout", 0.1)
-    do_lo = max(0.0,  do_center - 0.15)
-    do_hi = min(0.35, do_center + 0.15)
-    dropout = trial.suggest_float("dropout", do_lo, do_hi)
-
-    return dict(
-        gru_hidden=gru_hidden,
-        mlp_hidden=mlp_hidden,
-        lr=lr,
-        batch_size=batch_size,
-        weight_decay=weight_decay,
-        dropout=dropout,
-    )
-
-
-def _neighbourhood(choices, best):
-    idx = choices.index(best)
-    lo = max(0, idx - 1)
-    hi = min(len(choices) - 1, idx + 1)
-    seen, out = set(), []
-    for v in choices[lo:hi + 1]:
-        if v not in seen:
-            seen.add(v)
-            out.append(v)
-    return out
-
-
-# -------------------------------------------------------------- training loop
-
-def run_trial(trial, params, dataset, n_epochs, ctx_dim):
-    # split a livello di trial, stesso seed -> confrontabile tra i trial Optuna
-    train_ds, val_ds = dataset.split_by_trial(val_frac=0.2, seed=42)
-    train_loader = DataLoader(train_ds, batch_size=params["batch_size"], shuffle=True)
-    val_loader   = DataLoader(val_ds,   batch_size=params["batch_size"])
-
-    # IM fissa + FM con gli iperparametri del trial
-    IM, FM = build_models(
-        gru_hidden_fm=params["gru_hidden"],
-        mlp_hidden_fm=params["mlp_hidden"],
-        dropout_fm=params["dropout"],
-        ctx_dim=ctx_dim,
-        **IM_ARCH,
-    )
-    IM.to(DEVICE); FM.to(DEVICE)
-
-    # un solo optimizer su entrambe (come train_joint), weight_decay applicato a
-    # tutti i parametri; IM e' comunque piccola e gia' risolta.
-    optimizer = torch.optim.Adam(
-        list(IM.parameters()) + list(FM.parameters()),
-        lr=params["lr"], weight_decay=params["weight_decay"])
-    mse = nn.MSELoss()
-    best_val_fm = float("inf")
-
-    for epoch in range(n_epochs):
-        IM.train(); FM.train()
-        for seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ in train_loader:
-            seq = torch.cat([seq_cmd, seq_sens], dim=-1)
-            pred_cmd,  _ = IM(seq, ctx)
-            pred_sens, _ = FM(seq, ctx)
-            loss = mse(pred_cmd, tgt_cmd) + mse(pred_sens, tgt_sens)
-
-            if not torch.isfinite(loss):
-                print(f"  Trial {trial.number} | Epoch {epoch:2d} | loss non finita -> pruned")
+        def on_epoch_end(epoch, va_sel, best_val, best_epoch):
+            if not math.isfinite(va_sel):
                 raise optuna.exceptions.TrialPruned()
+            if best_epoch < 0:            # combo in warm-up: nessun best ancora
+                return False
+            # il pruner vede il best-so-far (coerente col valore restituito)
+            trial.report(best_val, epoch)
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
+            # early stopping: nessun miglioramento da `patience` epoche
+            return epoch - best_epoch >= args.patience
 
-            optimizer.zero_grad()
-            loss.backward()
-            nn.utils.clip_grad_norm_(list(IM.parameters()) + list(FM.parameters()), max_norm=1.0)
-            optimizer.step()
-
-        # --- validation: metrica = SOLO FM ---
-        IM.eval(); FM.eval()
-        val_fm = 0.0
-        with torch.no_grad():
-            for seq_cmd, seq_sens, ctx, tgt_cmd, tgt_sens, _ in val_loader:
-                seq = torch.cat([seq_cmd, seq_sens], dim=-1)
-                pred_sens, _ = FM(seq, ctx)
-                val_fm += mse(pred_sens, tgt_sens).item()
-        val_fm /= len(val_loader)
-
-        if not math.isfinite(val_fm):
-            print(f"  Trial {trial.number} | Epoch {epoch:2d} | val nan -> pruned")
+        try:
+            _, _, hist = T.train(
+                IM, FM, dataset,
+                epochs=args.max_epochs, lr=hp["lr"], batch_size=hp["batch_size"],
+                checkpoint_dir=None, mode=args.train_mode,
+                detach_cross=args.detach_cross, rollout_steps=K,
+                lambda_roll=args.lambda_roll, roll_warmup=args.roll_warmup,
+                weight_decay_im=hp["weight_decay_im"],
+                weight_decay_fm=hp["weight_decay_fm"],
+                clip_norm=hp["clip_norm"],
+                save_checkpoints=False, on_epoch_end=on_epoch_end)
+        except RuntimeError as e:         # loss non finita (divergenza) o OOM
+            print(f"  Trial {trial.number} interrotto: {e}")
+            if device.type == "cuda":
+                torch.cuda.empty_cache()
             raise optuna.exceptions.TrialPruned()
 
-        best_val_fm = min(best_val_fm, val_fm)
-        print(f"  Trial {trial.number} | Epoch {epoch:2d} | val_FM {val_fm:.4f}")
-
-        trial.report(val_fm, epoch)
-        if trial.should_prune():
+        be = hist["best_epoch"]
+        if be < 0 or not math.isfinite(hist["best_val"]):
             raise optuna.exceptions.TrialPruned()
 
-    return best_val_fm
+        # diagnostica all'epoca del best (per leggere IM e FM separatamente)
+        trial.set_user_attr("best_epoch", be)
+        for k in ("val_sup", "val_roll", "val_im", "val_fm"):
+            trial.set_user_attr(k, float(hist[k][be]))
+        return hist["best_val"]
+
+    return objective
 
 
 # ------------------------------------------------------------------- utilities
@@ -195,150 +150,119 @@ def make_storage(url):
 
 def finite_trials(study):
     return [t for t in study.trials
-            if t.value is not None and math.isfinite(t.value)]
+            if t.state == optuna.trial.TrialState.COMPLETE
+            and t.value is not None and math.isfinite(t.value)]
 
 
-def top_phase1_archs(storage, k=2):
-    p1 = optuna.load_study(study_name="fish_fm_phase1", storage=storage)
-    ranked = sorted(finite_trials(p1), key=lambda t: t.value)
-    return [t.params for t in ranked[:k]]
-
-
-def best_phase2(storage):
-    archs = top_phase1_archs(storage, k=2)
-    best_val, best_training, best_arch = float("inf"), None, None
-    for rank, arch in enumerate(archs, start=1):
+def write_report(study, path, args, P, K):
+    ranked = sorted(finite_trials(study), key=lambda t: t.value)
+    n_pruned = sum(t.state == optuna.trial.TrialState.PRUNED for t in study.trials)
+    with open(path, "w") as f:
+        f.write(f"=== {study.study_name} | mode={args.train_mode} P={P} K={K} "
+                f"detach_cross={args.detach_cross} ===\n")
+        f.write(f"{len(ranked)} completati, {n_pruned} pruned\n")
+        for i, t in enumerate(ranked[:5]):
+            ua = t.user_attrs
+            f.write(f"\n  #{i+1}  val_sel={t.value:.5f}  (epoch {ua.get('best_epoch')}, "
+                    f"sup {ua.get('val_sup', float('nan')):.5f}, "
+                    f"roll {ua.get('val_roll', float('nan')):.5f}, "
+                    f"IM@1 {ua.get('val_im', float('nan')):.5f}, "
+                    f"FM@1 {ua.get('val_fm', float('nan')):.5f})\n")
+            for k, v in t.params.items():
+                f.write(f"    {k}: {v}\n")
+        if ranked:
+            b = ranked[0].params
+            f.write("\n=== Comando train.py con il best ===\n")
+            f.write(f"python3 src/net/Estimator/train.py --train_mode {args.train_mode} "
+                    f"--p {P}" + (f" --rollout_steps {K}" if args.train_mode != "supervised" else "")
+                    + (f" --lambda_roll {args.lambda_roll}" if args.train_mode != "supervised" else "")
+                    + (f" --roll_warmup {args.roll_warmup}" if args.train_mode == "combo" else "")
+                    + (" --detach_cross" if args.detach_cross else "")
+                    + "".join(f" --{k} {v}" for k, v in b.items()) + "\n")
         try:
-            s = optuna.load_study(study_name=f"fish_fm_phase2_arch{rank}", storage=storage)
-        except Exception:
-            continue
-        ft = finite_trials(s)
-        if not ft:
-            continue
-        b = min(ft, key=lambda t: t.value)
-        if b.value < best_val:
-            best_val, best_training, best_arch = b.value, b.params, arch
-    if best_training is None:
-        raise RuntimeError("Nessun trial valido negli studi di fase 2")
-    return best_arch, best_training, best_val
+            imp = optuna.importance.get_param_importances(study)
+            f.write("\n=== Importanza parametri (fANOVA) ===\n")
+            for k, v in imp.items():
+                f.write(f"  {k:16s} {v:.3f}\n")
+        except Exception as e:
+            f.write(f"\n(importanze non calcolabili: {e})\n")
 
 
 # ------------------------------------------------------------------------ main
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Staged Optuna tuning per FM (rete diretta congiunta)")
-    parser.add_argument("--phase", type=int, required=True, choices=[1, 2, 3])
-    parser.add_argument("--dataset_dir", default="./src/net/dataset")
-    parser.add_argument("--scaler_path",
-                        default=os.path.join(SCRIPT_DIR, "..", "..", "..", "..",
-                                             "src", "net", "scaler", "scalers_joint.pkl"))
-    parser.add_argument("--storage", default=f"sqlite:///{os.path.join(SCRIPT_DIR, 'tuning_results', 'optuna_fm.db')}")
-    parser.add_argument("--n_trials", type=int, default=None)
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--threads", type=int, default=4)
-    parser.add_argument("--seed", type=int, default=None,
-                        help="Seed TPE. None con worker paralleli (altrimenti campionano uguale).")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser(description="Tuning Optuna fase unica IM+FM")
+    # --- schema di training: FISSO per studio, stessi significati di train.py ---
+    ap.add_argument("--train_mode", default="supervised",
+                    choices=["supervised", "rollout", "combo"])
+    ap.add_argument("--p", type=int, default=MODEL_P)
+    ap.add_argument("--rollout_steps", type=int, default=None)
+    ap.add_argument("--lambda_roll", type=float, default=1.0)
+    ap.add_argument("--roll_warmup", type=int, default=10)
+    ap.add_argument("--detach_cross", action="store_true")
+    # --- tuning ---
+    ap.add_argument("--n_trials", type=int, default=50, help="trial di QUESTO worker")
+    ap.add_argument("--max_epochs", type=int, default=40)
+    ap.add_argument("--patience", type=int, default=15,
+                    help="early stopping per trial (> patience dello scheduler, 10)")
+    ap.add_argument("--study_name", default=None)
+    ap.add_argument("--storage", default=f"sqlite:///{os.path.join(SCRIPT_DIR, 'tuning_results', 'optuna_joint.db')}")
+    ap.add_argument("--no_warm_start", action="store_true",
+                    help="non accodare la config attuale di train.py come primo trial")
+    ap.add_argument("--seed", type=int, default=None, help="seed TPE (None con piu' worker)")
+    # --- dati / hardware ---
+    ap.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
+    ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl"))
+    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--threads", type=int, default=4)
+    args = ap.parse_args()
 
-    random.seed(42); np.random.seed(42); torch.manual_seed(42)
+    # stessa logica di train.py per K e T
+    P = args.p
+    uses_roll = args.train_mode in ("rollout", "combo")
+    K = args.rollout_steps if args.rollout_steps is not None else max(P, 10)
+    T_len = K + P - 1 if uses_roll else P
+    if args.train_mode == "combo" and args.max_epochs <= args.roll_warmup + args.patience:
+        ap.error("--max_epochs troppo piccolo rispetto a roll_warmup + patience")
+
     torch.set_num_threads(args.threads)
-    DEVICE = torch.device(args.device)
-    if DEVICE.type == "cuda":
+    device = torch.device(args.device)
+    if device.type == "cuda":
         torch.backends.cudnn.benchmark = True
-    print(f"Device: {DEVICE} | threads: {args.threads}")
-    print("Tuning della SOLA FM (IM fissa). Metrica: val loss di FM.")
+    T.DEVICE = device
 
-    default_trials = {1: 16, 2: 30, 3: 50}
-    n_trials = args.n_trials if args.n_trials is not None else default_trials[args.phase]
-    n_epochs = EPOCHS_PER_PHASE[args.phase]
-
+    study_name = args.study_name or (
+        f"joint_{args.train_mode}_p{P}" + (f"_k{K}" if uses_roll else "")
+        + ("_detach" if args.detach_cross else ""))
     os.makedirs(os.path.join(SCRIPT_DIR, "tuning_results"), exist_ok=True)
-    storage = make_storage(args.storage)
 
-    print(f"=== FASE {args.phase} | {n_trials} trial (questo worker) | {n_epochs} epoche ===\n")
+    print(f"Studio: {study_name} | device {device} | mode={args.train_mode} P={P} "
+          f"K={K if uses_roll else '-'} T={T_len}")
     print("Caricamento dataset...")
-    dataset = FishJointDataset(args.dataset_dir, scaler_path=args.scaler_path).to(DEVICE)
-    ctx_dim = None  # letto dopo lo split, dal tensore context
-    # forziamo la costruzione delle finestre una volta per leggere ctx_dim
-    dataset.split_by_trial(val_frac=0.2, seed=42)
-    ctx_dim = int(dataset.context.shape[-1])
-    print(f"ctx_dim: {ctx_dim}")
+    dataset = FishJointDataset(args.dataset_dir, p=T_len,
+                               scaler_path=args.scaler_path).to(device)
 
-    study_name = f"fish_fm_phase{args.phase}"
+    sampler = optuna.samplers.TPESampler(
+        seed=args.seed, multivariate=True, group=True,
+        constant_liar=True, n_startup_trials=25)
+    warmup_steps = (args.roll_warmup if args.train_mode == "combo" else 0) + 8
+    pruner = optuna.pruners.MedianPruner(n_startup_trials=15, n_warmup_steps=warmup_steps)
 
-    if args.phase == 1:
-        search_space = {"gru_hidden": [64, 128, 256, 512],
-                        "mlp_hidden": [32, 64, 128, 256]}
-        sampler = optuna.samplers.GridSampler(search_space, seed=args.seed)
-        study = optuna.create_study(
-            study_name=study_name, direction="minimize", storage=storage,
-            load_if_exists=True, sampler=sampler, pruner=optuna.pruners.NopPruner())
+    study = optuna.create_study(
+        study_name=study_name, direction="minimize",
+        storage=make_storage(args.storage), load_if_exists=True,
+        sampler=sampler, pruner=pruner)
 
-        def objective_p1(trial):
-            return run_trial(trial, suggest_phase1(trial), dataset, n_epochs, ctx_dim)
-        study.optimize(objective_p1, n_trials=n_trials, n_jobs=4)
+    if not args.no_warm_start and len(study.trials) == 0:
+        study.enqueue_trial(CURRENT_DEFAULTS, skip_if_exists=True)
+        print("Primo trial = config attuale di train.py")
 
-    elif args.phase == 2:
-        archs = top_phase1_archs(storage, k=2)
-        for rank, best_arch in enumerate(archs, start=1):
-            sub = f"fish_fm_phase2_arch{rank}"
-            print(f"\n--- Fase 2, arch #{rank}: gru={best_arch['gru_hidden']}, mlp={best_arch['mlp_hidden']} ---\n")
-            study = optuna.create_study(
-                study_name=sub, direction="minimize", storage=storage,
-                load_if_exists=True, sampler=optuna.samplers.TPESampler(seed=args.seed),
-                pruner=optuna.pruners.MedianPruner(n_warmup_steps=5))
+    study.optimize(make_objective(dataset, args, P, K, device),
+                   n_trials=args.n_trials, gc_after_trial=True)
 
-            def make_obj(arch):
-                def obj(trial):
-                    return run_trial(trial, suggest_phase2(trial, arch), dataset, n_epochs, ctx_dim)
-                return obj
-            study.optimize(make_obj(best_arch), n_trials=n_trials)
-
-    elif args.phase == 3:
-        best_arch, best_training, p2_val = best_phase2(storage)
-        print(f"Best arch: gru={best_arch['gru_hidden']}, mlp={best_arch['mlp_hidden']}")
-        print(f"Best training: lr={best_training['lr']:.2e}, batch={best_training['batch_size']}, "
-              f"wd={best_training['weight_decay']:.2e}, dropout={best_training['dropout']:.2f} (val {p2_val:.4f})\n")
-        study = optuna.create_study(
-            study_name=study_name, direction="minimize", storage=storage,
-            load_if_exists=True, sampler=optuna.samplers.TPESampler(seed=args.seed),
-            pruner=optuna.pruners.MedianPruner(n_warmup_steps=8))
-
-        def objective_p3(trial):
-            return run_trial(trial, suggest_phase3(trial, best_arch, best_training), dataset, n_epochs, ctx_dim)
-        study.optimize(objective_p3, n_trials=n_trials)
-
-    print(f"\n=== Migliori iperparametri FM - Fase {args.phase} ===")
+    report = os.path.join(SCRIPT_DIR, "tuning_results", f"best_{study_name}.txt")
+    write_report(study, report, args, P, K)
+    print(f"\nBest val: {study.best_value:.5f}")
     for k, v in study.best_params.items():
         print(f"  {k}: {v}")
-    print(f"  best val_FM: {study.best_value:.4f}")
-
-    results_path = os.path.join(SCRIPT_DIR, "tuning_results", f"best_fm_phase{args.phase}.txt")
-    with open(results_path, "w") as f:
-        p1 = optuna.load_study(study_name="fish_fm_phase1", storage=storage)
-        f.write("=== Fase 1 - architettura FM (top 2) ===\n  (lr 1e-3, batch 64, wd 0, dropout 0 - fissi)\n")
-        for i, t in enumerate(sorted(finite_trials(p1), key=lambda t: t.value)[:2]):
-            f.write(f"\n  #{i+1}  val_FM={t.value:.4f}\n")
-            for k, v in t.params.items():
-                f.write(f"    {k}: {v}\n")
-        if args.phase >= 2:
-            f.write("\n=== Fase 2 - training (top 2 per arch) ===\n")
-            for rank in (1, 2):
-                try:
-                    s = optuna.load_study(study_name=f"fish_fm_phase2_arch{rank}", storage=storage)
-                except Exception:
-                    continue
-                f.write(f"\n  -- arch #{rank} --\n")
-                for i, t in enumerate(sorted(finite_trials(s), key=lambda t: t.value)[:2]):
-                    f.write(f"  #{i+1}  val_FM={t.value:.4f}\n")
-                    for k, v in t.params.items():
-                        f.write(f"    {k}: {v}\n")
-        if args.phase >= 3:
-            p3 = optuna.load_study(study_name="fish_fm_phase3", storage=storage)
-            f.write("\n=== Fase 3 - tuning finale (top 2) ===\n")
-            for i, t in enumerate(sorted(finite_trials(p3), key=lambda t: t.value)[:2]):
-                f.write(f"\n  #{i+1}  val_FM={t.value:.4f}\n")
-                for k, v in t.params.items():
-                    f.write(f"    {k}: {v}\n")
-
-    print(f"\nRisultati salvati in {results_path}")
+    print(f"Report: {report}")

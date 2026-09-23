@@ -1,41 +1,38 @@
 #!/usr/bin/env bash
-# Lancia N worker paralleli sulla stessa fase del tuning FM, storage sqlite condiviso.
-# Uso:  ./run_tuning_fm.sh <fase> [n_worker] [trial_totali]
+# Lancia N worker paralleli sullo stesso studio Optuna (fase unica IM+FM).
+# Uso:  ./run_tuning.sh <n_worker> <trial_totali> [argomenti per tune.py...]
+# Es.:  ./run_tuning.sh 4 200 --train_mode supervised --p 10
+#       ./run_tuning.sh 2 120 --train_mode combo --p 1 --rollout_steps 10 --lambda_roll 1.0
 set -euo pipefail
 
-PHASE=${1:?Uso: ./run_tuning_fm.sh <fase 1|2|3> [n_worker] [trial_totali]}
-WORKERS=${2:-4}
-
-# trial totali di default per fase (fase 2: PER architettura)
-declare -A DEFAULT_TOTAL=( [1]=16 [2]=30 [3]=50 )
-TOTAL=${3:-${DEFAULT_TOTAL[$PHASE]}}
+WORKERS=${1:?Uso: ./run_tuning.sh <n_worker> <trial_totali> [args tune.py]}
+TOTAL=${2:?Uso: ./run_tuning.sh <n_worker> <trial_totali> [args tune.py]}
+shift 2
 PER_WORKER=$(( (TOTAL + WORKERS - 1) / WORKERS ))
 
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
-
-# rende importabile il package 'net' (che vive dentro src/)
 export PYTHONPATH="$(pwd)/src:${PYTHONPATH:-}"
 
-TUNE_PY="src/net/Estimator/tuning/tune_joint.py"
+TUNE_PY="src/net/Estimator/tuning/tune.py"
 OUT_DIR="src/net/Estimator/tuning/tuning_results"
+LOG_DIR="${OUT_DIR}/logs_tuning"
+mkdir -p "${LOG_DIR}"
 
-mkdir -p "${OUT_DIR}/tuning_results" "${OUT_DIR}/logs_tuning"
-
-echo "Tuning FM | Fase $PHASE | $WORKERS worker x $PER_WORKER trial = ~$TOTAL trial totali"
+STAMP=$(date +%Y%m%d_%H%M)
+echo "Tuning IM+FM | $WORKERS worker x $PER_WORKER trial = ~$TOTAL | args: $*"
 
 for i in $(seq 1 "$WORKERS"); do
-    nohup python -u "$TUNE_PY" \
-        --phase    "$PHASE" \
-        --n_trials "$PER_WORKER" \
-        --threads  4 \
-        --device   cuda \
-        > "${OUT_DIR}/logs_tuning/phase${PHASE}_w${i}.log" 2>&1 &
-    echo "  worker $i -> PID $!  (log: ${OUT_DIR}/logs_tuning/phase${PHASE}_w${i}.log)"
-    sleep 2   # sfasa la creazione degli studi su sqlite
+  EXTRA=()
+  # solo il primo worker accoda la config attuale di train.py
+  if [ "$i" -ne 1 ]; then EXTRA=(--no_warm_start); fi
+  LOG="${LOG_DIR}/${STAMP}_w${i}.log"
+  nohup python -u "$TUNE_PY" --n_trials "$PER_WORKER" --threads 4 --device cuda \
+    ${EXTRA[@]+"${EXTRA[@]}"} "$@" > "$LOG" 2>&1 &
+  echo "  worker $i -> PID $!  (log: $LOG)"
+  sleep 3   # sfasa la creazione dello studio su sqlite
 done
 
 echo
-echo "Monitoraggio:  tail -f ${OUT_DIR}/logs_tuning/phase${PHASE}_w1.log"
-echo "GPU:           nvtop"
-echo "Attendi fine:  wait"
+echo "Monitoraggio:  tail -f ${LOG_DIR}/${STAMP}_w1.log"
+echo "Dashboard:     optuna-dashboard sqlite:///${OUT_DIR}/optuna_joint.db"
