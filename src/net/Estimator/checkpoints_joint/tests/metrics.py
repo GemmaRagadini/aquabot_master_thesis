@@ -6,6 +6,16 @@ comando [tail_target]. Testa singola a P passi. Forward a hidden incrociato:
   h_im = GRU_IM(comandi) ; h_fm = GRU_FM(sensori)
   IM.decode(h_im, h_fm, ctx) -> comando ; FM.decode(h_fm, h_im, ctx) -> sensori
 
+Due modalita' di valutazione:
+  OPEN-LOOP (default): predizione diretta della testa, t+1..t+P dalla storia vera.
+  CLOSED-LOOP (--closed_loop N): rollout autoregressivo accoppiato IM+FM per N
+      passi. A ogni passo entrambe le reti predicono t+1 (slice 0 della testa),
+      la predizione rientra nel proprio buffer (si butta il campione piu' vecchio)
+      e, via hidden incrociato, raggiunge anche l'altra rete al passo successivo.
+      Il contesto [amp, freq, center] resta fisso (come in rollout_loss di train.py).
+      Si confronta la traiettoria predetta con i valori VERI t+1..t+N.
+      Con N=10 riempie anche la colonna 'avg' dei modelli P=1.
+
 Cosa calcolare si sceglie con i FLAG, cosi' ogni run riempie una fetta della
 tabella e i risultati si accumulano in un CSV MASTER (merge per chiave
 trial+split). Senza flag calcola il MINIMO essenziale (RMSE+nRMSE+R2 a t+1,
@@ -13,13 +23,25 @@ baseline persist).
 
 Flag principali:
   --metrics  rmse mae nrmse r2      quali metriche (default: rmse nrmse r2)
-  --steps    first avg last         quale posizione d'orizzonte (default: first)
+  --steps    first avg last         quale posizione d'orizzonte
+                                    (default: first; in closed-loop: first avg last)
   --baseline persist | none         baseline per skill score (default: persist)
   --channels sensor_diff current cmd (default: tutti)
   --agg      per_trial | pooled | both  righe riassuntive (default: both)
   --summary_only                    scrivi solo MEDIA/pooled, non i singoli trial
+                                    (sempre attivo in closed-loop)
   --all_trials                      includi anche i trial di train
   --overwrite                       ignora il master esistente e riscrivilo
+  --closed_loop N                   valutazione closed-loop su N passi
+
+In closed-loop:
+  - le colonne sono le STESSE dell'open-loop: il suffisso _1 = t+1, _avg = media
+    su t+1..t+N, _P = t+N. La colonna <canale>_P riporta il P della TESTA del
+    modello; l'orizzonte N e' indicato nello split (es. MEDIA_val_CL10), cosi' le
+    righe closed-loop si aggiungono al master senza sovrascrivere quelle open-loop.
+  - il dataset e' costruito con target lunghi N: il numero di finestre per trial
+    cala con N (coda del trial), quindi il set di finestre differisce un po'
+    dall'open-loop. I trial sono gli stessi (split per trial fisso).
 
 Metriche:
   RMSE, MAE in unita' reali (inverse_transform mono-canale).
@@ -28,20 +50,24 @@ Metriche:
   Baseline PERSISTENZA: predizione = valore vero a t. skill = 1 - modello/persist.
 
 Uso:
-  python3 .../metrics_per_trial_joint.py --checkpoint .../best_sup_p10.pt
-  python3 .../metrics_per_trial_joint.py --checkpoint .../best_sup_p10.pt \
+  python3 .../metrics.py --checkpoint .../best_sup_p10.pt
+  python3 .../metrics.py --checkpoint .../best_sup_p10.pt \
       --metrics rmse nrmse r2 mae --steps first avg last --csv_out master.csv
+  # closed-loop su 10 passi (1 s) e 50 passi (5 s)
+  python3 .../metrics.py --checkpoint .../best_sup_p1.pt --closed_loop 10 --csv_out master.csv
+  python3 .../metrics.py --checkpoint .../best_sup_p1.pt --closed_loop 50 --csv_out master.csv
 """
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.Estimator.model   import build_models
@@ -89,9 +115,32 @@ def dims_from_state(sd):
     return int(gru_hidden), int(mlp_hidden)
 
 
-def run_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
+def rollout_predict(IM, FM, seq_cmd, seq_sens, ctx, n_steps):
+    """Closed-loop accoppiato IM+FM su n_steps passi (senza gradiente).
+
+    A ogni passo: encode dei buffer correnti, decode a hidden incrociato, si
+    prende solo t+1 (slice 0) e lo si reimmette nel proprio buffer. Ctx fisso.
+    Ritorna (pred_cmd (b, N, 1), pred_sens (b, N, 2))."""
+    buf_cmd, buf_sens = seq_cmd, seq_sens
+    pcs, pss = [], []
+    for _ in range(n_steps):
+        h_im = IM.encode(buf_cmd)
+        h_fm = FM.encode(buf_sens)
+        c1 = IM.decode(h_im, h_fm, ctx)[:, :1, :]   # (b, 1, 1)
+        s1 = FM.decode(h_fm, h_im, ctx)[:, :1, :]   # (b, 1, 2)
+        pcs.append(c1)
+        pss.append(s1)
+        buf_cmd  = torch.cat([buf_cmd[:, 1:, :],  c1], dim=1)
+        buf_sens = torch.cat([buf_sens[:, 1:, :], s1], dim=1)
+    return torch.cat(pcs, dim=1), torch.cat(pss, dim=1)
+
+
+def run_trial(dataset, IM, FM, device, trial_idx, batch_size=256, closed_loop=None):
     """Forward a hidden incrociato su tutte le finestre del trial. Ritorna, in
-    scala normalizzata, i P passi predetti/veri e il valore vero a t (persist)."""
+    scala normalizzata, i passi predetti/veri e il valore vero a t (persist).
+
+    closed_loop=None -> open-loop: i P passi della testa in un colpo.
+    closed_loop=N    -> rollout autoregressivo su N passi (target lunghi N)."""
     idxs = np.nonzero(dataset.window_trial == trial_idx)[0]
     idxs.sort()
     if len(idxs) == 0:
@@ -100,8 +149,8 @@ def run_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
     seq_cmd  = dataset.seq_cmd[idxs]
     seq_sens = dataset.seq_sens[idxs]
     ctx      = dataset.context[idxs]
-    tgt_cmd  = dataset.tgt_cmd[idxs]      # (n, P, 1)
-    tgt_sens = dataset.tgt_sens[idxs]     # (n, P, 2)
+    tgt_cmd  = dataset.tgt_cmd[idxs]      # (n, P o N, 1)
+    tgt_sens = dataset.tgt_sens[idxs]     # (n, P o N, 2)
 
     last_cmd = seq_cmd[:, -1, 0].cpu().numpy()   # valore vero a t (persistenza)
     last_sd  = seq_sens[:, -1, 0].cpu().numpy()
@@ -113,10 +162,13 @@ def run_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
             sc = seq_cmd[s:s + batch_size].to(device)
             ss = seq_sens[s:s + batch_size].to(device)
             cx = ctx[s:s + batch_size].to(device)
-            h_im = IM.encode(sc)                 # GRU_IM sui comandi
-            h_fm = FM.encode(ss)                # GRU_FM sui sensori
-            pc = IM.decode(h_im, h_fm, cx)       # (b, P, 1)
-            ps = FM.decode(h_fm, h_im, cx)       # (b, P, 2)
+            if closed_loop:
+                pc, ps = rollout_predict(IM, FM, sc, ss, cx, closed_loop)
+            else:
+                h_im = IM.encode(sc)                 # GRU_IM sui comandi
+                h_fm = FM.encode(ss)                 # GRU_FM sui sensori
+                pc = IM.decode(h_im, h_fm, cx)       # (b, P, 1)
+                ps = FM.decode(h_fm, h_im, cx)       # (b, P, 2)
             p_cmd_all.append(pc.cpu())
             p_sens_all.append(ps.cpu())
 
@@ -130,8 +182,8 @@ def run_trial(dataset, IM, FM, device, trial_idx, batch_size=256):
 
 
 def channel_steps_real(out, ch, scaler):
-    """Per un canale ritorna una lista lunga P: (pred_real, true_real, persist_real)
-    a ciascun passo dell'orizzonte, in unita' reali."""
+    """Per un canale ritorna una lista lunga quanto l'orizzonte valutato:
+    (pred_real, true_real, persist_real) a ciascun passo, in unita' reali."""
     if ch == "cmd":
         pred = out["pred"]["cmd"][:, :, 0]   # (n, P)
         true = out["tgt"]["cmd"][:, :, 0]
@@ -153,12 +205,14 @@ def channel_steps_real(out, ch, scaler):
 
 
 # ------------------------------- colonne per canale -------------------------------
-def channel_columns(ch, steps_real, metrics, steps, baseline):
+def channel_columns(ch, steps_real, metrics, steps, baseline, p_label=None):
     """Costruisce le colonne per un canale secondo i flag selezionati.
-    steps_real: lista P di (pred_real, true_real, persist_real)."""
+    steps_real: lista (orizzonte) di (pred_real, true_real, persist_real).
+    p_label: valore da scrivere in <ch>_P (default: lunghezza dell'orizzonte;
+    in closed-loop si passa il P della testa del modello)."""
     P = len(steps_real)
     idx_of = {"first": [0], "last": [P - 1], "avg": list(range(P))}
-    cols = {f"{ch}_net": CH_NET[ch], f"{ch}_P": P}
+    cols = {f"{ch}_net": CH_NET[ch], f"{ch}_P": p_label if p_label is not None else P}
     skill_metrics = [m for m in metrics if m in SKILL_METRICS] if baseline == "persist" else []
 
     for st in steps:
@@ -200,18 +254,19 @@ def column_order(channels, metrics, steps, baseline):
 # ------------------------------- merge nel master -------------------------------
 def row_sort_key(trial, split):
     if str(trial).startswith("== MEDIA"):
-        return (3, str(trial))
+        return (3, str(trial), str(split))
     if str(trial).startswith("== COMPLESSIVO"):
-        return (4, str(trial))
-    return ({"val": 0, "train": 1}.get(split, 2), str(trial))
+        return (4, str(trial), str(split))
+    return ({"val": 0, "train": 1}.get(split, 2), str(trial), str(split))
 
 
 def merge_into_master(df_new, master_path, overwrite=False):
     """Unisce df_new nel CSV master per chiave (trial, split): le colonne calcolate
     in questo run sovrascrivono/aggiungono quelle vecchie, le altre restano;
-    righe nuove vengono aggiunte. Ritorna il DataFrame combinato."""
+    righe nuove vengono aggiunte. Ritorna il DataFrame combinato.
+    Senza master_path (None) ritorna df_new cosi' com'e'."""
     key = ["trial", "split"]
-    if overwrite or not os.path.exists(master_path):
+    if overwrite or master_path is None or not os.path.exists(master_path):
         combined = df_new.copy()
     else:
         df_old = pd.read_csv(master_path)
@@ -228,13 +283,11 @@ def merge_into_master(df_new, master_path, overwrite=False):
               [c for c in new_cols if c in combined.columns] + rest
     combined = combined[ordered]
 
-    # ordine righe: val, train, poi MEDIA, poi COMPLESSIVO
-    combined = combined.sort_values(
-        by=key, key=lambda col: col if col.name not in key else col,
-        kind="stable")
+    # ordine righe: val, train, poi MEDIA, poi COMPLESSIVO (a parita', per split)
     combined["_sk"] = [row_sort_key(t, s) for t, s in
                        zip(combined["trial"], combined["split"])]
-    combined = combined.sort_values("_sk").drop(columns="_sk").reset_index(drop=True)
+    combined = combined.sort_values("_sk", kind="stable").drop(columns="_sk") \
+                       .reset_index(drop=True)
     return combined
 
 
@@ -252,15 +305,17 @@ def main():
     ap.add_argument("--overwrite", action="store_true",
                     help="ignora il master esistente e riscrivilo da zero")
     ap.add_argument("--p", type=int, default=None,
-                    help="orizzonte P del dataset. Default: il P del checkpoint.")
+                    help="orizzonte P del dataset (solo open-loop). Default: il P del checkpoint.")
 
     # --- selezione di COSA calcolare ---
     ap.add_argument("--metrics", nargs="+", default=["rmse", "nrmse", "r2"],
                     choices=["rmse", "mae", "nrmse", "r2"],
                     help="quali metriche (default: rmse nrmse r2).")
-    ap.add_argument("--steps", nargs="+", default=["first"],
+    ap.add_argument("--steps", nargs="+", default=None,
                     choices=["first", "avg", "last"],
-                    help="posizione d'orizzonte: first=t+1, avg=media su P, last=t+P.")
+                    help="posizione d'orizzonte: first=t+1, avg=media sull'orizzonte, "
+                         "last=ultimo passo. Default: first (open-loop), "
+                         "first avg last (closed-loop).")
     ap.add_argument("--baseline", default="persist", choices=["persist", "none"],
                     help="baseline per lo skill score (default: persist).")
     ap.add_argument("--channels", nargs="+", default=ALL_CHANNELS_DEFAULT,
@@ -270,23 +325,53 @@ def main():
                     help="righe riassuntive da aggiungere (default: both).")
     ap.add_argument("--summary_only", action="store_true",
                     help="scrivi solo le righe MEDIA/pooled, non i singoli trial.")
+
+    # --- closed-loop ---
+    ap.add_argument("--closed_loop", type=int, default=None, metavar="N",
+                    help="valutazione CLOSED-LOOP: rollout autoregressivo accoppiato "
+                         "IM+FM su N passi (reimmette solo t+1, ctx fisso). Scrive "
+                         "solo le righe MEDIA/pooled, con split *_CL<N>.")
     args = ap.parse_args()
+
+    closed = args.closed_loop
+    if closed is not None and closed < 1:
+        ap.error("--closed_loop deve essere >= 1")
 
     device = torch.device(args.device)
 
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    P_ckpt = ckpt.get("P", 1)
-    P = args.p if args.p is not None else P_ckpt
-    if args.p is not None and args.p != P_ckpt:
-        print(f"[avviso] --p={args.p} diverso dal P del checkpoint ({P_ckpt}).")
-    print(f"P usato per il dataset: {P} (checkpoint: {P_ckpt})")
+    P_ckpt = ckpt.get("P", 1)       # P della TESTA del modello
 
-    # 'first'/'last' coincidono con P=1: dedup silenzioso mantenendo l'ordine
+    if closed:
+        if args.p is not None:
+            print("[avviso] --p ignorato in closed-loop: i target sono lunghi N.",
+                  file=sys.stderr)
+        P_data = closed             # target t+1..t+N
+        args.summary_only = True    # in closed-loop solo MEDIA/pooled
+        print(f"CLOSED-LOOP: N={closed} passi | P testa (checkpoint)={P_ckpt}")
+    else:
+        P_data = args.p if args.p is not None else P_ckpt
+        if args.p is not None and args.p != P_ckpt:
+            print(f"[avviso] --p={args.p} diverso dal P del checkpoint ({P_ckpt}).")
+        print(f"OPEN-LOOP: P usato per il dataset: {P_data} (checkpoint: {P_ckpt})")
+
+    # steps di default: open -> solo t+1 ; closed -> t+1, media, t+N
+    if args.steps is None:
+        args.steps = ["first", "avg", "last"] if closed else ["first"]
     steps = list(dict.fromkeys(args.steps))
-    if P == 1 and any(s in steps for s in ("avg", "last")):
-        print("[avviso] P=1: 'avg' e 'last' coincidono con 'first'.", file=sys.stderr)
+    if P_data == 1 and any(s in steps for s in ("avg", "last")):
+        print("[avviso] orizzonte 1: 'avg' e 'last' coincidono con 'first'.", file=sys.stderr)
 
-    dataset = FishJointDataset(args.dataset_dir, p=P, scaler_path=args.scaler_path)
+    dataset = FishJointDataset(args.dataset_dir, p=P_data, scaler_path=args.scaler_path)
+
+    # lo split per trial dipende dal NUMERO di trial letti: se con target piu'
+    # lunghi qualche trial corto viene scartato, lo split cambierebbe.
+    n_csv = len(list(Path(args.dataset_dir).glob("trial_*.csv")))
+    if len(dataset.trial_names) != n_csv:
+        print(f"[ATTENZIONE] letti {len(dataset.trial_names)} trial su {n_csv} CSV "
+              f"(orizzonte {P_data}): lo split train/val NON e' confrontabile con "
+              f"le altre valutazioni. Riduci N.", file=sys.stderr)
+
     _, val_ds = dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
     val_trials = set(int(i) for i in np.unique(
         dataset.window_trial[np.asarray(val_ds.indices)]))
@@ -295,18 +380,23 @@ def main():
     gh_im, mh_im = dims_from_state(ckpt["im_state"])
     gh_fm, mh_fm = dims_from_state(ckpt["fm_state"])
     print(f"Dimensioni dal checkpoint: IM gru={gh_im} mlp={mh_im} | "
-          f"FM gru={gh_fm} mlp={mh_fm} | P={P} | ctx_static={ctx_static}")
+          f"FM gru={gh_fm} mlp={mh_fm} | P testa={P_ckpt} | ctx_static={ctx_static}")
 
     ds_ctx = int(dataset.context.shape[-1])
     if ctx_static != ds_ctx:
         raise ValueError(f"MISMATCH contesto: checkpoint ctx_static={ctx_static} ma "
                          f"il dataset ne produce {ds_ctx}.")
 
+    # il modello ha SEMPRE la testa del checkpoint (in closed-loop P_data != P_ckpt)
     IM, FM = build_models(gru_hidden_im=gh_im, mlp_hidden_im=mh_im,
                           gru_hidden_fm=gh_fm, mlp_hidden_fm=mh_fm,
-                          p=P, ctx_static=ctx_static)
+                          p=P_ckpt, ctx_static=ctx_static)
     IM.load_state_dict(ckpt["im_state"]); IM.to(device).eval()
     FM.load_state_dict(ckpt["fm_state"]); FM.to(device).eval()
+
+    if not closed and P_data != P_ckpt:
+        raise ValueError(f"Open-loop: il dataset (P={P_data}) deve avere lo stesso "
+                         f"orizzonte della testa (P={P_ckpt}).")
 
     channels = list(dict.fromkeys(args.channels))
     print(f"Metriche: {args.metrics} | steps: {steps} | baseline: {args.baseline} | "
@@ -318,13 +408,17 @@ def main():
     if args.summary_only:
         print("summary_only: i singoli trial non verranno scritti (solo MEDIA/pooled).")
 
+    # suffisso dello split: distingue le righe closed-loop nel master
+    split_suf = f"_CL{closed}" if closed else ""
+    p_label = P_ckpt if closed else None
+
     # accumulatori per il POOLED: per canale e passo, gli array reali di tutti i trial
-    pool = {ch: None for ch in channels}   # ch -> lista P di dict{pred,true,persist}
+    pool = {ch: None for ch in channels}   # ch -> lista di dict{pred,true,persist}
 
     rows = []
     per_trial_metric_rows = []   # solo colonne metriche, per la MEDIA per-trial
     for ti in trials:
-        out = run_trial(dataset, IM, FM, device, ti)
+        out = run_trial(dataset, IM, FM, device, ti, closed_loop=closed)
         if out is None:
             continue
         split = "val" if ti in val_trials else "train"
@@ -335,7 +429,8 @@ def main():
         for ch in channels:
             sc = dataset.scalers[CH_TO_KEY[ch]]
             steps_real = channel_steps_real(out, ch, sc)
-            cols = channel_columns(ch, steps_real, args.metrics, steps, args.baseline)
+            cols = channel_columns(ch, steps_real, args.metrics, steps, args.baseline,
+                                   p_label=p_label)
             row.update(cols)
             metric_only.update({k: v for k, v in cols.items()
                                 if not k.endswith("_net")})  # _P resta (int)
@@ -363,7 +458,7 @@ def main():
     # --- riga MEDIA per-trial (ogni trial pesa uguale) ---
     if args.agg in ("per_trial", "both"):
         mean_row = {"trial": "== MEDIA per-trial ==",
-                    "split": "MEDIA_val" if not args.all_trials else "MEDIA_all",
+                    "split": ("MEDIA_val" if not args.all_trials else "MEDIA_all") + split_suf,
                     "n_finestre": len(per_trial_metric_rows)}
         allkeys = set().union(*[set(r) for r in per_trial_metric_rows])
         for k in allkeys:
@@ -380,7 +475,7 @@ def main():
     # --- riga POOLED (tutte le finestre insieme) ---
     if args.agg in ("pooled", "both"):
         pooled_row = {"trial": "== COMPLESSIVO (pooled) ==",
-                      "split": "POOLED_val" if not args.all_trials else "POOLED_all",
+                      "split": ("POOLED_val" if not args.all_trials else "POOLED_all") + split_suf,
                       "n_finestre": None}
         n_pool = 0
         for ch in channels:
@@ -389,7 +484,8 @@ def main():
                            np.concatenate(pool[ch][k]["persist"]))
                           for k in range(len(pool[ch]))]
             n_pool = len(steps_real[0][0])
-            cols = channel_columns(ch, steps_real, args.metrics, steps, args.baseline)
+            cols = channel_columns(ch, steps_real, args.metrics, steps, args.baseline,
+                                   p_label=p_label)
             pooled_row.update(cols)
         pooled_row["n_finestre"] = n_pool
         rows.append(pooled_row)
@@ -409,8 +505,14 @@ def main():
     print()
     print(combined.to_string(index=False))
 
-    combined.to_csv(args.csv_out, index=False)
-    print(f"\nMaster aggiornato: {args.csv_out}")
+    if args.csv_out:
+        combined.to_csv(args.csv_out, index=False)
+        print(f"\nMaster aggiornato: {args.csv_out}")
+    else:
+        print("\n(nessun --csv_out: risultati solo a schermo)")
+    if closed:
+        print(f"Closed-loop N={closed}: suffissi _1 = t+1, _avg = media t+1..t+{closed}, "
+              f"_P = t+{closed}. <canale>_P = P della testa ({P_ckpt}).")
     print("Unita': " + ", ".join(f"{ch}={CH_UNIT[ch]}" for ch in channels))
 
 

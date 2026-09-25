@@ -53,7 +53,7 @@ import pandas as pd
 import torch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", "..",".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 from net.Estimator.model   import build_models

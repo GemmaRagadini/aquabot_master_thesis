@@ -31,7 +31,7 @@ import pandas as pd
 import torch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 # flat import (come train_joint). In repo: from net.Joint.model import ...
@@ -42,7 +42,7 @@ from net.Estimator.dataset import FishJointDataset
 FM_CHANNELS = ["sensor_diff", "current"]
 IM_CHANNELS = ["tail_target"]
 CHANNEL_TO_SCALER_KEY = {"sensor_diff": "sd", "current": "vf", "tail_target": "cmd"}
-CHANNEL_UNIT = {"sensor_diff": "unita' sensore", "current": "mA", "tail_target": "rad"}
+CHANNEL_UNIT = {"sensor_diff": "sensor units", "current": "mA", "tail_target": "rad"}
 
 # --- palette (dataviz skill, ordine categorico fisso) ---
 COL_SURFACE  = "#fcfcfb"
@@ -168,7 +168,7 @@ def channel_panel(ax, t, true_real, pred_real, unit, title):
     axr.axhline(0.0, color=COL_ERROR, linewidth=0.8, alpha=0.5, zorder=1)
     axr.fill_between(t, 0.0, diff, color=COL_ERROR, alpha=0.15, linewidth=0, zorder=1)
     l_err, = axr.plot(t, diff, color=COL_ERROR, linewidth=1.0, alpha=0.9,
-                      zorder=2, label="errore (pred − reale)")
+                      zorder=2, label="error (pred − real)")
     # scala simmetrica attorno allo zero
     amax = float(np.nanmax(np.abs(diff))) if diff.size else 1.0
     amax = amax if amax > 0 else 1.0
@@ -177,11 +177,11 @@ def channel_panel(ax, t, true_real, pred_real, unit, title):
     axr.spines["left"].set_visible(False)
     axr.spines["right"].set_color(COL_ERROR)
     axr.tick_params(axis="y", colors=COL_ERROR, labelsize=8)
-    axr.set_ylabel(f"errore [{unit}]", color=COL_ERROR, fontsize=9)
+    axr.set_ylabel(f"error [{unit}]", color=COL_ERROR, fontsize=9)
 
     # --- asse sinistro: segnale e predizione (sopra all'errore) ---
-    l_pred, = ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="predizione modello")
-    l_true, = ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="segnale reale")
+    l_pred, = ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="model prediction")
+    l_true, = ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="real signal")
     # porta l'asse sinistro davanti al destro, ma lascia vedere l'errore sotto
     ax.set_zorder(axr.get_zorder() + 1)
     ax.patch.set_visible(False)
@@ -190,7 +190,7 @@ def channel_panel(ax, t, true_real, pred_real, unit, title):
     ax.set_ylabel(unit, color=COL_TEXT_SEC, fontsize=9)
     ax.tick_params(colors=COL_MUTED, labelsize=8)
     ax.legend([l_true, l_pred, l_err],
-              ["segnale reale", "predizione modello", "errore (pred − reale)"],
+              ["real signal", "model prediction", "error (pred − real)"],
               loc="upper right", frameon=False, fontsize=8, labelcolor=COL_TEXT_SEC)
 
 
@@ -213,7 +213,8 @@ def main():
     parser.add_argument("--p", type=int, default=None,
                         help="orizzonte P per costruire i target del dataset. Default: "
                              "il P salvato nel checkpoint. Passalo solo per forzare.")
-    parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions_joint.png"))
+    parser.add_argument("--out", default=os.path.join(SCRIPT_DIR, "predictions_joint"),
+                        help="CARTELLA di output: vi salva sensor_diff.png, current.png, tail_target.png")
     args = parser.parse_args()
 
     device = torch.device(args.device)
@@ -316,10 +317,19 @@ def main():
               ("current",     tgt_sens, fm_pred, 1),
               ("tail_target", tgt_cmd,  im_pred, 0)]
 
-    fig, axes = plt.subplots(len(panels), 1, figsize=(11, 3.4 * len(panels)), sharex=True)
-    fig.patch.set_facecolor(COL_SURFACE)
+    # una figura per canale, tutte nella cartella --out
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    win_txt = f"  [{t_axis[0]:.1f}–{t_axis[-1]:.1f}s]" if (args.t_start is not None or args.t_end is not None) else ""
+    # mostra sempre P; se P>1, specifica quale passo dell'orizzonte e' plottato
+    if P_run > 1:
+        step_txt = f"  ·  P={P_run}, passo t+{args.step + 1} ({args.step + 1}/{P_run})"
+    else:
+        step_txt = f"  ·  P={P_run}"
 
-    for ax, (ch, tgt, pred, ci) in zip(axes, panels):
+    for (ch, tgt, pred, ci) in panels:
+        fig, ax = plt.subplots(1, 1, figsize=(11, 3.8))
+        fig.patch.set_facecolor(COL_SURFACE)
         scaler = dataset.scalers[CHANNEL_TO_SCALER_KEY[ch]]
         true_real = scaler.inverse_transform(tgt[:, ci:ci + 1].numpy()).ravel()
         pred_real = scaler.inverse_transform(pred[:, ci:ci + 1].numpy()).ravel()
@@ -328,19 +338,16 @@ def main():
         net = "IM" if ch == "tail_target" else "FM"
         channel_panel(ax, t_axis, true_real, pred_real, unit,
                       f"{ch} [{net}] — RMSE {rmse:.2f} {unit}")
+        ax.set_xlabel("time (s)", color=COL_TEXT_SEC, fontsize=9)
+        fig.suptitle(f"Open-loop predictions — trial {trial_name}{win_txt}{step_txt}",
+                     color=COL_TEXT, fontsize=12, fontweight="bold", x=0.01, ha="left", y=0.99)
+        fig.tight_layout(rect=[0, 0, 1, 0.93])
+        path = out_dir / f"{ch}.png"
+        fig.savefig(path, dpi=160, facecolor=COL_SURFACE)
+        plt.close(fig)
+        print(f"Salvato {path}")
 
-    axes[-1].set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
-    win_txt = f"  [{t_axis[0]:.1f}–{t_axis[-1]:.1f}s]" if (args.t_start is not None or args.t_end is not None) else ""
-    # mostra sempre P; se P>1, specifica quale passo dell'orizzonte e' plottato
-    if P_run > 1:
-        step_txt = f"  ·  P={P_run}, passo t+{args.step + 1} ({args.step + 1}/{P_run})"
-    else:
-        step_txt = f"  ·  P={P_run}"
-    fig.suptitle(f"Predizioni reali IM + FM — trial {trial_name}{win_txt}{step_txt}",
-                 color=COL_TEXT, fontsize=13, fontweight="bold", x=0.01, ha="left", y=0.995)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-    fig.savefig(args.out, dpi=160, facecolor=COL_SURFACE)
-    print(f"Salvato {args.out} (trial: {trial_name}, {len(idxs)} punti)")
+    print(f"Fatto: 3 figure in {out_dir}/ (trial: {trial_name}, {len(idxs)} punti)")
 
 
 if __name__ == "__main__":
