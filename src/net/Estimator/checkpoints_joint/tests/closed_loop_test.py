@@ -73,7 +73,7 @@ COL_SIGNAL   = "#0b0b0b"
 COL_MODEL    = "#2a78d6"
 COL_ERROR    = "#c1666b"   # residuo (rollout - reale), asse destro
 
-CHANNEL_UNIT = {"sensor_diff": "unita' sensore", "current": "mA", "cmd": "rad"}
+CHANNEL_UNIT = {"sensor_diff": "sensor units", "current": "mA", "cmd": "rad"}
 
 
 # ---------------- scaler helpers (single-channel StandardScaler) ----------------
@@ -244,7 +244,7 @@ def panel(ax, t, true_real, pred_real, unit, title):
     axr.axhline(0.0, color=COL_ERROR, linewidth=0.8, alpha=0.5, zorder=1)
     axr.fill_between(t, 0.0, diff, color=COL_ERROR, alpha=0.15, linewidth=0, zorder=1)
     l_err, = axr.plot(t, diff, color=COL_ERROR, linewidth=1.0, alpha=0.9,
-                      zorder=2, label="errore (pred − reale)")
+                      zorder=2, label="error (pred − true)")
     amax = float(np.nanmax(np.abs(diff))) if diff.size else 1.0
     amax = amax if amax > 0 else 1.0
     axr.set_ylim(-amax * 1.05, amax * 1.05)
@@ -252,11 +252,11 @@ def panel(ax, t, true_real, pred_real, unit, title):
     axr.spines["left"].set_visible(False)
     axr.spines["right"].set_color(COL_ERROR)
     axr.tick_params(axis="y", colors=COL_ERROR, labelsize=8)
-    axr.set_ylabel(f"errore [{unit}]", color=COL_ERROR, fontsize=9)
+    axr.set_ylabel(f"error [{unit}]", color=COL_ERROR, fontsize=9)
 
     # --- asse sinistro: segnale e rollout (sopra all'errore) ---
-    l_true, = ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="segnale reale")
-    l_pred, = ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="rollout closed-loop")
+    l_true, = ax.plot(t, true_real, color=COL_SIGNAL, linewidth=1.6, zorder=4, label="true signal")
+    l_pred, = ax.plot(t, pred_real, color=COL_MODEL,  linewidth=1.6, zorder=3, label="closed-loop rollout")
     ax.set_zorder(axr.get_zorder() + 1)
     ax.patch.set_visible(False)
 
@@ -264,7 +264,7 @@ def panel(ax, t, true_real, pred_real, unit, title):
     ax.set_ylabel(unit, color=COL_TEXT_SEC, fontsize=9)
     ax.tick_params(colors=COL_MUTED, labelsize=8)
     ax.legend([l_true, l_pred, l_err],
-              ["segnale reale", "rollout closed-loop", "errore (pred − reale)"],
+              ["true signal", "closed-loop rollout", "error (pred − true)"],
               loc="upper right", frameon=False, fontsize=8, labelcolor=COL_TEXT_SEC)
 
 
@@ -283,7 +283,8 @@ def main():
     ap.add_argument("--steps", type=int, default=None,
                     help="numero di passi del rollout. Default: tutto il trial.")
     ap.add_argument("--list_trials", action="store_true")
-    ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "closed_loop_joint.png"))
+    ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "closed_loop_joint"),
+                    help="CARTELLA di output: vi salva sensor_diff.png, current.png, tail_target.png")
     ap.add_argument("--p", type=int, default=None,
                     help="orizzonte P per costruire i target del dataset. Default: "
                          "il P salvato nel checkpoint. Passalo solo per forzare.")
@@ -371,11 +372,11 @@ def main():
     df = pd.read_csv(Path(args.dataset_dir) / trial_name)
     if "t_rel_sec" in df.columns:
         t_full = df["t_rel_sec"].values.astype(np.float64)
-        t_axis = t_full[sl] if len(t_full) >= start + n else np.arange(n) / 20.0
+        t_axis = t_full[sl] if len(t_full) >= start + n else np.arange(n) / 10.0
         if len(t_axis) != n:
-            t_axis = np.arange(n) / 20.0
+            t_axis = np.arange(n) / 10.0
     else:
-        t_axis = np.arange(n) / 20.0
+        t_axis = np.arange(n) / 10.0
 
     def rmse(a, b): return float(np.sqrt(np.mean((np.asarray(a) - np.asarray(b)) ** 2)))
     rmse_sd  = rmse(pred["sensor_diff"], true["sensor_diff"])
@@ -384,25 +385,31 @@ def main():
     print(f"RMSE closed-loop  | sensor_diff {rmse_sd:.3f} | current {rmse_vf:.3f} "
           f"| cmd {rmse_cmd:.4f}")
 
-    fig, axes = plt.subplots(3, 1, figsize=(11, 3.4 * 3), sharex=True)
-    fig.patch.set_facecolor(COL_SURFACE)
-    panel(axes[0], t_axis, true["sensor_diff"], pred["sensor_diff"],
-          CHANNEL_UNIT["sensor_diff"],
-          f"sensor_diff — RMSE closed-loop {rmse_sd:.2f} {CHANNEL_UNIT['sensor_diff']}")
-    panel(axes[1], t_axis, true["current"], pred["current"],
-          CHANNEL_UNIT["current"],
-          f"current — RMSE closed-loop {rmse_vf:.2f} {CHANNEL_UNIT['current']}")
-    panel(axes[2], t_axis, true["cmd"], pred["cmd"],
-          CHANNEL_UNIT["cmd"],
-          f"comando (tail_target_rad) — RMSE closed-loop {rmse_cmd:.4f} {CHANNEL_UNIT['cmd']}")
+    # una figura per canale, tutte nella cartella --out
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    axes[-1].set_xlabel("tempo (s)", color=COL_TEXT_SEC, fontsize=9)
-    fig.suptitle(f"Test closed-loop congiunto (FM↔IM) — trial {trial_name} "
-                 f"({n} passi)",
-                 color=COL_TEXT, fontsize=13, fontweight="bold", x=0.01, ha="left", y=0.997)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-    fig.savefig(args.out, dpi=160, facecolor=COL_SURFACE)
-    print(f"Salvato {args.out}")
+    panels = [
+        ("sensor_diff", f"sensor_diff [FM] — closed-loop RMSE {rmse_sd:.2f} {CHANNEL_UNIT['sensor_diff']}"),
+        ("current",     f"current [FM] — closed-loop RMSE {rmse_vf:.2f} {CHANNEL_UNIT['current']}"),
+        ("cmd",         f"command (tail_target) [IM] — closed-loop RMSE {rmse_cmd:.4f} {CHANNEL_UNIT['cmd']}"),
+    ]
+    file_name = {"sensor_diff": "sensor_diff", "current": "current", "cmd": "tail_target"}
+
+    for ch, title in panels:
+        fig, ax = plt.subplots(1, 1, figsize=(11, 3.8))
+        fig.patch.set_facecolor(COL_SURFACE)
+        panel(ax, t_axis, true[ch], pred[ch], CHANNEL_UNIT[ch], title)
+        ax.set_xlabel("time (s)", color=COL_TEXT_SEC, fontsize=9)
+        fig.suptitle(f"Closed-loop rollout (IM↔FM) — trial {trial_name} — {n} steps",
+                     color=COL_TEXT, fontsize=12, fontweight="bold", x=0.01, ha="left", y=0.99)
+        fig.tight_layout(rect=[0, 0, 1, 0.93])
+        path = out_dir / f"{file_name[ch]}.png"
+        fig.savefig(path, dpi=160, facecolor=COL_SURFACE)
+        plt.close(fig)
+        print(f"Salvato {path}")
+
+    print(f"Fatto: 3 figure in {out_dir}/")
 
 
 if __name__ == "__main__":
