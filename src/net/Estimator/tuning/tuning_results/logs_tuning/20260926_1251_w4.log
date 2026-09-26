@@ -1,0 +1,87 @@
+Studio: joint_combo_p1_k10 | device cpu | mode=combo P=1 K=10 T=10
+Caricamento dataset...
+Trovati 120 trial.
+Dataset grezzo: 120 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+/home/gemma/tesi/aquabot/src/net/Estimator/tuning/tune_joint.py:245: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(
+/home/gemma/tesi/aquabot/src/net/Estimator/tuning/tune_joint.py:245: ExperimentalWarning: Argument ``group`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(
+/home/gemma/tesi/aquabot/src/net/Estimator/tuning/tune_joint.py:245: ExperimentalWarning: Argument ``constant_liar`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(
+[I 2026-09-26 12:51:48,348] Using an existing study with name 'joint_combo_p1_k10' instead of creating a new one.
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
+Dataset: 32520 campioni da 120 trial. H=20 P=10 | seq_cmd=(20, 1) seq_sens=(20, 2)
+Split per-trial: 26015 finestre train | 6505 finestre val
+Epoch   0 | train 0.5761 (IM@1 0.2292 FM@1 0.3469) | val 0.1952 (IM@1 0.0488 FM@1 0.1463) sup 0.5761/0.1952 roll 1.7222/1.2977 (λ=0.00) | lr 2.67e-03
+Epoch   1 | train 0.3328 (IM@1 0.0946 FM@1 0.1381) | val 0.1999 (IM@1 0.0393 FM@1 0.1067) sup 0.2327/0.1460 roll 1.0007/0.5386 (λ=0.10) | lr 2.67e-03
+Epoch   2 | train 0.3294 (IM@1 0.0857 FM@1 0.1126) | val 0.2217 (IM@1 0.0351 FM@1 0.0933) sup 0.1984/0.1284 roll 0.6550/0.4668 (λ=0.20) | lr 2.67e-03
+Epoch   3 | train 0.3449 (IM@1 0.0839 FM@1 0.1002) | val 0.2432 (IM@1 0.0378 FM@1 0.0847) sup 0.1841/0.1225 roll 0.5362/0.4025 (λ=0.30) | lr 2.67e-03
+Epoch   4 | train 0.3591 (IM@1 0.0796 FM@1 0.0915) | val 0.2644 (IM@1 0.0367 FM@1 0.0840) sup 0.1711/0.1207 roll 0.4701/0.3593 (λ=0.40) | lr 2.67e-03
+Epoch   5 | train 0.3836 (IM@1 0.0776 FM@1 0.0872) | val 0.2905 (IM@1 0.0346 FM@1 0.0821) sup 0.1648/0.1167 roll 0.4375/0.3477 (λ=0.50) | lr 2.67e-03
+Epoch   6 | train 0.4103 (IM@1 0.0775 FM@1 0.0859) | val 0.3204 (IM@1 0.0369 FM@1 0.0794) sup 0.1634/0.1164 roll 0.4116/0.3400 (λ=0.60) | lr 2.67e-03
+Epoch   7 | train 0.4361 (IM@1 0.0771 FM@1 0.0826) | val 0.3383 (IM@1 0.0341 FM@1 0.0783) sup 0.1597/0.1124 roll 0.3949/0.3227 (λ=0.70) | lr 2.67e-03
+Epoch   8 | train 0.4609 (IM@1 0.0763 FM@1 0.0803) | val 0.3812 (IM@1 0.0353 FM@1 0.0820) sup 0.1566/0.1173 roll 0.3804/0.3299 (λ=0.80) | lr 2.67e-03
+Epoch   9 | train 0.4934 (IM@1 0.0752 FM@1 0.0794) | val 0.4085 (IM@1 0.0368 FM@1 0.0764) sup 0.1545/0.1131 roll 0.3765/0.3282 (λ=0.90) | lr 2.67e-03
+Epoch  10 | train 0.5270 (IM@1 0.0768 FM@1 0.0804) | val 0.4273 (IM@1 0.0347 FM@1 0.0765) sup 0.1572/0.1112 roll 0.3698/0.3161 (λ=1.00) | lr 2.67e-03
+Epoch  11 | train 0.5054 (IM@1 0.0739 FM@1 0.0770) | val 0.4324 (IM@1 0.0332 FM@1 0.0751) sup 0.1509/0.1084 roll 0.3545/0.3241 (λ=1.00) | lr 2.67e-03
+Epoch  12 | train 0.4989 (IM@1 0.0737 FM@1 0.0759) | val 0.4306 (IM@1 0.0383 FM@1 0.0762) sup 0.1496/0.1146 roll 0.3494/0.3160 (λ=1.00) | lr 2.67e-03
+Epoch  13 | train 0.4901 (IM@1 0.0724 FM@1 0.0743) | val 0.4282 (IM@1 0.0330 FM@1 0.0776) sup 0.1466/0.1105 roll 0.3434/0.3177 (λ=1.00) | lr 2.67e-03
+Epoch  14 | train 0.4846 (IM@1 0.0716 FM@1 0.0738) | val 0.4248 (IM@1 0.0339 FM@1 0.0753) sup 0.1454/0.1091 roll 0.3392/0.3157 (λ=1.00) | lr 2.67e-03
+Epoch  15 | train 0.4755 (IM@1 0.0715 FM@1 0.0714) | val 0.4276 (IM@1 0.0353 FM@1 0.0748) sup 0.1428/0.1101 roll 0.3327/0.3175 (λ=1.00) | lr 2.67e-03
+Epoch  16 | train 0.4723 (IM@1 0.0719 FM@1 0.0711) | val 0.4245 (IM@1 0.0340 FM@1 0.0753) sup 0.1430/0.1093 roll 0.3293/0.3153 (λ=1.00) | lr 2.67e-03
+Epoch  17 | train 0.4612 (IM@1 0.0710 FM@1 0.0684) | val 0.4429 (IM@1 0.0376 FM@1 0.0806) sup 0.1394/0.1182 roll 0.3217/0.3247 (λ=1.00) | lr 2.67e-03
+Epoch  18 | train 0.4585 (IM@1 0.0709 FM@1 0.0693) | val 0.4500 (IM@1 0.0368 FM@1 0.0793) sup 0.1402/0.1161 roll 0.3182/0.3340 (λ=1.00) | lr 2.67e-03
+Epoch  19 | train 0.4481 (IM@1 0.0700 FM@1 0.0671) | val 0.4590 (IM@1 0.0382 FM@1 0.0808) sup 0.1371/0.1190 roll 0.3110/0.3399 (λ=1.00) | lr 2.67e-03
+Epoch  20 | train 0.4375 (IM@1 0.0704 FM@1 0.0649) | val 0.4650 (IM@1 0.0397 FM@1 0.0817) sup 0.1353/0.1214 roll 0.3021/0.3436 (λ=1.00) | lr 2.67e-03
+Epoch  21 | train 0.4252 (IM@1 0.0694 FM@1 0.0628) | val 0.4688 (IM@1 0.0378 FM@1 0.0854) sup 0.1322/0.1232 roll 0.2930/0.3457 (λ=1.00) | lr 2.67e-03
+Epoch  22 | train 0.4158 (IM@1 0.0686 FM@1 0.0620) | val 0.4686 (IM@1 0.0398 FM@1 0.0852) sup 0.1306/0.1250 roll 0.2853/0.3436 (λ=1.00) | lr 2.67e-03
+Epoch  23 | train 0.4113 (IM@1 0.0702 FM@1 0.0613) | val 0.4869 (IM@1 0.0378 FM@1 0.0881) sup 0.1315/0.1259 roll 0.2799/0.3610 (λ=1.00) | lr 2.67e-03
+Epoch  24 | train 0.3937 (IM@1 0.0673 FM@1 0.0595) | val 0.5081 (IM@1 0.0429 FM@1 0.0922) sup 0.1268/0.1351 roll 0.2669/0.3730 (λ=1.00) | lr 2.67e-03
+Epoch  25 | train 0.3820 (IM@1 0.0664 FM@1 0.0577) | val 0.5105 (IM@1 0.0414 FM@1 0.0904) sup 0.1241/0.1318 roll 0.2579/0.3788 (λ=1.00) | lr 2.67e-03
+Epoch  26 | train 0.3690 (IM@1 0.0679 FM@1 0.0556) | val 0.5029 (IM@1 0.0409 FM@1 0.0914) sup 0.1235/0.1323 roll 0.2455/0.3705 (λ=1.00) | lr 2.67e-03
+Epoch  27 | train 0.3576 (IM@1 0.0662 FM@1 0.0549) | val 0.5261 (IM@1 0.0433 FM@1 0.0984) sup 0.1211/0.1417 roll 0.2366/0.3844 (λ=1.00) | lr 1.34e-03
+Epoch  28 | train 0.3241 (IM@1 0.0654 FM@1 0.0492) | val 0.5273 (IM@1 0.0426 FM@1 0.0981) sup 0.1147/0.1408 roll 0.2094/0.3865 (λ=1.00) | lr 1.34e-03
+Epoch  29 | train 0.3088 (IM@1 0.0629 FM@1 0.0469) | val 0.5545 (IM@1 0.0460 FM@1 0.1032) sup 0.1098/0.1492 roll 0.1990/0.4053 (λ=1.00) | lr 1.34e-03
+Epoch  30 | train 0.2995 (IM@1 0.0632 FM@1 0.0453) | val 0.5670 (IM@1 0.0451 FM@1 0.1035) sup 0.1084/0.1485 roll 0.1910/0.4184 (λ=1.00) | lr 1.34e-03
+Epoch  31 | train 0.2907 (IM@1 0.0625 FM@1 0.0448) | val 0.5595 (IM@1 0.0472 FM@1 0.1037) sup 0.1074/0.1508 roll 0.1834/0.4086 (λ=1.00) | lr 1.34e-03
+
+Training completato (combo). Best val (sup + 1.0*roll, da epoch 10): 0.4245 a epoch 16
+[I 2026-09-26 13:37:17,775] Trial 3 finished with value: 0.4245216909243362 and parameters: {'gru_hidden_fm': 256, 'mlp_hidden_fm': 32, 'dropout_fm': 0.03116371329446105, 'weight_decay_fm': 1.2540606212791753e-06, 'gru_hidden_im': 128, 'mlp_hidden_im': 32, 'dropout_im': 0.21619498809043802, 'weight_decay_im': 2.967069274750831e-05, 'lr': 0.0026704376270529876, 'batch_size': 256, 'clip_norm': 5.0}. Best is trial 3 with value: 0.4245216909243362.
+Split per-trial: 26015 finestre train | 6505 finestre val
+Epoch   0 | train 0.3306 (IM@1 0.1332 FM@1 0.1973) | val 0.1455 (IM@1 0.0339 FM@1 0.1116) sup 0.3306/0.1455 roll 2.0955/0.7434 (λ=0.00) | lr 8.74e-03
+Epoch   1 | train 0.3214 (IM@1 0.1001 FM@1 0.1409) | val 0.2041 (IM@1 0.0446 FM@1 0.1078) sup 0.2409/0.1524 roll 0.8041/0.5168 (λ=0.10) | lr 8.74e-03
+Epoch   2 | train 0.3408 (IM@1 0.0964 FM@1 0.1242) | val 0.2010 (IM@1 0.0386 FM@1 0.0852) sup 0.2206/0.1238 roll 0.6011/0.3863 (λ=0.20) | lr 8.74e-03
+Epoch   3 | train 0.3749 (IM@1 0.0959 FM@1 0.1192) | val 0.2576 (IM@1 0.0406 FM@1 0.1027) sup 0.2151/0.1434 roll 0.5329/0.3809 (λ=0.30) | lr 8.74e-03
+Epoch   4 | train 0.4091 (IM@1 0.0963 FM@1 0.1182) | val 0.3332 (IM@1 0.0633 FM@1 0.1015) sup 0.2145/0.1648 roll 0.4864/0.4211 (λ=0.40) | lr 8.74e-03
+Epoch   5 | train 0.4501 (IM@1 0.0953 FM@1 0.1179) | val 0.3513 (IM@1 0.0604 FM@1 0.0938) sup 0.2132/0.1542 roll 0.4739/0.3943 (λ=0.50) | lr 8.74e-03
+Epoch   6 | train 0.4758 (IM@1 0.0948 FM@1 0.1114) | val 0.3587 (IM@1 0.0425 FM@1 0.1016) sup 0.2062/0.1441 roll 0.4494/0.3577 (λ=0.60) | lr 8.74e-03
+Epoch   7 | train 0.5012 (IM@1 0.0914 FM@1 0.1071) | val 0.4130 (IM@1 0.0516 FM@1 0.0927) sup 0.1985/0.1444 roll 0.4325/0.3838 (λ=0.70) | lr 8.74e-03
+Epoch   8 | train 0.5377 (IM@1 0.0931 FM@1 0.1071) | val 0.4077 (IM@1 0.0408 FM@1 0.0897) sup 0.2002/0.1305 roll 0.4218/0.3464 (λ=0.80) | lr 8.74e-03
+Epoch   9 | train 0.5676 (IM@1 0.0920 FM@1 0.1035) | val 0.4494 (IM@1 0.0399 FM@1 0.1016) sup 0.1955/0.1414 roll 0.4134/0.3422 (λ=0.90) | lr 8.74e-03
+Epoch  10 | train 0.5989 (IM@1 0.0916 FM@1 0.1026) | val 0.4930 (IM@1 0.0540 FM@1 0.0821) sup 0.1942/0.1362 roll 0.4047/0.3569 (λ=1.00) | lr 8.74e-03
+Epoch  11 | train 0.5969 (IM@1 0.0948 FM@1 0.1015) | val 0.4603 (IM@1 0.0425 FM@1 0.0864) sup 0.1964/0.1289 roll 0.4005/0.3314 (λ=1.00) | lr 8.74e-03
+Epoch  12 | train 0.5844 (IM@1 0.0903 FM@1 0.0999) | val 0.4532 (IM@1 0.0345 FM@1 0.0921) sup 0.1902/0.1267 roll 0.3942/0.3265 (λ=1.00) | lr 8.74e-03
+Epoch  13 | train 0.5763 (IM@1 0.0898 FM@1 0.0968) | val 0.4717 (IM@1 0.0403 FM@1 0.0869) sup 0.1865/0.1271 roll 0.3898/0.3446 (λ=1.00) | lr 8.74e-03
+Epoch  14 | train 0.5730 (IM@1 0.0883 FM@1 0.0980) | val 0.4586 (IM@1 0.0324 FM@1 0.0943) sup 0.1863/0.1267 roll 0.3867/0.3319 (λ=1.00) | lr 8.74e-03
+Epoch  15 | train 0.5694 (IM@1 0.0909 FM@1 0.0957) | val 0.5096 (IM@1 0.0650 FM@1 0.0856) sup 0.1866/0.1506 roll 0.3828/0.3589 (λ=1.00) | lr 8.74e-03
+Epoch  16 | train 0.5691 (IM@1 0.0889 FM@1 0.0982) | val 0.4591 (IM@1 0.0407 FM@1 0.0861) sup 0.1871/0.1268 roll 0.3819/0.3323 (λ=1.00) | lr 8.74e-03
+Epoch  17 | train 0.5656 (IM@1 0.0906 FM@1 0.0949) | val 0.4803 (IM@1 0.0489 FM@1 0.0875) sup 0.1855/0.1363 roll 0.3801/0.3440 (λ=1.00) | lr 8.74e-03
+Epoch  18 | train 0.5576 (IM@1 0.0890 FM@1 0.0935) | val 0.4587 (IM@1 0.0343 FM@1 0.0997) sup 0.1825/0.1340 roll 0.3750/0.3247 (λ=1.00) | lr 8.74e-03
+Epoch  19 | train 0.5638 (IM@1 0.0910 FM@1 0.0955) | val 0.4628 (IM@1 0.0458 FM@1 0.0857) sup 0.1864/0.1315 roll 0.3773/0.3313 (λ=1.00) | lr 8.74e-03
+Epoch  20 | train 0.5546 (IM@1 0.0899 FM@1 0.0932) | val 0.5062 (IM@1 0.0577 FM@1 0.0948) sup 0.1832/0.1525 roll 0.3714/0.3537 (λ=1.00) | lr 8.74e-03
+[I 2026-09-26 14:43:37,227] Trial 20 pruned. 
+Split per-trial: 26015 finestre train | 6505 finestre val
+Epoch   0 | train 0.2486 (IM@1 0.0654 FM@1 0.1832) | val 0.1221 (IM@1 0.0271 FM@1 0.0949) sup 0.2486/0.1221 roll 1.0692/0.5756 (λ=0.00) | lr 3.99e-03
+Epoch   1 | train 0.1832 (IM@1 0.0323 FM@1 0.1011) | val 0.1427 (IM@1 0.0244 FM@1 0.0758) sup 0.1333/0.1002 roll 0.4984/0.4249 (λ=0.10) | lr 3.99e-03
+Epoch   2 | train 0.1999 (IM@1 0.0313 FM@1 0.0863) | val 0.1717 (IM@1 0.0222 FM@1 0.0827) sup 0.1176/0.1048 roll 0.4114/0.3342 (λ=0.20) | lr 3.99e-03
+Epoch   3 | train 0.2268 (IM@1 0.0312 FM@1 0.0828) | val 0.2002 (IM@1 0.0242 FM@1 0.0787) sup 0.1140/0.1028 roll 0.3758/0.3244 (λ=0.30) | lr 3.99e-03
+Epoch   4 | train 0.2555 (IM@1 0.0317 FM@1 0.0780) | val 0.2196 (IM@1 0.0231 FM@1 0.0693) sup 0.1097/0.0924 roll 0.3646/0.3182 (λ=0.40) | lr 3.99e-03
+Epoch   5 | train 0.2814 (IM@1 0.0317 FM@1 0.0761) | val 0.2731 (IM@1 0.0298 FM@1 0.0714) sup 0.1078/0.1012 roll 0.3473/0.3438 (λ=0.50) | lr 3.99e-03
+Epoch   6 | train 0.3041 (IM@1 0.0311 FM@1 0.0729) | val 0.2847 (IM@1 0.0241 FM@1 0.0713) sup 0.1040/0.0955 roll 0.3335/0.3155 (λ=0.60) | lr 3.99e-03
+Epoch   7 | train 0.3277 (IM@1 0.0314 FM@1 0.0703) | val 0.3250 (IM@1 0.0278 FM@1 0.0701) sup 0.1017/0.0979 roll 0.3227/0.3244 (λ=0.70) | lr 3.99e-03
+Epoch   8 | train 0.3479 (IM@1 0.0315 FM@1 0.0671) | val 0.3410 (IM@1 0.0249 FM@1 0.0653) sup 0.0987/0.0903 roll 0.3115/0.3134 (λ=0.80) | lr 3.99e-03
+Epoch   9 | train 0.3696 (IM@1 0.0307 FM@1 0.0675) | val 0.3986 (IM@1 0.0319 FM@1 0.0661) sup 0.0982/0.0980 roll 0.3016/0.3341 (λ=0.90) | lr 3.99e-03
+Epoch  10 | train 0.3905 (IM@1 0.0316 FM@1 0.0643) | val 0.4065 (IM@1 0.0271 FM@1 0.0639) sup 0.0958/0.0911 roll 0.2946/0.3155 (λ=1.00) | lr 3.99e-03
+Epoch  11 | train 0.3775 (IM@1 0.0309 FM@1 0.0636) | val 0.4311 (IM@1 0.0257 FM@1 0.0700) sup 0.0945/0.0957 roll 0.2830/0.3355 (λ=1.00) | lr 3.99e-03
+Epoch  12 | train 0.3727 (IM@1 0.0313 FM@1 0.0621) | val 0.4230 (IM@1 0.0271 FM@1 0.0670) sup 0.0933/0.0941 roll 0.2793/0.3289 (λ=1.00) | lr 3.99e-03
+Epoch  13 | train 0.3541 (IM@1 0.0307 FM@1 0.0598) | val 0.4037 (IM@1 0.0277 FM@1 0.0646) sup 0.0905/0.0924 roll 0.2637/0.3114 (λ=1.00) | lr 3.99e-03

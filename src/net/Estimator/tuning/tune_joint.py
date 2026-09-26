@@ -16,7 +16,7 @@ scegli prima la modalita', poi lanci il tuning. Modi diversi hanno metriche non
 confrontabili -> studi diversi (il nome dello studio include modo e P).
 
 USO (dalla root della repo):
-  python src/net/Estimator/tuning/tune.py --train_mode supervised --p 10 --n_trials 50
+  python src/net/Estimator/tuning/tune_joint.py --train_mode supervised --p 10 --n_trials 50
 """
 import argparse
 import math
@@ -39,11 +39,11 @@ from model   import build_models, P as MODEL_P     # noqa: E402
 from dataset import FishJointDataset               # noqa: E402
 
 # ---------------------------------------------------------------- search space
-GRU_FM   = [64, 128, 256, 384, 512, 768, 1024]
+GRU_FM   = [128, 256, 384, 512]
 MLP_FM   = [32, 64, 128, 256, 512]
-GRU_IM   = [32, 64, 128, 256, 512]
+GRU_IM   = [64, 128, 256]
 MLP_IM   = [16, 32, 64, 128, 256]
-BATCH    = [32, 64, 128, 256]
+BATCH    = [64, 128, 256]          # 32 escluso: troppo lento col combo su CPU
 LR       = (5e-5, 1e-2)
 WD       = (1e-6, 1e-1)
 DROP_FM  = (0.0, 0.5)
@@ -53,7 +53,7 @@ CLIP     = [0.5, 1.0, 5.0]
 # config attuale di train.py: primo trial accodato, cosi' il tuning parte
 # almeno da li' (wd_im=0 non e' nel range log -> minimo del range)
 CURRENT_DEFAULTS = dict(
-    lr=0.0003585794155087849, batch_size=32,
+    lr=0.0003585794155087849, batch_size=64,   # 32 non e' piu' nello spazio
     gru_hidden_im=128, mlp_hidden_im=64, dropout_im=0.0, weight_decay_im=1e-6,
     gru_hidden_fm=256, mlp_hidden_fm=128, dropout_fm=0.10842905375567242,
     weight_decay_fm=2.5314946929205504e-05, clip_norm=1.0,

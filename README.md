@@ -42,11 +42,7 @@ root in aquabot
 - riguardare codice 
 
 
-- evidenziare in una slide la differenza nel valore della corrente per un trial con e senza coda
-- fare il tuning tutto in un unico grosso passo e non più tre fasi 
-- nelle slide aggiungere gli interevalli in cui ho fatto variare i parametri nella generazione del dataset  
 - aggiungere l'autocorrelazione nel test closed loop 
-- esplicitare come sono calcolati i valori delle metriche delle tabelle  
 - quando P > 1 fare un grafico che evidenzi  che per ogni volta che un certo valore viene predetto , il valore predetto si avvicina sempre di più alla media 
 
 - attenzione alla calibrazione sui primi 50 campioni, si fa così? 

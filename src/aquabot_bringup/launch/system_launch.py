@@ -41,7 +41,7 @@ def generate_launch_description():
             'tail_max_rad': TAIL_MAX_RAD,
 
             'control_rate_hz': 20.0,
-            'log_rate_hz': 20.0,
+            'log_rate_hz': 10.0,
             'log_dir': './logs',
 
             # feedback: SOLO diagnostica, mai nel moto (resta spento)
