@@ -377,23 +377,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_dir',    default=os.path.join(REPO_ROOT, 'src', 'net', 'dataset'))
     parser.add_argument('--checkpoint_dir', default=os.path.join(SCRIPT_DIR, 'checkpoints_joint'))
-    parser.add_argument('--epochs',         type=int,   default=80)
+    parser.add_argument('--epochs',         type=int,   default=100)
     parser.add_argument('--p',              type=int,   default=MODEL_P,
                         help=f'orizzonte di predizione P (default: {MODEL_P}). Per il '
                              f'rollout serve P>1 (i K passi si supervisionano sui '
                              f'target t+1..t+K dell item).')
-    parser.add_argument('--lr',             type=float, default=0.0003585794155087849)
-    parser.add_argument('--batch_size',     type=int,   default=32)
+    parser.add_argument('--lr',             type=float, default=0.0002298046446717069)
+    parser.add_argument('--batch_size',     type=int,   default=64)
     parser.add_argument('--gru_hidden_im',  type=int,   default=128)
-    parser.add_argument('--mlp_hidden_im',  type=int,   default=64)
-    parser.add_argument('--gru_hidden_fm',  type=int,   default=256)
-    parser.add_argument('--mlp_hidden_fm',  type=int,   default=128)
-    parser.add_argument('--dropout_im',     type=float, default=0.0)
-    parser.add_argument('--dropout_fm',     type=float, default=0.10842905375567242)
+    parser.add_argument('--mlp_hidden_im',  type=int,   default=256)
+    parser.add_argument('--gru_hidden_fm',  type=int,   default=128)
+    parser.add_argument('--mlp_hidden_fm',  type=int,   default=512)
+    parser.add_argument('--dropout_im',     type=float, default=0.06367278116520242)
+    parser.add_argument('--dropout_fm',     type=float, default=0.19931977379143886)
     # AdamW: weight decay separato per rete. NB: i valori trovati col vecchio Adam
     # (L2 nel gradiente) non sono equivalenti -> rifare il tuning.
-    parser.add_argument('--weight_decay_im', type=float, default=0.0)
-    parser.add_argument('--weight_decay_fm', type=float, default=2.5314946929205504e-05)
+    parser.add_argument('--weight_decay_im', type=float, default=0.0007406462387410057)
+    parser.add_argument('--weight_decay_fm', type=float, default=1.0216647704793357e-05)
     parser.add_argument('--clip_norm',      type=float, default=1.0)
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
@@ -510,11 +510,19 @@ if __name__ == '__main__':
                           {**meta, "best_epoch": hist["best_epoch"]}), final_path)
     print(f"Checkpoint finale salvato in {final_path}")
 
+    # storia delle loss su file: permette di ridisegnare il grafico senza riallenare
+    import json
+    hist_name = f"loss_history_{tag}.json" if tag else "loss_history.json"
+    with open(os.path.join(args.checkpoint_dir, hist_name), "w") as f:
+        json.dump({k: (float(v) if isinstance(v, (int, float)) else [float(x) for x in v])
+                   for k, v in hist.items()}, f)
+    print(f"Storia loss salvata in {os.path.join(args.checkpoint_dir, hist_name)}")
+
     epochs_x = range(1, len(hist["train"]) + 1)
     # epoca del checkpoint best EFFETTIVAMENTE salvato (1-based per il plot)
     best_epoch = hist["best_epoch"] + 1
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
     # --- pannello sinistro: loss totale + (in combo) le due componenti ---
     ax1.plot(epochs_x, hist["train"], color='steelblue', linewidth=1.5, label='Train total')
@@ -524,22 +532,26 @@ if __name__ == '__main__':
     # davvero diversi -> li mostro entrambi.
     if args.train_mode == "combo":
         ax1.plot(epochs_x, hist["train_sup"], color='darkorange', linewidth=1.2,
-                 alpha=0.9, label='Train sup (diretto P)')
+                 alpha=0.9, label='Train sup (direct)')
         ax1.plot(epochs_x, hist["val_sup"], color='darkorange', linewidth=1.2,
-                 alpha=0.9, linestyle='--', label='Val sup (diretto P)')
+                 alpha=0.9, linestyle='--', label='Val sup (direct)')
         ax1.plot(epochs_x, hist["train_roll"], color='seagreen', linewidth=1.2,
                  alpha=0.8, label='Train rollout (closed-loop)')
         ax1.plot(epochs_x, hist["val_roll"], color='seagreen', linewidth=1.2,
                  alpha=0.8, linestyle='--', label='Val rollout (closed-loop)')
         ax1.plot(epochs_x, hist["val_sel"], color='black', linewidth=1.2,
-                 linestyle=':', label=f'Val selezione (sup + {args.lambda_roll}·roll)')
+                 linestyle=':', label=f'Val selection metric (sup + {args.lambda_roll}·roll)')
         ax1.axvspan(0.5, args.roll_warmup + 0.5, color='gray', alpha=0.08,
-                    label='warm-up (best non salvato)')
-    ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
+                    label='warm-up (best not saved)')
+    if hist["best_epoch"] >= 0:   # nessun best salvato (es. run piu' corta del warm-up)
+        ax1.axvline(best_epoch, color='gray', linewidth=1.0, linestyle='--', label=f'Best val (epoch {best_epoch})')
     ax1.set_xlabel("Epoch", fontsize=13); ax1.set_ylabel("Loss (MSE) — per sample", fontsize=13)
     ax1.set_yscale('log')   # scala log: la coda della curva (convergenza/overfitting) resta leggibile
     ax1.set_title(f"Total — mode={args.train_mode}", fontsize=14, fontweight='bold')
-    ax1.legend(fontsize=10); ax1.grid(True, which='both')
+    # legenda FUORI dal grafico, sotto l'asse, su piu' colonne
+    ax1.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.16),
+               ncol=3, frameon=False)
+    ax1.grid(True, which='both')
 
     # --- pannello destro: diagnostica a t+1 (slice 0), comparabile tra i modi ---
     ax2.plot(epochs_x, hist["train_im"], color='steelblue', linewidth=1.5, label='IM train @t+1')
@@ -549,7 +561,9 @@ if __name__ == '__main__':
     ax2.set_xlabel("Epoch", fontsize=13); ax2.set_ylabel("Loss (MSE) — per sample", fontsize=13)
     ax2.set_yscale('log')   # scala log anche qui
     ax2.set_title("IM (command) vs FM (sensors) — @t+1", fontsize=14, fontweight='bold')
-    ax2.legend(fontsize=10); ax2.grid(True, which='both')
+    ax2.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.16),
+               ncol=2, frameon=False)
+    ax2.grid(True, which='both')
 
     suptitle = f"Joint IM+FM — {args.train_mode}"
     if tag:
@@ -558,5 +572,6 @@ if __name__ == '__main__':
     plt.tight_layout()
     loss_curve_name = f"loss_curve_{tag}.png" if tag else "loss_curve.png"
     plot_path = os.path.join(args.checkpoint_dir, loss_curve_name)
-    plt.savefig(plot_path, dpi=150)
+    # bbox_inches='tight' include nella figura anche le legende fuori dagli assi
+    plt.savefig(plot_path, dpi=150, bbox_inches='tight')
     print(f"Loss curve salvata in {plot_path}")

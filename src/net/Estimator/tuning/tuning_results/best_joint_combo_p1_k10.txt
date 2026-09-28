@@ -1,0 +1,83 @@
+=== joint_combo_p1_k10 | mode=combo P=1 K=10 detach_cross=False ===
+45 completati, 55 pruned
+
+  #1  val_sel=0.35983  (epoch 35, sup 0.07373, roll 0.28610, IM@1 0.01936, FM@1 0.05436)
+    gru_hidden_fm: 128
+    mlp_hidden_fm: 512
+    dropout_fm: 0.19931977379143886
+    weight_decay_fm: 1.0216647704793357e-05
+    gru_hidden_im: 128
+    mlp_hidden_im: 256
+    dropout_im: 0.06367278116520242
+    weight_decay_im: 0.0007406462387410057
+    lr: 0.0002298046446717069
+    batch_size: 64
+    clip_norm: 1.0
+
+  #2  val_sel=0.36059  (epoch 38, sup 0.07046, roll 0.29013, IM@1 0.01873, FM@1 0.05173)
+    gru_hidden_fm: 128
+    mlp_hidden_fm: 128
+    dropout_fm: 0.053228712735840886
+    weight_decay_fm: 2.3447806287056487e-05
+    gru_hidden_im: 128
+    mlp_hidden_im: 64
+    dropout_im: 0.002043343117720862
+    weight_decay_im: 1.4562760771452169e-06
+    lr: 0.0003755740523370064
+    batch_size: 64
+    clip_norm: 1.0
+
+  #3  val_sel=0.36280  (epoch 33, sup 0.07223, roll 0.29057, IM@1 0.01829, FM@1 0.05394)
+    gru_hidden_fm: 256
+    mlp_hidden_fm: 128
+    dropout_fm: 0.10842905375567242
+    weight_decay_fm: 2.5314946929205504e-05
+    gru_hidden_im: 128
+    mlp_hidden_im: 64
+    dropout_im: 0.0
+    weight_decay_im: 1e-06
+    lr: 0.0003585794155087849
+    batch_size: 64
+    clip_norm: 1.0
+
+  #4  val_sel=0.36322  (epoch 21, sup 0.07537, roll 0.28785, IM@1 0.02076, FM@1 0.05461)
+    gru_hidden_fm: 128
+    mlp_hidden_fm: 512
+    dropout_fm: 0.2363405052777648
+    weight_decay_fm: 1.988297829361697e-06
+    gru_hidden_im: 128
+    mlp_hidden_im: 128
+    dropout_im: 0.041001410905047206
+    weight_decay_im: 8.202403470946264e-06
+    lr: 0.0008704708854656541
+    batch_size: 64
+    clip_norm: 5.0
+
+  #5  val_sel=0.36476  (epoch 37, sup 0.07575, roll 0.28901, IM@1 0.02020, FM@1 0.05555)
+    gru_hidden_fm: 128
+    mlp_hidden_fm: 128
+    dropout_fm: 0.01722744893235017
+    weight_decay_fm: 4.882605730455085e-05
+    gru_hidden_im: 128
+    mlp_hidden_im: 64
+    dropout_im: 0.013806225802944225
+    weight_decay_im: 3.426944253753332e-06
+    lr: 0.0002496032685456178
+    batch_size: 64
+    clip_norm: 0.5
+
+=== Comando train.py con il best ===
+python3 src/net/Estimator/train.py --train_mode combo --p 1 --rollout_steps 10 --lambda_roll 1.0 --roll_warmup 10 --gru_hidden_fm 128 --mlp_hidden_fm 512 --dropout_fm 0.19931977379143886 --weight_decay_fm 1.0216647704793357e-05 --gru_hidden_im 128 --mlp_hidden_im 256 --dropout_im 0.06367278116520242 --weight_decay_im 0.0007406462387410057 --lr 0.0002298046446717069 --batch_size 64 --clip_norm 1.0
+
+=== Importanza parametri (fANOVA) ===
+  mlp_hidden_im    0.373
+  mlp_hidden_fm    0.195
+  gru_hidden_fm    0.149
+  dropout_fm       0.087
+  lr               0.057
+  gru_hidden_im    0.050
+  dropout_im       0.037
+  batch_size       0.036
+  weight_decay_fm  0.010
+  weight_decay_im  0.004
+  clip_norm        0.002
