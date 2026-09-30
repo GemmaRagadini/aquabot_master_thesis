@@ -153,11 +153,11 @@ class FishJointDataset(Dataset):
                 sensors[:, k] = col
 
         sensor_diff = sensors[:, 0] - sensors[:, 1]
-        sensor_mean = (sensors[:, 0] + sensors[:, 1]) / 2.0
+        # sensor_mean = (sensors[:, 0] + sensors[:, 1]) / 2.0
         offset      = sensor_diff[:50].mean()
-        offset_mean = sensor_mean[:50].mean()
-        sensor_diff_cal = sensor_diff - offset
-        sensor_mean_cal = sensor_mean - offset_mean
+        # offset_mean = sensor_mean[:50].mean()
+        sensor_diff_cal = sensor_diff # - offset
+        # sensor_mean_cal = sensor_mean - offset_mean
 
         current   = df["present_current_ma"].values.astype(np.float32)
         cmd_servo = df["tail_target_rad"].values.astype(np.float32)
@@ -171,14 +171,14 @@ class FishJointDataset(Dataset):
 
         return {
             "sensor_diff_cal": sensor_diff_cal.astype(np.float32),
-            "sensor_mean_cal": sensor_mean_cal.astype(np.float32),
+            # "sensor_mean_cal": sensor_mean_cal.astype(np.float32),
             "cmd_servo":       cmd_servo,
             "current":         current,
             "amp_des":         amp_des,
             "freq_des":        freq_des,
             "center":          center,
             "offset_diff":     float(offset),
-            "offset_mean":     float(offset_mean),
+            # "offset_mean":     float(offset_mean),
         }
 
     # ---------- scaler unico condiviso ----------
