@@ -30,22 +30,14 @@ ros2 service call /trial std_srvs/srv/SetBool "{data: true}"
 
 root in aquabot
 
-# 4 TRAINING  
-1.supervised — la Fase A, il riferimento.
-2.supervised + --detach_cross — ablation: serve il cross-gradient o no?
-3.rollout — closed-loop differenziabile.
-4. combo — supervised + λ·rollout con warm-up.
 
 # Cosa fare ora
 - RIPARTIRE DA : 
+- slide in cui mettere loss (già fatta) e best configuration , poi plot e poi metrics  
+- mandare a diego file collect dataset
 - riguardare codice 
 - aggiungere l'autocorrelazione nel test closed loop 
-- attenzione alla calibrazione sui primi 50 campioni, si fa così? 
 - agggiungere test set?  
-
-CHIARIRE 
-- riguardare codice 
-
 
 # Requirements 
 uv pip install -r requirements.txt

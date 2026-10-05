@@ -31,12 +31,12 @@ import pandas as pd
 import torch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 # flat import (come train_fm). In repo: from net.Estimator.model_fm import ...
-from model_fm import build_model
-from dataset  import FishJointDataset
+from net.fm.model import build_model
+from net.dataset  import FishJointDataset
 
 # canali di uscita del forward model (sensori)
 FM_CHANNELS = ["sensor_diff", "current"]
