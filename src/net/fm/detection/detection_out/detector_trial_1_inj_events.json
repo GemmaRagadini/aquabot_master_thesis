@@ -1,0 +1,30 @@
+{
+  "trial": "trial_1.csv",
+  "split": "val",
+  "inject": [
+    "current:ramp:8:6:3"
+  ],
+  "reanchor_s": [],
+  "final_state": "persistente",
+  "events": [
+    {
+      "t_alarm": 114,
+      "t_alarm_s": 11.4,
+      "t_decision_s": 13.9,
+      "trigger": [
+        "current"
+      ],
+      "classe": "persistente",
+      "channels": {
+        "sensor_diff": {
+          "classe": "nessuna",
+          "inizio": null
+        },
+        "current": {
+          "classe": "persistente",
+          "inizio": "brusco"
+        }
+      }
+    }
+  ]
+}
