@@ -150,7 +150,8 @@ def main():
             print("    ancora in corso a fine trial")
         for c, v in ev["channels"].items():
             if v["classe"] != "nessuna":
-                print(f"    {c:12s} {v['classe']:12s} inizio {v['inizio']}")
+                print(f"    {c:12s} {v['classe']:12s} inizio {v['inizio']} "
+                      f"(salita di S_R: {v['salita_SR']:.2f} soglie)")
     if det.state == ALLARME:
         print("Trial finito con un allarme non ancora classificato.")
     print(f"Stato finale: {det.state}")

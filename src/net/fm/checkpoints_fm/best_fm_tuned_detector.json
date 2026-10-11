@@ -11,12 +11,12 @@
   },
   "threshold": {
     "1": {
-      "sensor_diff": 3.860110266168472,
-      "current": 5.481416417959009
+      "sensor_diff": 4.439126806093743,
+      "current": 6.303628880652859
     },
     "R": {
-      "sensor_diff": 2.907178226827574,
-      "current": 5.2936446077472175
+      "sensor_diff": 3.34325496085171,
+      "current": 6.087691298909299
     }
   },
   "config": {
@@ -25,6 +25,7 @@
     "T_s": 2.5,
     "Tc_s": 1.0,
     "Tb_s": 0.7,
+    "rise_frac": 0.5,
     "quiet_s": 5.0,
     "min_reanchor_s": 20.0
   },
@@ -60,7 +61,7 @@
     ],
     "split": "val",
     "quantile": 1.0,
-    "margin": 1.0,
+    "margin": 1.15,
     "per_trial_max_score": {
       "trial_1.csv": {
         "S1_sensor_diff": 1.5642899572953308,
@@ -209,151 +210,151 @@
     },
     "loo_ratio": {
       "trial_1.csv": {
-        "S1_sensor_diff": 0.40524488924717633,
-        "S1_current": 0.399113586321746,
-        "SR_sensor_diff": 1.0707391471585177,
-        "SR_current": 0.7625665930490538
+        "S1_sensor_diff": 0.352386860214936,
+        "S1_current": 0.3470552924536922,
+        "SR_sensor_diff": 0.9310775192682763,
+        "SR_current": 0.6631013852600469
       },
       "trial_3.csv": {
-        "S1_sensor_diff": 0.6951739230850161,
-        "S1_current": 0.6182051722823496,
-        "SR_sensor_diff": 0.7858600978190022,
-        "SR_current": 0.8392638179353586
+        "S1_sensor_diff": 0.604499063552188,
+        "S1_current": 0.5375697150281302,
+        "SR_sensor_diff": 0.6833566067991325,
+        "SR_current": 0.7297946242916163
       },
       "trial_4.csv": {
-        "S1_sensor_diff": 0.5648342140208964,
-        "S1_current": 0.4329168382463708,
-        "SR_sensor_diff": 0.8215690632590485,
-        "SR_current": 0.40032901990062164
+        "S1_sensor_diff": 0.49116018610512735,
+        "S1_current": 0.3764494245620616,
+        "SR_sensor_diff": 0.7144078810948249,
+        "SR_current": 0.3481121912179319
       },
       "trial_19.csv": {
-        "S1_sensor_diff": 0.2920752127190991,
-        "S1_current": 0.6044614249666039,
-        "SR_sensor_diff": 0.5516046011624227,
-        "SR_current": 0.6161826109356976
+        "S1_sensor_diff": 0.25397844584269486,
+        "S1_current": 0.5256186304057426,
+        "SR_sensor_diff": 0.4796561749238459,
+        "SR_current": 0.5358109660310415
       },
       "trial_21.csv": {
-        "S1_sensor_diff": 0.7502903578325791,
-        "S1_current": 0.39457701395473666,
-        "SR_sensor_diff": 0.9146235067016593,
-        "SR_current": 0.4063595926806143
+        "S1_sensor_diff": 0.6524263981152862,
+        "S1_current": 0.34311044691716236,
+        "SR_sensor_diff": 0.7953247884362256,
+        "SR_current": 0.3533561675483603
       },
       "trial_25.csv": {
-        "S1_sensor_diff": 0.32980679921928324,
-        "S1_current": 0.7117967173694518,
-        "SR_sensor_diff": 0.6704412660164686,
-        "SR_current": 1.0687016221840901
+        "S1_sensor_diff": 0.2867885210602463,
+        "S1_current": 0.6189536672777843,
+        "SR_sensor_diff": 0.5829924052317119,
+        "SR_current": 0.929305758420948
       },
       "trial_26.csv": {
-        "S1_sensor_diff": 0.2714517646814994,
-        "S1_current": 0.6097523423404555,
-        "SR_sensor_diff": 0.5665502455165684,
-        "SR_current": 0.5197156136709463
+        "S1_sensor_diff": 0.2360450127665212,
+        "S1_current": 0.5302194281221353,
+        "SR_sensor_diff": 0.4926523874057117,
+        "SR_current": 0.45192662058343164
       },
       "trial_38.csv": {
-        "S1_sensor_diff": 0.7025337252038434,
-        "S1_current": 0.8982672268949669,
-        "SR_sensor_diff": 0.886597555583238,
-        "SR_current": 0.8826451756530932
+        "S1_sensor_diff": 0.6108988914816029,
+        "S1_current": 0.781101936430406,
+        "SR_sensor_diff": 0.7709543961593376,
+        "SR_current": 0.7675175440461681
       },
       "trial_46.csv": {
-        "S1_sensor_diff": 0.3541712209203604,
-        "S1_current": 0.2792291485226578,
-        "SR_sensor_diff": 0.4164247077943401,
-        "SR_current": 0.2884538942120969
+        "S1_sensor_diff": 0.3079749747133569,
+        "S1_current": 0.24280795523709375,
+        "SR_sensor_diff": 0.3621084415602958,
+        "SR_current": 0.2508294732279104
       },
       "trial_47.csv": {
-        "S1_sensor_diff": 0.3508249595311998,
-        "S1_current": 0.49100711709394307,
-        "SR_sensor_diff": 0.3247251264662318,
-        "SR_current": 0.46579348904777523
+        "S1_sensor_diff": 0.30506518220104334,
+        "S1_current": 0.4269627105164723,
+        "SR_sensor_diff": 0.2823696751880277,
+        "SR_current": 0.40503781656328286
       },
       "trial_56.csv": {
-        "S1_sensor_diff": 1.110681153441598,
-        "S1_current": 0.3850934542373102,
-        "SR_sensor_diff": 0.9339342851653063,
-        "SR_current": 0.3621574141441767
+        "S1_sensor_diff": 0.9658096986448679,
+        "S1_current": 0.33486387324983496,
+        "SR_sensor_diff": 0.8121167697089621,
+        "SR_current": 0.31491949056015367
       },
       "trial_57.csv": {
-        "S1_sensor_diff": 0.756142465415491,
-        "S1_current": 0.4305962943261509,
-        "SR_sensor_diff": 0.8968589218386509,
-        "SR_current": 0.44405753575930784
+        "S1_sensor_diff": 0.6575151873178182,
+        "S1_current": 0.3744315602836095,
+        "SR_sensor_diff": 0.7798773233379573,
+        "SR_current": 0.38613698761678944
       },
       "trial_70.csv": {
-        "S1_sensor_diff": 0.27253779556197355,
-        "S1_current": 0.4270920597849012,
-        "SR_sensor_diff": 0.3576175487749488,
-        "SR_current": 0.5005323172157262
+        "S1_sensor_diff": 0.23698938744519443,
+        "S1_current": 0.3713843998129576,
+        "SR_sensor_diff": 0.31097178154343375,
+        "SR_current": 0.43524549323106637
       },
       "trial_72.csv": {
-        "S1_sensor_diff": 0.853560325842021,
-        "S1_current": 0.4084101150509026,
-        "SR_sensor_diff": 0.8147834653139543,
-        "SR_current": 0.35003550608659856
+        "S1_sensor_diff": 0.7422263702974096,
+        "S1_current": 0.3551392304790458,
+        "SR_sensor_diff": 0.7085073611425691,
+        "SR_current": 0.30437870094486835
       },
       "trial_79.csv": {
-        "S1_sensor_diff": 0.6127743956413699,
-        "S1_current": 0.6860744172550675,
-        "SR_sensor_diff": 0.8254175124675469,
-        "SR_current": 0.7288237777815563
+        "S1_sensor_diff": 0.532847300557713,
+        "S1_current": 0.5965864497870152,
+        "SR_sensor_diff": 0.7177543586674321,
+        "SR_current": 0.6337598067665707
       },
       "trial_83.csv": {
-        "S1_sensor_diff": 0.258477649576622,
-        "S1_current": 0.518786951319876,
-        "SR_sensor_diff": 0.3030678436133293,
-        "SR_current": 0.5184546172233372
+        "S1_sensor_diff": 0.2247631735448887,
+        "S1_current": 0.45111908810424,
+        "SR_sensor_diff": 0.2635372553159385,
+        "SR_current": 0.4508301019333367
       },
       "trial_85.csv": {
-        "S1_sensor_diff": 0.3108179719144197,
-        "S1_current": 0.4905766885883699,
-        "SR_sensor_diff": 0.2831646788723293,
-        "SR_current": 0.4363695066524778
+        "S1_sensor_diff": 0.2702764973168867,
+        "S1_current": 0.42658842485945214,
+        "SR_sensor_diff": 0.24623015554115593,
+        "SR_current": 0.3794517449151982
       },
       "trial_89.csv": {
-        "S1_sensor_diff": 0.7553348190005672,
-        "S1_current": 0.3499655450807165,
-        "SR_sensor_diff": 0.8173627982297176,
-        "SR_current": 0.3007173180505722
+        "S1_sensor_diff": 0.6568128860874498,
+        "S1_current": 0.3043178652875796,
+        "SR_sensor_diff": 0.7107502593301892,
+        "SR_current": 0.26149332004397585
       },
       "trial_90.csv": {
-        "S1_sensor_diff": 0.9003484005300376,
-        "S1_current": 0.45864798390915923,
-        "SR_sensor_diff": 0.8500875450433323,
-        "SR_current": 0.40292362728075426
+        "S1_sensor_diff": 0.7829116526348153,
+        "S1_current": 0.3988243338340515,
+        "SR_sensor_diff": 0.7392065609072456,
+        "SR_current": 0.350368371548482
       },
       "trial_93.csv": {
-        "S1_sensor_diff": 0.7610019119553645,
-        "S1_current": 1.1132544637709783,
-        "SR_sensor_diff": 0.6085345406790984,
-        "SR_current": 0.9357148704952037
+        "S1_sensor_diff": 0.6617407930046648,
+        "S1_current": 0.9680473598008509,
+        "SR_sensor_diff": 0.5291604701557379,
+        "SR_current": 0.8136651047784381
       },
       "trial_94.csv": {
-        "S1_sensor_diff": 0.41127491672651956,
-        "S1_current": 0.49967319370299856,
-        "SR_sensor_diff": 0.43192280930692717,
-        "SR_current": 0.3463794194644119
+        "S1_sensor_diff": 0.3576303623708866,
+        "S1_current": 0.4344984293069553,
+        "SR_sensor_diff": 0.37558505157124106,
+        "SR_current": 0.30119949518644523
       },
       "trial_106.csv": {
-        "S1_sensor_diff": 0.7553056723147381,
-        "S1_current": 0.8044956812855267,
-        "SR_sensor_diff": 0.8669070237094292,
-        "SR_current": 0.9104018405563186
+        "S1_sensor_diff": 0.6567875411432506,
+        "S1_current": 0.6995614619874146,
+        "SR_sensor_diff": 0.7538321945299385,
+        "SR_current": 0.7916537743967988
       },
       "trial_114.csv": {
-        "S1_sensor_diff": 0.5813559605710436,
-        "S1_current": 0.6547285548836926,
-        "SR_sensor_diff": 0.7261306924490489,
-        "SR_current": 0.557320236587506
+        "S1_sensor_diff": 0.5055269222356901,
+        "S1_current": 0.5693291781597327,
+        "SR_sensor_diff": 0.6314179934339557,
+        "SR_current": 0.4846262926847878
       },
       "trial_115.csv": {
-        "S1_sensor_diff": 0.4279366342546406,
-        "S1_current": 0.47299680552374307,
-        "SR_sensor_diff": 0.5332124454429966,
-        "SR_current": 0.6383307158671483
+        "S1_sensor_diff": 0.37211881239533967,
+        "S1_current": 0.4113015700206462,
+        "SR_sensor_diff": 0.4636629960373884,
+        "SR_current": 0.5550701877105638
       }
     },
-    "loo_false_alarm_rate_per_trial": 0.08333333333333333,
+    "loo_false_alarm_rate_per_trial": 0.0,
     "rollout_rms_vs_age": [
       {
         "eta_s": "0-1",

@@ -75,12 +75,14 @@ def main():
     # ---- 1. residui e score grezzi (sigma=1) per trial ----
     names, sumsq, count, rawmax = [], [], [], []
     ages, res_R = [], []
-    for ti in trials:
+    for k, ti in enumerate(trials, start=1):
+        print(f"\r  trial {k}/{len(trials)}: {dataset.trial_names[ti]}        ",
+              end="", flush=True)
         cmd, sens = trial_series(dataset, ti)
         r = replay(det, cmd, sens)
         ok = np.isfinite(r["resid"][:, 0, 0])
         if not np.isfinite(r["score"]).any():
-            print(f"  salto {dataset.trial_names[ti]}: troppo corto per uno score")
+            print(f"\n  salto {dataset.trial_names[ti]}: troppo corto per uno score")
             continue
         names.append(dataset.trial_names[ti])
         sumsq.append((r["resid"][ok] ** 2).sum(axis=0))
@@ -88,6 +90,7 @@ def main():
         rawmax.append(np.nanmax(r["score"], axis=0))       # RMS_W grezzo massimo
         ages.append(r["age"][ok])
         res_R.append(r["resid"][ok][:, MR, :])
+    print()
     n = len(names)
     if n < 2:
         raise SystemExit("Servono almeno 2 trial per calibrare.")

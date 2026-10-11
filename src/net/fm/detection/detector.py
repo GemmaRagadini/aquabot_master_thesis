@@ -20,8 +20,12 @@ Macchina a stati:
                 persistente  S_R sopra soglia negli ultimi Tc secondi
                 transitoria  S_R sopra soglia solo prima
                 nessuna      canale mai sopra soglia
-              ed etichetta l'inizio: "brusco" se S_1 supera la sua soglia
-              entro Tb da t_a, altrimenti "graduale"
+              ed etichetta l'inizio di ogni canale dalla velocita' di
+              salita di S_R: "brusco" se nei Tb prima del superamento S_R
+              e' cresciuto di piu' di rise_frac * soglia, altrimenti
+              "graduale". S_1 viene calcolato e registrato, ma non decide
+              l'etichetta: entra solo nella condizione di quiete del
+              riaggancio.
   PERSISTENTE continua a calcolare gli score; quando S_R di tutti i canali
               resta sotto soglia per quiet_s torna da solo a NORMALE e
               registra fine e durata nell'evento. reset() resta disponibile
@@ -51,7 +55,8 @@ class DetectorConfig:
     W_s:            float = 0.5    # finestra dello score
     T_s:            float = 2.5    # attesa tra allarme e classificazione
     Tc_s:           float = 1.0    # ultimo tratto di T: S_R ancora sopra soglia?
-    Tb_s:           float = 0.7    # finestra per l'etichetta "inizio brusco"
+    Tb_s:           float = 0.7    # finestra su cui si misura la salita di S_R
+    rise_frac:      float = 0.5    # salita minima (in frazione di soglia) per "brusco"
     quiet_s:        float = 5.0    # quiete richiesta prima del riaggancio
     min_reanchor_s: float = 20.0   # intervallo minimo tra i riagganci
 
@@ -141,7 +146,7 @@ class PerturbationDetector:
         self._boot_cmd, self._boot_sens = [], []
         self.hist_cmd = self.hist_real = self.hist_roll = None
         self._z = deque(maxlen=self.nW)          # residui normalizzati (2,2)
-        self._over1 = deque(maxlen=self.nW)      # S_1 sopra soglia, recenti (2,)
+        self._ratioR = deque(maxlen=self.nTb + 1)  # S_R / soglia, ultimi Tb (2,)
         self._age = 0                    # campioni dall'ultimo riaggancio
         self._quiet = 0                  # campioni quieti consecutivi
         self._ev = None                  # evento in corso (stato ALLARME)
@@ -217,8 +222,8 @@ class PerturbationDetector:
             score = nan
         valid = bool(np.isfinite(score).all())
         over = score > self.calib.threshold          # (2,2); NaN -> False
-        over_R, over_1 = over[MR], over[M1]
-        self._over1.append(over_1.copy())
+        over_R = over[MR]
+        self._ratioR.append(score[MR] / self.calib.threshold[MR])
 
         # ---- macchina a stati ----
         if self.state == PERSISTENTE:
@@ -239,11 +244,10 @@ class PerturbationDetector:
                 self._ev = {
                     "t_alarm": self.t,
                     "trigger": [c for ci, c in enumerate(CHANNELS) if over_R[ci]],
-                    "ever": over_R.copy(),
+                    "ever": np.zeros(2, dtype=bool),
                     "late": np.zeros(2, dtype=bool),
-                    # S_1 reagisce prima di S_R: si guardano anche gli ultimi W
-                    # campioni PRIMA di t_a, oltre ai Tb successivi.
-                    "abrupt": np.any(np.stack(self._over1), axis=0),
+                    "abrupt": np.zeros(2, dtype=bool),
+                    "rise": np.full(2, np.nan),
                 }
             elif valid and not over.any():
                 self._quiet += 1
@@ -253,9 +257,12 @@ class PerturbationDetector:
         if self.state == ALLARME:
             ev = self._ev
             k = self.t - ev["t_alarm"]
+            # etichetta dell'inizio: fissata per ogni canale nel momento in cui
+            # il SUO S_R supera la soglia per la prima volta
+            for ci in np.flatnonzero(over_R & ~ev["ever"]):
+                ev["rise"][ci] = self._rise(ci)
+                ev["abrupt"][ci] = ev["rise"][ci] > self.cfg.rise_frac
             ev["ever"] |= over_R
-            if k <= self.nTb:
-                ev["abrupt"] |= over_1
             if k > self.nT - self.nTc:
                 ev["late"] |= over_R
             if k >= self.nT:
@@ -273,6 +280,12 @@ class PerturbationDetector:
         self.t += 1
         return out
 
+    def _rise(self, ci):
+        """Crescita di S_R/soglia del canale ci negli ultimi Tb secondi
+        (valore attuale meno il valore di Tb fa, o il piu' vecchio disponibile)."""
+        past = [float(r[ci]) for r in self._ratioR if np.isfinite(r[ci])]
+        return past[-1] - past[0] if len(past) > 1 else 0.0
+
     def _classify(self, ev):
         hz = self.cfg.hz
         chans = {}
@@ -284,7 +297,8 @@ class PerturbationDetector:
             else:
                 cls = "nessuna"
             onset = None if cls == "nessuna" else ("brusco" if ev["abrupt"][ci] else "graduale")
-            chans[c] = {"classe": cls, "inizio": onset}
+            rise = None if cls == "nessuna" else round(float(ev["rise"][ci]), 3)
+            chans[c] = {"classe": cls, "inizio": onset, "salita_SR": rise}
         persistent = bool(ev["late"].any())
         event = {"t_alarm": int(ev["t_alarm"]), "t_alarm_s": ev["t_alarm"] / hz,
                  "t_decision_s": self.t / hz, "trigger": ev["trigger"],
