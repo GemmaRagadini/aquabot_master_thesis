@@ -1,0 +1,36 @@
+{
+  "trial": "trial_1.csv",
+  "split": "val",
+  "inject": [
+    "current:step:8:8:2.5"
+  ],
+  "reanchor_s": [
+    26.0
+  ],
+  "final_state": "normale",
+  "events": [
+    {
+      "t_alarm": 82,
+      "t_alarm_s": 8.2,
+      "t_decision_s": 14.7,
+      "trigger": [
+        "current"
+      ],
+      "classe": "persistente",
+      "channels": {
+        "sensor_diff": {
+          "classe": "nessuna",
+          "inizio": null,
+          "salita_SR": null
+        },
+        "current": {
+          "classe": "persistente",
+          "inizio": "brusco",
+          "salita_SR": 1.071
+        }
+      },
+      "t_end_s": 16.1,
+      "durata_s": 7.9
+    }
+  ]
+}

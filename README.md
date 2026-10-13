@@ -33,11 +33,9 @@ root in aquabot
 
 # Cosa fare ora
 - RIPARTIRE DA : 
-- slide in cui mettere loss (già fatta) e best configuration , poi plot e poi metrics  
-- mandare a diego file collect dataset
 - riguardare codice 
-- aggiungere l'autocorrelazione nel test closed loop 
 - agggiungere test set?  
+- modificare documento detection 
 
 # Requirements 
 uv pip install -r requirements.txt

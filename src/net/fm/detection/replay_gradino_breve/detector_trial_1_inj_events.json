@@ -1,0 +1,34 @@
+{
+  "trial": "trial_1.csv",
+  "split": "val",
+  "inject": [
+    "current:step:10:1:2.5"
+  ],
+  "reanchor_s": [
+    21.9
+  ],
+  "final_state": "normale",
+  "events": [
+    {
+      "t_alarm": 102,
+      "t_alarm_s": 10.2,
+      "t_decision_s": 16.7,
+      "trigger": [
+        "current"
+      ],
+      "classe": "transitoria",
+      "channels": {
+        "sensor_diff": {
+          "classe": "nessuna",
+          "inizio": null,
+          "salita_SR": null
+        },
+        "current": {
+          "classe": "transitoria",
+          "inizio": "brusco",
+          "salita_SR": 1.007
+        }
+      }
+    }
+  ]
+}

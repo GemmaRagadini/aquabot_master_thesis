@@ -53,7 +53,7 @@ AVVIO, NORMALE, ALLARME, PERSISTENTE = "avvio", "normale", "allarme", "persisten
 class DetectorConfig:
     hz:             float = 10.0   # frequenza dei campioni
     W_s:            float = 0.5    # finestra dello score
-    T_s:            float = 2.5    # attesa tra allarme e classificazione
+    T_s:            float = 6.5    # attesa tra allarme e classificazione (transitoria se < T - Tc - W = 5 s)
     Tc_s:           float = 1.0    # ultimo tratto di T: S_R ancora sopra soglia?
     Tb_s:           float = 0.7    # finestra su cui si misura la salita di S_R
     rise_frac:      float = 0.5    # salita minima (in frazione di soglia) per "brusco"
