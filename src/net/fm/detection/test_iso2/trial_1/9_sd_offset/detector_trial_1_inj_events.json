@@ -1,0 +1,54 @@
+{
+  "trial": "trial_1.csv",
+  "split": "val",
+  "inject": [
+    "sensor_diff:step:15:0:0.5"
+  ],
+  "reanchor_s": [],
+  "slow_events": [
+    {
+      "canale": "sensor_diff",
+      "t_alarm": 160,
+      "t_alarm_s": 16.0,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "secondario": false,
+      "origine": "sensor_diff",
+      "ref": 1.0
+    },
+    {
+      "canale": "current",
+      "t_alarm": 231,
+      "t_alarm_s": 23.1,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "secondario": true,
+      "origine": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "persistente",
+  "events": [
+    {
+      "t_alarm": 175,
+      "t_alarm_s": 17.5,
+      "t_decision_s": 24.0,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "classe": "persistente",
+      "channels": {
+        "sensor_diff": {
+          "classe": "persistente",
+          "inizio": "brusco",
+          "salita_SR": 0.568
+        },
+        "current": {
+          "classe": "nessuna",
+          "inizio": null,
+          "salita_SR": null
+        }
+      }
+    }
+  ]
+}

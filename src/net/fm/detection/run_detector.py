@@ -10,6 +10,8 @@ sensori per provare la catena allarme -> classificazione.
             gain  moltiplica il segnale per (1 + ampiezza) per `durata` secondi
   ampiezza  in deviazioni standard del segnale (spazio normalizzato)
   es: --inject sensor_diff:step:10:1:2      transitoria brusca di 1 s
+      --inject current:gain:15:0:0.5        ampiezza +50% da 15 s a fine trial
+                                            (test del detector lento)
       --inject current:ramp:8:6:1.5         persistente graduale
 
 ATTENZIONE: una perturbazione additiva sul sensore e' un surrogato. Quelle
@@ -156,10 +158,29 @@ def main():
         print("Trial finito con un allarme non ancora classificato.")
     print(f"Stato finale: {det.state}")
 
+    # ---- detector lento (CUSUM) ----
+    if not np.isfinite(det.h).any():
+        print("Detector lento: disattivato (nessuna soglia CUSUM nel JSON: ricalibra).")
+    elif det.ref is None:
+        print("Detector lento: riferimento di sessione non completato (trial troppo corto).")
+    else:
+        print(f"Detector lento: riferimento {np.round(det.ref, 3).tolist()} "
+              f"({'fisso' if calib.config.cusum_ref_s <= 0 else 'primi %.0f s' % calib.config.cusum_ref_s}), "
+              f"soglie h {np.round(det.h, 1).tolist()}")
+        if not det.slow_events:
+            print("  nessun allarme lento")
+        for ev in det.slow_events:
+            fine = (f"finito a {ev['t_end_s']:.1f} s (durata {ev['durata_s']:.1f} s)"
+                    if "t_end_s" in ev else "ancora attivo a fine trial")
+            tipo = (f"SECONDARIO, probabile effetto di {ev['origine']}"
+                    if ev.get("secondario") else "origine")
+            print(f"  ALLARME LENTO su {ev['canale']} a {ev['t_alarm_s']:.1f} s, {fine} "
+                  f"({tipo})")
+
     # ---- figura ----
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(4, 1, figsize=(11, 10), sharex=True)
+    fig, axes = plt.subplots(5, 1, figsize=(11, 12.5), sharex=True)
     fig.patch.set_facecolor(COL_SURFACE)
 
     for ci, ch in enumerate(CHANNELS):
@@ -193,7 +214,32 @@ def main():
                      color=COL_TEXT, fontsize=11, fontweight="bold", loc="left")
         ax.legend(loc="upper right", ncol=2, frameon=False, fontsize=8,
                   labelcolor=COL_TEXT_SEC)
-    axes[3].set_xlabel("time (s)", color=COL_TEXT_SEC, fontsize=9)
+    ax = axes[4]
+    style_axis(ax)
+    shade(ax, t, r, spans, hz)
+    for ci, ch in enumerate(CHANNELS):
+        on = np.concatenate([[False], r["slow"][:, ci], [False]])
+        edges = np.flatnonzero(np.diff(on.astype(int)))
+        for a, b in zip(edges[::2], edges[1::2]):
+            ax.axvspan(t[a], t[b - 1] + 1.0 / hz, color=COL_CH[ch], alpha=0.12,
+                       linewidth=0, zorder=1)
+        hh = det.h[ci]
+        y = r["g"][:, ci] / hh if np.isfinite(hh) else r["g"][:, ci]
+        ax.plot(t, y, color=COL_CH[ch], linewidth=1.5, zorder=3, label=ch)
+    if np.isfinite(det.h).any():
+        ax.axhline(1.0, color=COL_TEXT, linewidth=1.0, linestyle="--", zorder=2)
+        ylab = "g / h"
+    else:
+        ylab = "g (no threshold)"
+    ax.set_ylim(bottom=0)
+    ax.set_ylabel(ylab, color=COL_TEXT_SEC, fontsize=9)
+    ref_txt = (f"{calib.config.cusum_ref_s:.0f} s session reference"
+               if calib.config.cusum_ref_s > 0 else "fixed reference")
+    ax.set_title(f"Slow detector (CUSUM, {calib.config.cusum_mode}-mode residual, "
+                 f"{ref_txt}) — shaded: slow alarm active",
+                 color=COL_TEXT, fontsize=11, fontweight="bold", loc="left")
+    ax.legend(loc="upper right", ncol=2, frameon=False, fontsize=8, labelcolor=COL_TEXT_SEC)
+    axes[4].set_xlabel("time (s)", color=COL_TEXT_SEC, fontsize=9)
 
     fig.suptitle(f"Perturbation detector — trial {name} [{split}]   "
                  f"yellow: alarm · red: persistent · hatched: injected · dotted: rollout re-anchor",
@@ -209,6 +255,7 @@ def main():
     with open(ev_path, "w") as f:
         json.dump({"trial": name, "split": split, "inject": args.inject,
                    "reanchor_s": [float(x) for x in t[r["reanchored"]]],
+                   "slow_events": det.slow_events,
                    "final_state": det.state, "events": det.events}, f, indent=2)
     print(f"Salvato {ev_path}")
 

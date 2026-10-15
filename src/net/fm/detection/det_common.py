@@ -8,6 +8,11 @@ import torch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Il detector chiama il modello migliaia di volte con batch minuscoli: con molti
+# thread PyTorch spende piu' tempo a coordinarli che a calcolare. Un thread solo
+# e' molto piu' veloce. Per cambiare: DETECTOR_THREADS=4 python3 ...
+torch.set_num_threads(int(os.environ.get("DETECTOR_THREADS", "1")))
+
 
 def find_repo_root(start):
     """Risale le cartelle finche' trova quella che contiene src/net."""
@@ -97,7 +102,7 @@ def resolve_trial(dataset, trial_arg, val_trials):
 def replay(det, cmd, sens):
     """Fa passare un trial nel detector, campione per campione.
     Ritorna un dict di array lunghi n: state (n,), pred/resid/score (n,2,2)
-    [modo, canale], age (n,), alarm/reanchored (n,) bool."""
+    [modo, canale], age (n,), alarm/reanchored (n,) bool, g/slow (n,2)."""
     det.start()
     outs = [det.step(cmd[i], sens[i]) for i in range(len(cmd))]
     return {
@@ -108,4 +113,7 @@ def replay(det, cmd, sens):
         "age":        np.array([o["age"] for o in outs]),
         "alarm":      np.array([o["alarm"] for o in outs]),
         "reanchored": np.array([o["reanchored"] for o in outs]),
+        "g":          np.stack([o["g"] for o in outs]),          # (n,2) CUSUM lento
+        "slow":       np.stack([o["slow"] for o in outs]),       # (n,2) allarme lento attivo
+        "resid_iso":  np.stack([o["resid_iso"] for o in outs]),  # (n,2) un passo isolato
     }

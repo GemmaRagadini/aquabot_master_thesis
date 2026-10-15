@@ -1,0 +1,141 @@
+Trovati 120 trial.
+Dataset grezzo: 120 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
+Dataset: 33600 campioni da 120 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+  trial 1/24: trial_1.csv          trial 2/24: trial_3.csv          trial 3/24: trial_4.csv          trial 4/24: trial_19.csv          trial 5/24: trial_21.csv          trial 6/24: trial_25.csv          trial 7/24: trial_26.csv          trial 8/24: trial_38.csv          trial 9/24: trial_46.csv          trial 10/24: trial_47.csv          trial 11/24: trial_56.csv          trial 12/24: trial_57.csv          trial 13/24: trial_70.csv          trial 14/24: trial_72.csv          trial 15/24: trial_79.csv          trial 16/24: trial_83.csv          trial 17/24: trial_85.csv          trial 18/24: trial_89.csv          trial 19/24: trial_90.csv          trial 20/24: trial_93.csv          trial 21/24: trial_94.csv          trial 22/24: trial_106.csv          trial 23/24: trial_114.csv          trial 24/24: trial_115.csv        
+Trovati 2 trial.
+Dataset grezzo: 2 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
+Dataset: 1186 campioni da 2 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Calibrazione su 24 trial (solo validation) | W=0.5s riaggancio ogni 20.0s | quantile=1.0 margin=1.15
+
+sigma (unita' normalizzate) e soglie (in multipli di sigma):
+                 sigma  soglia
+S1_sensor_diff  0.1500  4.4391
+S1_current      0.2459  6.3036
+SR_sensor_diff  0.2039  3.3433
+SR_current      0.2895  6.0877
+
+Leave-one-trial-out: massimo score del trial escluso / soglia ricalcolata senza di lui (>1 = falso allarme)
+        trial  S1_sensor_diff  S1_current  SR_sensor_diff  SR_current
+  trial_1.csv           0.352       0.347           0.931       0.663
+  trial_3.csv           0.604       0.538           0.683       0.730
+  trial_4.csv           0.491       0.376           0.714       0.348
+ trial_19.csv           0.254       0.526           0.480       0.536
+ trial_21.csv           0.652       0.343           0.795       0.353
+ trial_25.csv           0.287       0.619           0.583       0.929
+ trial_26.csv           0.236       0.530           0.493       0.452
+ trial_38.csv           0.611       0.781           0.771       0.768
+ trial_46.csv           0.308       0.243           0.362       0.251
+ trial_47.csv           0.305       0.427           0.282       0.405
+ trial_56.csv           0.966       0.335           0.812       0.315
+ trial_57.csv           0.658       0.374           0.780       0.386
+ trial_70.csv           0.237       0.371           0.311       0.435
+ trial_72.csv           0.742       0.355           0.709       0.304
+ trial_79.csv           0.533       0.597           0.718       0.634
+ trial_83.csv           0.225       0.451           0.264       0.451
+ trial_85.csv           0.270       0.427           0.246       0.379
+ trial_89.csv           0.657       0.304           0.711       0.261
+ trial_90.csv           0.783       0.399           0.739       0.350
+ trial_93.csv           0.662       0.968           0.529       0.814
+ trial_94.csv           0.358       0.434           0.376       0.301
+trial_106.csv           0.657       0.700           0.754       0.792
+trial_114.csv           0.506       0.569           0.631       0.485
+trial_115.csv           0.372       0.411           0.464       0.555
+
+Frazione di trial sopra soglia, per score:
+S1_sensor_diff    0.0
+S1_current        0.0
+SR_sensor_diff    0.0
+SR_current        0.0
+Tasso di falso allarme per trial (S_R di almeno un canale): 0.000  (0/24)
+NB: con soglia = massimo, per ogni score il trial col massimo assoluto
+    supera SEMPRE la soglia ricalcolata senza di lui. Il numero utile e' di
+    QUANTO la supera: rapporti appena sopra 1 = soglia stabile; rapporti
+    molto sopra 1 = code pesanti, servono piu' trial o un --margin.
+
+z^2 medio per trial (1 = errore tipico del modello). La dispersione tra i trial normali e' il limite di una detection lenta con riferimento fisso:
+        trial  S1_sensor_diff  S1_current  SR_sensor_diff  SR_current
+  trial_1.csv           0.552       1.091           1.605       1.745
+  trial_3.csv           0.659       1.491           1.828       3.088
+  trial_4.csv           0.913       0.711           1.027       0.722
+ trial_19.csv           0.411       1.134           0.776       1.431
+ trial_21.csv           1.889       0.716           2.396       0.826
+ trial_25.csv           0.291       1.049           0.755       1.521
+ trial_26.csv           0.278       0.859           0.631       1.034
+ trial_38.csv           1.919       1.252           2.088       1.102
+ trial_46.csv           0.204       0.555           0.197       0.477
+ trial_47.csv           0.449       1.222           0.284       1.035
+ trial_56.csv           2.318       0.816           1.919       0.582
+ trial_57.csv           2.181       0.835           1.966       0.660
+ trial_70.csv           0.312       0.462           0.253       0.387
+ trial_72.csv           1.139       0.686           0.666       0.474
+ trial_79.csv           0.367       1.017           0.356       0.864
+ trial_83.csv           0.249       0.838           0.174       0.637
+ trial_85.csv           0.386       1.104           0.256       0.780
+ trial_89.csv           1.995       0.585           1.503       0.380
+ trial_90.csv           2.546       1.018           1.880       0.777
+ trial_93.csv           0.688       1.393           0.404       1.180
+ trial_94.csv           0.423       0.967           0.276       0.630
+trial_106.csv           2.796       1.546           2.057       1.269
+trial_114.csv           0.485       1.298           0.386       1.030
+trial_115.csv           0.552       1.355           0.316       1.367
+
+Riepilogo z^2 medio sui trial normali:
+                  min  mediana    max
+S1_sensor_diff  0.204    0.552  2.796
+S1_current      0.462    1.018  1.546
+SR_sensor_diff  0.174    0.711  2.396
+SR_current      0.380    0.845  3.088
+
+Confronto: trial_amp_sweep_senza_pinna.csv (non usato per la calibrazione)
+         score  z2_medio  normali_max normali_sotto  max_score/soglia
+S1_sensor_diff     6.714        2.796         24/24             1.821
+    S1_current     2.670        1.546         24/24             0.869
+SR_sensor_diff     3.958        2.396         24/24             1.492
+    SR_current     2.552        3.088         23/24             0.906
+  normali_sotto = quanti trial normali hanno z^2 medio piu' basso (24/24 = sopra tutti i normali); max_score/soglia > 1 = il detector attuale andrebbe in allarme
+
+Confronto: trial_std_senza_pinna.csv (non usato per la calibrazione)
+         score  z2_medio  normali_max normali_sotto  max_score/soglia
+S1_sensor_diff     4.029        2.796         24/24             1.171
+    S1_current     2.429        1.546         24/24             0.493
+SR_sensor_diff     2.667        2.396         24/24             0.854
+    SR_current     2.246        3.088         23/24             0.524
+  normali_sotto = quanti trial normali hanno z^2 medio piu' basso (24/24 = sopra tutti i normali); max_score/soglia > 1 = il detector attuale andrebbe in allarme
+
+Residuo in rollout in funzione del tempo dall'ultimo riaggancio (1 = media; se cresce molto, sigma_R costante non basta):
+eta_s   n  rmsR/sigma_sensor_diff  rmsR/sigma_current
+  0-1 480                   0.845               0.790
+  1-2 480                   0.938               0.999
+  2-3 480                   0.964               0.900
+  3-4 480                   0.972               1.092
+  4-5 480                   1.037               1.027
+  5-6 480                   0.899               1.034
+  6-7 480                   1.001               1.016
+  7-8 479                   1.048               0.926
+  8-9 242                   0.904               0.827
+ 9-10 240                   0.980               0.921
+10-11 240                   1.054               1.205
+11-12 240                   1.032               1.025
+12-13 240                   0.956               0.961
+13-14 240                   1.079               1.172
+14-15 240                   0.928               1.134
+15-16 240                   1.147               1.233
+16-17 240                   1.108               1.034
+17-18 240                   1.159               0.980
+18-19 240                   1.064               0.859
+19-20 216                   1.115               0.928
+
+Detector lento (CUSUM) | residuo un passo, isolato su [sensor_diff] | sigma [0.1528, 0.2459] (un passo: [0.15, 0.2459]) | kappa=1.0 clip=9.0 margine=1.15
+  riferimento fisso (0 s): h = sensor_diff 29.3, current 28.0 | 24 trial, ~28 s monitorati per trial | LOO max [0.93, 0.9] (>1 = falso allarme)
+  NB: h cresce con la durata monitorata. Calibrata su trial brevi e' ottimistica per l'uso online: servono trial normali lunghi.
+
+Detector lento su trial_amp_sweep_senza_pinna.csv:
+  riferimento fisso: sensor_diff: allarme a 14.5 s dall'inizio (g max 735, h 29) | current: allarme a 23.3 s dall'inizio (g max 199, h 28)
+
+Detector lento su trial_std_senza_pinna.csv:
+  riferimento fisso: sensor_diff: allarme a 2.4 s dall'inizio (g max 262, h 29) | current: allarme a 26.3 s dall'inizio (g max 68, h 28)
+
+Calibrazione salvata in src/net/fm/checkpoints_fm/best_fm_tuned_detector.json

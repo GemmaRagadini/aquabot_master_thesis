@@ -1,0 +1,22 @@
+{
+  "trial": "trial_106.csv",
+  "split": "val",
+  "inject": [
+    "current:step:15:0:0.8"
+  ],
+  "reanchor_s": [
+    21.9
+  ],
+  "slow_events": [
+    {
+      "canale": "current",
+      "t_alarm": 153,
+      "t_alarm_s": 15.3,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "normale",
+  "events": []
+}

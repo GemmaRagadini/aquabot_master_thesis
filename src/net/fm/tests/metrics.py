@@ -12,7 +12,7 @@ la baseline di persistenza, sui soli trial di validation.
 
 Flag principali:
   --metrics  rmse mae nrmse r2      quali metriche (default: rmse nrmse r2)
-  --baseline persist | none         baseline per skill score (default: persist)
+  --baseline persist arx | none     baseline di confronto (default: persist arx)
   --channels sensor_diff current    (default: tutti)
   --agg      per_trial | pooled | both  righe riassuntive (default: both)
   --summary_only                    scrivi solo MEDIA/pooled, non i singoli trial
@@ -25,6 +25,10 @@ Metriche:
   R2    = 1 - SS_res/SS_tot (1 ottimo, <=0 peggio della media).
   Baseline PERSISTENZA: predizione = sens(t-1). skill = 1 - modello/persist
   (1 = perfetto, 0 = come la persistenza, <0 = peggio).
+  Baseline ARX: modello LINEARE con gli stessi ingressi della GRU (ultimi H
+  comandi e sensori + comando a t), stimato con minimi quadrati regolarizzati
+  (ridge) sui trial di TRAIN e valutato sugli stessi trial del modello.
+  Colonne <canale>_<METRICA>_arx e skill_<metrica>_arx = 1 - modello/arx.
 
 Righe riassuntive:
   MEDIA per-trial : media delle metriche dei singoli trial (ogni trial pesa uguale)
@@ -82,6 +86,31 @@ def r2(pred, true):
 METRIC_FUNCS = {"rmse": rmse, "mae": mae, "nrmse": nrmse, "r2": r2}
 
 
+# ------------------------------- baseline ARX -------------------------------
+def arx_features(dataset, idxs, lags):
+    """Regressori ARX per le finestre idxs: ultimi `lags` comandi e sensori
+    (t-lags .. t-1), comando a t, termine costante. Ritorna (n, 3*lags + 2)."""
+    sc = dataset.seq_cmd[idxs][:, -lags:, :].reshape(len(idxs), -1)
+    ss = dataset.seq_sens[idxs][:, -lags:, :].reshape(len(idxs), -1)
+    ct = dataset.tgt_cmd[idxs][:, 0, :]
+    X = torch.cat([sc, ss, ct], dim=1).cpu().numpy().astype(np.float64)
+    return np.hstack([X, np.ones((len(X), 1))])
+
+
+def fit_arx(dataset, train_idx, lags, ridge):
+    """Minimi quadrati con regolarizzazione ridge (il termine costante non e'
+    penalizzato). Ritorna i coefficienti W (n_feature, 2): pred = X @ W."""
+    X = arx_features(dataset, train_idx, lags)
+    Y = dataset.tgt_sens[train_idx][:, 0, :].cpu().numpy().astype(np.float64)
+    R = ridge * np.eye(X.shape[1])
+    R[-1, -1] = 0.0
+    W = np.linalg.solve(X.T @ X + R, X.T @ Y)
+    rmse_tr = np.sqrt(np.mean((X @ W - Y) ** 2, axis=0))
+    print(f"ARX: {lags} ritardi, {X.shape[1]} coefficienti per canale, ridge={ridge} | "
+          f"RMSE train (normalizzato): sd {rmse_tr[0]:.4f}, current {rmse_tr[1]:.4f}")
+    return W
+
+
 # ------------------------------- checkpoint/model -------------------------------
 def load_model(checkpoint, device):
     """Ricostruisce il forward model con gli iperparametri salvati nel checkpoint."""
@@ -101,9 +130,10 @@ def load_model(checkpoint, device):
     return FM, ckpt
 
 
-def run_trial(dataset, FM, device, trial_idx, batch_size=256):
+def run_trial(dataset, FM, device, trial_idx, batch_size=256, arx=None):
     """Forward su tutte le finestre del trial. Ritorna, in scala normalizzata,
-    predizione, target sens(t) e persistenza sens(t-1): array (n, 2)."""
+    predizione, target sens(t), persistenza sens(t-1) e (se arx=(W, lags))
+    predizione ARX: array (n, 2)."""
     idxs = np.sort(np.nonzero(dataset.window_trial == trial_idx)[0])
     if len(idxs) == 0:
         return None
@@ -120,33 +150,47 @@ def run_trial(dataset, FM, device, trial_idx, batch_size=256):
             preds.append(FM(seq_cmd[sl].to(device), seq_sens[sl].to(device),
                             cmd_t[sl].to(device)).cpu())
 
-    return {"pred":    torch.cat(preds, 0).numpy(),
-            "true":    tgt.cpu().numpy(),
-            "persist": seq_sens[:, -1, :].cpu().numpy()}
+    out = {"pred":    torch.cat(preds, 0).numpy(),
+           "true":    tgt.cpu().numpy(),
+           "persist": seq_sens[:, -1, :].cpu().numpy()}
+    if arx is not None:
+        W, lags = arx
+        out["arx"] = arx_features(dataset, idxs, lags) @ W
+    return out
 
 
 def channel_real(out, ch, scaler):
-    """(pred_real, true_real, persist_real) di un canale, in unita' reali."""
+    """{chiave: array in unita' reali} per un canale (pred, true, persist, arx...)."""
     ci = FM_CHANNELS.index(ch)
 
     def inv(a):
         return scaler.inverse_transform(np.asarray(a).reshape(-1, 1)).ravel()
 
-    return inv(out["pred"][:, ci]), inv(out["true"][:, ci]), inv(out["persist"][:, ci])
+    return {k: inv(v[:, ci]) for k, v in out.items()}
 
 
 # ------------------------------- colonne per canale -------------------------------
-def channel_columns(ch, pred, true, persist, metrics, baseline):
-    """Colonne di un canale: metriche del modello + (rmse/mae) persistenza e skill."""
+def channel_columns(ch, real, metrics, baselines):
+    """Colonne di un canale: metriche del modello, poi per ogni baseline.
+    persist: (rmse/mae) persistenza e skill (nomi di colonna invariati).
+    arx:     tutte le metriche richieste per l'ARX + skill del modello vs ARX."""
+    pred, true = real["pred"], real["true"]
     cols = {}
     for mt in metrics:
         cols[f"{ch}_{METRIC_LABEL[mt]}"] = METRIC_FUNCS[mt](pred, true)
-    if baseline == "persist":
+    if "persist" in baselines:
         for mt in [m for m in metrics if m in SKILL_METRICS]:
             mm = METRIC_FUNCS[mt](pred, true)
-            pp = METRIC_FUNCS[mt](persist, true)
+            pp = METRIC_FUNCS[mt](real["persist"], true)
             cols[f"{ch}_{METRIC_LABEL[mt]}_persist"] = pp
             cols[f"{ch}_skill_{mt}"] = 1.0 - mm / pp if pp > 0 else float("nan")
+    if "arx" in baselines:
+        for mt in metrics:
+            cols[f"{ch}_{METRIC_LABEL[mt]}_arx"] = METRIC_FUNCS[mt](real["arx"], true)
+        for mt in [m for m in metrics if m in SKILL_METRICS]:
+            mm = METRIC_FUNCS[mt](pred, true)
+            aa = METRIC_FUNCS[mt](real["arx"], true)
+            cols[f"{ch}_skill_{mt}_arx"] = 1.0 - mm / aa if aa > 0 else float("nan")
     return cols
 
 
@@ -200,8 +244,13 @@ def main():
     ap.add_argument("--metrics", nargs="+", default=["rmse", "nrmse", "r2"],
                     choices=["rmse", "mae", "nrmse", "r2"],
                     help="quali metriche (default: rmse nrmse r2).")
-    ap.add_argument("--baseline", default="persist", choices=["persist", "none"],
-                    help="baseline per lo skill score (default: persist).")
+    ap.add_argument("--baseline", nargs="+", default=["persist", "arx"],
+                    choices=["persist", "arx", "none"],
+                    help="baseline di confronto (default: persist arx; none = nessuna).")
+    ap.add_argument("--arx_lags", type=int, default=None,
+                    help="ritardi dell'ARX (default: H del modello, stessi ingressi della GRU)")
+    ap.add_argument("--arx_ridge", type=float, default=1.0,
+                    help="regolarizzazione ridge dell'ARX (default 1.0)")
     ap.add_argument("--channels", nargs="+", default=FM_CHANNELS, choices=FM_CHANNELS,
                     help="quali canali (default: tutti).")
     ap.add_argument("--agg", default="both", choices=["per_trial", "pooled", "both"],
@@ -218,23 +267,32 @@ def main():
         ds_kwargs["h"] = int(ckpt["H"])
     dataset = FishJointDataset(args.dataset_dir, **ds_kwargs)
 
-    _, val_ds = dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
+    train_ds, val_ds = dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
     val_trials = set(int(i) for i in np.unique(
         dataset.window_trial[np.asarray(val_ds.indices)]))
 
+    baselines = [] if "none" in args.baseline else list(dict.fromkeys(args.baseline))
+    arx = None
+    if "arx" in baselines:
+        lags = args.arx_lags or dataset.h
+        if not 1 <= lags <= dataset.h:
+            raise SystemExit(f"--arx_lags deve stare tra 1 e H={dataset.h}")
+        W = fit_arx(dataset, np.sort(np.asarray(train_ds.indices)), lags, args.arx_ridge)
+        arx = (W, lags)
+
     channels = list(dict.fromkeys(args.channels))
     metrics  = list(dict.fromkeys(args.metrics))
-    print(f"Metriche: {metrics} | baseline: {args.baseline} | canali: {channels} | "
+    print(f"Metriche: {metrics} | baseline: {baselines} | canali: {channels} | "
           f"agg: {args.agg}")
 
     trials = list(range(len(dataset.trial_names))) if args.all_trials else sorted(val_trials)
     print(f"trial considerati: {len(trials)} "
           f"({'tutti' if args.all_trials else 'solo validation'})")
 
-    pool = {ch: {"pred": [], "true": [], "persist": []} for ch in channels}
+    pool = {ch: {} for ch in channels}
     rows, per_trial_metrics = [], []
     for ti in trials:
-        out = run_trial(dataset, FM, device, ti)
+        out = run_trial(dataset, FM, device, ti, arx=arx)
         if out is None:
             continue
         split = "val" if ti in val_trials else "train"
@@ -242,12 +300,12 @@ def main():
                "n_finestre": len(out["true"])}
         metric_only = {}
         for ch in channels:
-            pr, tr, ps = channel_real(out, ch, dataset.scalers[CH_TO_KEY[ch]])
-            cols = channel_columns(ch, pr, tr, ps, metrics, args.baseline)
+            real = channel_real(out, ch, dataset.scalers[CH_TO_KEY[ch]])
+            cols = channel_columns(ch, real, metrics, baselines)
             row.update(cols)
             metric_only.update(cols)
-            pool[ch]["pred"].append(pr); pool[ch]["true"].append(tr)
-            pool[ch]["persist"].append(ps)
+            for k, v in real.items():
+                pool[ch].setdefault(k, []).append(v)
         if not args.summary_only:
             rows.append(row)
         per_trial_metrics.append(metric_only)
@@ -271,9 +329,9 @@ def main():
         pooled_row = {"trial": "== COMPLESSIVO (pooled) ==", "split": f"POOLED_{tag}",
                       "n_finestre": None}
         for ch in channels:
-            pr, tr, ps = (np.concatenate(pool[ch][k]) for k in ("pred", "true", "persist"))
-            pooled_row["n_finestre"] = len(pr)
-            pooled_row.update(channel_columns(ch, pr, tr, ps, metrics, args.baseline))
+            real = {k: np.concatenate(v) for k, v in pool[ch].items()}
+            pooled_row["n_finestre"] = len(real["true"])
+            pooled_row.update(channel_columns(ch, real, metrics, baselines))
         rows.append(pooled_row)
 
     df_new = pd.DataFrame(rows)

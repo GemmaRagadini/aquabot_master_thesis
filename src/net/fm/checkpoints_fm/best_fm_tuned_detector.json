@@ -19,6 +19,14 @@
       "current": 6.087691298909299
     }
   },
+  "cusum_h": {
+    "sensor_diff": 29.314536234780977,
+    "current": 27.985735222661788
+  },
+  "cusum_sigma": {
+    "sensor_diff": 0.15278190300193029,
+    "current": 0.24593999445366893
+  },
   "config": {
     "hz": 10.0,
     "W_s": 0.5,
@@ -27,7 +35,14 @@
     "Tb_s": 0.7,
     "rise_frac": 0.5,
     "quiet_s": 5.0,
-    "min_reanchor_s": 20.0
+    "min_reanchor_s": 20.0,
+    "cusum_mode": "1i",
+    "cusum_iso": "sensor_diff",
+    "cusum_ref_s": 0.0,
+    "cusum_kappa": 1.0,
+    "cusum_clip": 9.0,
+    "cusum_off": 0.5,
+    "cusum_merge_s": 5.0
   },
   "meta": {
     "checkpoint": "src/net/fm/checkpoints_fm/best_fm_tuned.pt",
@@ -355,6 +370,152 @@
       }
     },
     "loo_false_alarm_rate_per_trial": 0.0,
+    "mean_z2_per_trial": {
+      "trial_1.csv": {
+        "S1_sensor_diff": 0.5518531225655666,
+        "S1_current": 1.0910026071474743,
+        "SR_sensor_diff": 1.6052710342978058,
+        "SR_current": 1.744691442476433
+      },
+      "trial_3.csv": {
+        "S1_sensor_diff": 0.6591289153715975,
+        "S1_current": 1.4907857043357335,
+        "SR_sensor_diff": 1.8279386600340444,
+        "SR_current": 3.087511249383526
+      },
+      "trial_4.csv": {
+        "S1_sensor_diff": 0.9127517210678021,
+        "S1_current": 0.7106803277366703,
+        "SR_sensor_diff": 1.0267440176629201,
+        "SR_current": 0.722237566413173
+      },
+      "trial_19.csv": {
+        "S1_sensor_diff": 0.41103788594051555,
+        "S1_current": 1.1344680817840016,
+        "SR_sensor_diff": 0.7764820703119922,
+        "SR_current": 1.430612098641746
+      },
+      "trial_21.csv": {
+        "S1_sensor_diff": 1.8894032142534938,
+        "S1_current": 0.7164044262935225,
+        "SR_sensor_diff": 2.396050857378322,
+        "SR_current": 0.826333947969515
+      },
+      "trial_25.csv": {
+        "S1_sensor_diff": 0.29111716386751046,
+        "S1_current": 1.0488869853248295,
+        "SR_sensor_diff": 0.7553321824385877,
+        "SR_current": 1.5205868081876737
+      },
+      "trial_26.csv": {
+        "S1_sensor_diff": 0.2776517485351453,
+        "S1_current": 0.8587732360997321,
+        "SR_sensor_diff": 0.6308514715209379,
+        "SR_current": 1.0337844320098757
+      },
+      "trial_38.csv": {
+        "S1_sensor_diff": 1.9194266625596803,
+        "S1_current": 1.2518602137371495,
+        "SR_sensor_diff": 2.0884733904709423,
+        "SR_current": 1.1024459602595034
+      },
+      "trial_46.csv": {
+        "S1_sensor_diff": 0.2042365676532372,
+        "S1_current": 0.5548171671446482,
+        "SR_sensor_diff": 0.19670763038756328,
+        "SR_current": 0.4771008755820363
+      },
+      "trial_47.csv": {
+        "S1_sensor_diff": 0.4492743271020056,
+        "S1_current": 1.2216718353980376,
+        "SR_sensor_diff": 0.2838440553353876,
+        "SR_current": 1.0350820160449792
+      },
+      "trial_56.csv": {
+        "S1_sensor_diff": 2.3176699772260556,
+        "S1_current": 0.8158825512976162,
+        "SR_sensor_diff": 1.9189925136822434,
+        "SR_current": 0.5819691873423621
+      },
+      "trial_57.csv": {
+        "S1_sensor_diff": 2.1810686562362775,
+        "S1_current": 0.8351878443973119,
+        "SR_sensor_diff": 1.9659574368158237,
+        "SR_current": 0.6599513719744996
+      },
+      "trial_70.csv": {
+        "S1_sensor_diff": 0.3121475312503038,
+        "S1_current": 0.4623693887495388,
+        "SR_sensor_diff": 0.25285003570105474,
+        "SR_current": 0.3865740281998816
+      },
+      "trial_72.csv": {
+        "S1_sensor_diff": 1.1394459068293197,
+        "S1_current": 0.6856941737966717,
+        "SR_sensor_diff": 0.6659163894536917,
+        "SR_current": 0.47404146004550635
+      },
+      "trial_79.csv": {
+        "S1_sensor_diff": 0.36654112192474764,
+        "S1_current": 1.017440899179553,
+        "SR_sensor_diff": 0.3555705564866753,
+        "SR_current": 0.8639476571493041
+      },
+      "trial_83.csv": {
+        "S1_sensor_diff": 0.24861097746456193,
+        "S1_current": 0.837582998440949,
+        "SR_sensor_diff": 0.17401022765555407,
+        "SR_current": 0.6366879629999732
+      },
+      "trial_85.csv": {
+        "S1_sensor_diff": 0.3863004968634527,
+        "S1_current": 1.1041873322890603,
+        "SR_sensor_diff": 0.2564871862779641,
+        "SR_current": 0.7797302190480315
+      },
+      "trial_89.csv": {
+        "S1_sensor_diff": 1.9945956702853271,
+        "S1_current": 0.5849130393415031,
+        "SR_sensor_diff": 1.5025050281652128,
+        "SR_current": 0.38001202803450806
+      },
+      "trial_90.csv": {
+        "S1_sensor_diff": 2.5458654763728155,
+        "S1_current": 1.0182274970908842,
+        "SR_sensor_diff": 1.8795387616394208,
+        "SR_current": 0.7773962474203289
+      },
+      "trial_93.csv": {
+        "S1_sensor_diff": 0.6877247931806196,
+        "S1_current": 1.3926757380878536,
+        "SR_sensor_diff": 0.40378828328603605,
+        "SR_current": 1.1798645316654424
+      },
+      "trial_94.csv": {
+        "S1_sensor_diff": 0.42275094019663334,
+        "S1_current": 0.9666288013406806,
+        "SR_sensor_diff": 0.2761982190368746,
+        "SR_current": 0.6295914249817566
+      },
+      "trial_106.csv": {
+        "S1_sensor_diff": 2.7959148923024553,
+        "S1_current": 1.5463951556208175,
+        "SR_sensor_diff": 2.056731502102569,
+        "SR_current": 1.2687045449524423
+      },
+      "trial_114.csv": {
+        "S1_sensor_diff": 0.484676335303218,
+        "S1_current": 1.2978633303672675,
+        "SR_sensor_diff": 0.38581269998757756,
+        "SR_current": 1.0301127296918757
+      },
+      "trial_115.csv": {
+        "S1_sensor_diff": 0.5521653878792899,
+        "S1_current": 1.3550713413622661,
+        "SR_sensor_diff": 0.3160333196779767,
+        "SR_current": 1.3671668325779
+      }
+    },
     "rollout_rms_vs_age": [
       {
         "eta_s": "0-1",
@@ -476,6 +637,20 @@
         "rmsR/sigma_sensor_diff": 1.1146904053309,
         "rmsR/sigma_current": 0.9283958489493555
       }
-    ]
+    ],
+    "cusum": {
+      "fisso": {
+        "h": {
+          "sensor_diff": 29.314536234780977,
+          "current": 27.985735222661788
+        },
+        "ref_s": 0.0,
+        "margin": 1.15,
+        "loo_max": {
+          "sensor_diff": 0.9275976915954163,
+          "current": 0.8951051701815742
+        }
+      }
+    }
   }
 }
