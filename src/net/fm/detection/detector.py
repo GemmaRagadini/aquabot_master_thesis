@@ -17,7 +17,11 @@ Macchina a stati:
               min_reanchor_s
   ALLARME     S_R di un canale ha superato la soglia a t_a; dopo T secondi
               classifica canale per canale:
-                persistente  S_R sopra soglia negli ultimi Tc secondi
+                persistente  S_R sopra soglia negli ultimi Tc secondi,
+                             oppure CUSUM del canale sopra h e ancora in
+                             crescita in media negli ultimi Tc
+                             (persist_cusum: perturbazioni persistenti
+                             vicine alla soglia, dove S_R oscilla)
                 transitoria  S_R sopra soglia solo prima
                 nessuna      canale mai sopra soglia
               ed etichetta l'inizio di ogni canale dalla velocita' di
@@ -59,7 +63,9 @@ modello varia di 10-18 volte tra blocchi di 3 s anche in condizioni normali.
   (transitoria/persistente), il lento segnala un piccolo cambiamento
   persistente in corso. Nota: il lento usa il residuo a un passo, quindi una
   perturbazione su un canale puo' far scattare anche l'altro (la storia
-  perturbata sporca entrambe le predizioni): il canale e' indicativo. Non cambia lo stato della macchina a stati.
+  perturbata sporca entrambe le predizioni): il canale e' indicativo. Non cambia lo stato della
+  macchina a stati; interviene solo nella classificazione persistente/transitoria
+  di un canale gia' in allarme veloce (persist_cusum).
   NB: con riferimento di sessione rileva cambiamenti RISPETTO ALL'INIZIO della
   sessione: una perturbazione gia' presente all'accensione entra nel riferimento.
   reset_reference() riparte con un nuovo riferimento.
@@ -102,6 +108,8 @@ class DetectorConfig:
     cusum_clip:     float = 9.0    # limite su z2 di un singolo campione (3 sigma)
     cusum_off:      float = 0.5    # l'allarme lento finisce quando g < cusum_off * h ...
     cusum_merge_s:  float = 5.0    # ... e ci resta per cusum_merge_s (altrimenti continua)
+    persist_cusum:  bool  = True   # alla classificazione: persistente anche se g > h
+                                   # (canali gia' in allarme veloce)
 
     def n(self, seconds):
         """Secondi -> numero di campioni (almeno 1)."""
@@ -248,6 +256,7 @@ class PerturbationDetector:
         self.g = np.zeros(2)
         self._slow_ev = [None, None]
         self._pending_end = [None, None]     # istante in cui g e' sceso sotto off*h
+        self._z2_slow = deque(maxlen=self.nTc)   # z2/ref degli ultimi Tc (persist_cusum)
 
     def reset(self, reanchor=False):
         """Reset MANUALE (facoltativo): forza il ritorno a NORMALE da
@@ -376,6 +385,20 @@ class PerturbationDetector:
             if k > self.nT - self.nTc:
                 ev["late"] |= over_R
             if k >= self.nT:
+                # perturbazione persistente vicina alla soglia: S_R oscilla attorno
+                # a theta e nell'ultimo Tc puo' trovarsi sotto. Se il CUSUM del
+                # canale e' ancora sopra h (accumulo ancora in corso) il canale e'
+                # persistente. Solo per canali gia' andati in allarme veloce.
+                # Due condizioni: g > h (evidenza accumulata) E incremento medio
+                # del CUSUM positivo negli ultimi Tc (accumulo ancora in corso).
+                # La seconda serve dopo una transitoria finita: se il residuo
+                # normale e' poco sotto 1 + kappa, g scende lentissimo e
+                # resterebbe sopra h anche a perturbazione finita.
+                if self.cfg.persist_cusum and len(self._z2_slow):
+                    drift = np.mean(np.stack(self._z2_slow), axis=0) - 1.0 - self.cfg.cusum_kappa
+                    by_cusum = ev["ever"] & ~ev["late"] & (self.g > self.h) & (drift > 0)
+                    ev["late_cusum"] = by_cusum
+                    ev["late"] |= by_cusum
                 out["event"] = self._classify(ev)
                 self._ev = None
 
@@ -409,6 +432,7 @@ class PerturbationDetector:
         # g limitato a 1.2 h: dopo la fine della perturbazione l'allarme lento si
         # chiude in pochi secondi (scende di ~1+kappa-z2 a campione), cosi' non
         # trasforma in "persistente" una perturbazione breve gia' finita.
+        self._z2_slow.append(z2 / self.ref)
         cap = np.where(np.isfinite(self.h), 1.2 * self.h, np.inf)
         self.g = np.minimum(np.maximum(0.0, self.g + z2 / self.ref - 1.0 - c.cusum_kappa), cap)
         hz = c.hz
@@ -420,7 +444,6 @@ class PerturbationDetector:
                 other = [CHANNELS[k] for k in range(len(CHANNELS))
                          if k != ci and self._slow_ev[k] is not None]
                 ev = {"canale": ch, "t_alarm": self.t, "t_alarm_s": self.t / hz,
-                      "classe": "persistente", "inizio": "graduale",
                       "secondario": bool(other), "origine": other[0] if other else ch,
                       "ref": float(self.ref[ci])}
                 self._slow_ev[ci] = ev
@@ -448,9 +471,11 @@ class PerturbationDetector:
 
     def _rise(self, ci):
         """Crescita di S_R/soglia del canale ci negli ultimi Tb secondi
-        (valore attuale meno il valore di Tb fa, o il piu' vecchio disponibile)."""
+        (valore attuale meno il valore di Tb fa). NaN se non ci sono ancora Tb
+        secondi di S_R validi (allarme appena finito l'avvio): in quel caso la
+        salita non e' misurabile e l'inizio e' "indeterminato"."""
         past = [float(r[ci]) for r in self._ratioR if np.isfinite(r[ci])]
-        return past[-1] - past[0] if len(past) > 1 else 0.0
+        return past[-1] - past[0] if len(past) >= self.nTb + 1 else np.nan
 
     def _classify(self, ev):
         hz = self.cfg.hz
@@ -462,9 +487,18 @@ class PerturbationDetector:
                 cls = "transitoria"
             else:
                 cls = "nessuna"
-            onset = None if cls == "nessuna" else ("brusco" if ev["abrupt"][ci] else "graduale")
-            rise = None if cls == "nessuna" else round(float(ev["rise"][ci]), 3)
-            chans[c] = {"classe": cls, "inizio": onset, "salita_SR": rise}
+            r = float(ev["rise"][ci])
+            if cls == "nessuna":
+                onset, rise = None, None
+            elif not np.isfinite(r):
+                onset, rise = "indeterminato", None     # allarme subito dopo l'avvio
+            else:
+                onset = "brusco" if ev["abrupt"][ci] else "graduale"
+                rise = round(r, 3)
+            chans[c] = {"classe": cls, "inizio": onset, "salita_SR": rise,
+                        "persistente_da": (None if cls != "persistente" else
+                                           "CUSUM" if ev.get("late_cusum", np.zeros(2, bool))[ci]
+                                           else "S_R")}
         persistent = bool(ev["late"].any())
         event = {"t_alarm": int(ev["t_alarm"]), "t_alarm_s": ev["t_alarm"] / hz,
                  "t_decision_s": self.t / hz, "trigger": ev["trigger"],

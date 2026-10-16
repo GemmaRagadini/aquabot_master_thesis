@@ -1,0 +1,73 @@
+{
+  "trial": "trial_TS_1.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [],
+  "slow_events": [
+    {
+      "canale": "current",
+      "t_alarm": 110,
+      "t_alarm_s": 11.0,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "secondario": false,
+      "origine": "current",
+      "ref": 1.0
+    },
+    {
+      "canale": "sensor_diff",
+      "t_alarm": 127,
+      "t_alarm_s": 12.7,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "secondario": true,
+      "origine": "current",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "normale",
+  "events": [
+    {
+      "t_alarm": 125,
+      "t_alarm_s": 12.5,
+      "t_decision_s": 19.0,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "classe": "transitoria",
+      "channels": {
+        "sensor_diff": {
+          "classe": "transitoria",
+          "inizio": "graduale",
+          "salita_SR": 0.452
+        },
+        "current": {
+          "classe": "nessuna",
+          "inizio": null,
+          "salita_SR": null
+        }
+      }
+    },
+    {
+      "t_alarm": 230,
+      "t_alarm_s": 23.0,
+      "t_decision_s": 29.5,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "classe": "transitoria",
+      "channels": {
+        "sensor_diff": {
+          "classe": "transitoria",
+          "inizio": "graduale",
+          "salita_SR": 0.426
+        },
+        "current": {
+          "classe": "nessuna",
+          "inizio": null,
+          "salita_SR": null
+        }
+      }
+    }
+  ]
+}

@@ -38,6 +38,7 @@ Uso:
   python3 src/net/fm/metrics.py --checkpoint src/net/fm/checkpoints_fm/best_fm_tuned.pt
   python3 src/net/fm/metrics.py --checkpoint ... --metrics rmse mae nrmse r2 --csv_out metrics.csv
   python3 src/net/fm/metrics.py --checkpoint ... --summary_only        # solo le righe per la slide
+  --dataset_dir
 """
 import argparse
 import os

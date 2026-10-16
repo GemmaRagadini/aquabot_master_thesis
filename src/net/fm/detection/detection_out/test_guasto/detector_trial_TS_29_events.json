@@ -1,0 +1,52 @@
+{
+  "trial": "trial_TS_29.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [],
+  "slow_events": [
+    {
+      "canale": "sensor_diff",
+      "t_alarm": 24,
+      "t_alarm_s": 2.4,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "secondario": false,
+      "origine": "sensor_diff",
+      "ref": 1.0
+    },
+    {
+      "canale": "current",
+      "t_alarm": 36,
+      "t_alarm_s": 3.6,
+      "classe": "persistente",
+      "inizio": "graduale",
+      "secondario": true,
+      "origine": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "persistente",
+  "events": [
+    {
+      "t_alarm": 24,
+      "t_alarm_s": 2.4,
+      "t_decision_s": 8.9,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "classe": "persistente",
+      "channels": {
+        "sensor_diff": {
+          "classe": "persistente",
+          "inizio": "graduale",
+          "salita_SR": 0.0
+        },
+        "current": {
+          "classe": "nessuna",
+          "inizio": null,
+          "salita_SR": null
+        }
+      }
+    }
+  ]
+}
