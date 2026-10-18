@@ -61,6 +61,7 @@ Nella slide con e senza pinna, senza pinna la corrente di picco è più alta: mi
 
 Nelle slide non ho trovato i risultati sulle perturbazioni sintetiche, le slide dopo "Calibration results" sono vuote.
 Se riesci ad aggiungerli mi farebbe piacere vederli, anche solo un paio di esempi e una tabella riassuntiva.
+
 # Requirements 
 uv pip install -r requirements.txt
 

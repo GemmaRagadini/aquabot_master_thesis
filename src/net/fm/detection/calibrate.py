@@ -1,25 +1,25 @@
 """
-CALIBRAZIONE del detector su trial NORMALI: sigma, soglie, leave-one-trial-out.
+CALIBRATION of the detector on NORMAL trials: sigma, thresholds, leave-one-trial-out.
 
-Ogni trial viene fatto passare nello STESSO detector usato online, con sigma=1
-e soglie infinite: cosi' il rollout viene riagganciato con la stessa cadenza
-che avra' online (ogni min_reanchor_s) e i residui di calibrazione hanno la
-stessa statistica di quelli online.
+Every trial is run through the SAME detector used online, with sigma=1 and
+infinite thresholds: this way the rollout is re-anchored with the same cadence
+it will have online (every min_reanchor_s) and the calibration residuals have
+the same statistics as the online ones.
 
-  1. residui a un passo e in rollout per ogni trial
-  2. sigma[modo, canale] = RMS del residuo su tutti i trial
-  3. per ogni trial: massimo nel tempo dello score
-  4. soglia = margin * quantile_q dei massimi per trial (default q=1: il massimo)
-  5. leave-one-trial-out: soglia ricalcolata senza il trial i, poi si guarda di
-     quanto il trial i la supera (rapporto > 1 = falso allarme)
+  1. one-step and rollout residuals for every trial
+  2. sigma[mode, channel] = RMS of the residual over all trials
+  3. for every trial: maximum of the score over time
+  4. threshold = margin * quantile_q of the per-trial maxima (default q=1: the maximum)
+  5. leave-one-trial-out: threshold recomputed without trial i, then we check
+     by how much trial i exceeds it (ratio > 1 = false alarm)
 
-Di default usa SOLO i trial di validation: sui trial di train il FM ha residui
-piu' piccoli del vero e le soglie verrebbero troppo strette.
+By default it uses ONLY the validation trials: on the training trials the FM
+has smaller residuals than in reality and the thresholds would be too tight.
 
-Uso:
+Usage:
   python3 src/net/fm/detection/calibrate.py --checkpoint src/net/fm/checkpoints_fm/best_fm_tuned.pt
   python3 .../calibrate.py --checkpoint ... --margin 1.2 --W 0.5 --min_reanchor 20
-Scrive <checkpoint>_detector.json (o --out).
+Writes <checkpoint>_detector.json (or --out).
 """
 import argparse
 import os
@@ -35,7 +35,7 @@ from detector import (CHANNELS, MODES, MR, SLOW_MODES, Calibration, DetectorConf
 
 
 def named(a):
-    """(2,2) [modo, canale] -> {'S1_sensor_diff': ..., 'SR_current': ...}"""
+    """(2,2) [mode, channel] -> {'S1_sensor_diff': ..., 'SR_current': ...}"""
     return {f"S{m}_{c}": float(a[mi, ci])
             for mi, m in enumerate(MODES) for ci, c in enumerate(CHANNELS)}
 
@@ -46,35 +46,36 @@ def main():
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--dataset_dir", default=DEFAULT_DATASET)
     ap.add_argument("--scaler_path", default=DEFAULT_SCALER,
-                    help="DEVE essere lo stesso scaler del training")
+                    help="MUST be the same scaler used for training")
     ap.add_argument("--device", default="cpu")
-    ap.add_argument("--out", default=None, help="JSON di calibrazione")
+    ap.add_argument("--out", default=None, help="calibration JSON")
     ap.add_argument("--all_trials", action="store_true",
-                    help="usa anche i trial di train (sconsigliato: soglie ottimistiche)")
+                    help="also use the training trials (not recommended: optimistic thresholds)")
     ap.add_argument("--quantile", type=float, default=1.0,
-                    help="quantile dei massimi per trial usato come soglia (1.0 = massimo)")
+                    help="quantile of the per-trial maxima used as threshold (1.0 = maximum)")
     ap.add_argument("--margin", type=float, default=1.0,
-                    help="fattore moltiplicativo sulla soglia (per rialzarla)")
+                    help="multiplicative factor on the threshold (to raise it)")
     ap.add_argument("--hz", type=float, default=d.hz)
-    ap.add_argument("--W", type=float, default=d.W_s, help="finestra score (s)")
+    ap.add_argument("--W", type=float, default=d.W_s, help="score window (s)")
     ap.add_argument("--T", type=float, default=d.T_s)
     ap.add_argument("--Tc", type=float, default=d.Tc_s)
     ap.add_argument("--Tb", type=float, default=d.Tb_s)
     ap.add_argument("--quiet", type=float, default=d.quiet_s)
     ap.add_argument("--min_reanchor", type=float, default=d.min_reanchor_s)
     ap.add_argument("--cusum_mode", default=d.cusum_mode, choices=list(SLOW_MODES),
-                    help="residuo del detector lento: 1i un passo isolato, 1 un passo, R rollout")
+                    help="slow detector residual: 1i isolated one-step, 1 one-step, R rollout")
     ap.add_argument("--cusum_ref", type=float, default=d.cusum_ref_s,
-                    help="secondi di riferimento di sessione del detector lento (0 = fisso)")
+                    help="seconds of session reference for the slow detector (0 = fixed)")
     ap.add_argument("--cusum_iso", default=d.cusum_iso,
-                    help="canali isolati in modo 1i, separati da virgola (es. sensor_diff,current)")
+                    help="channels isolated in mode 1i, comma separated (e.g. sensor_diff,current)")
     ap.add_argument("--cusum_kappa", type=float, default=d.cusum_kappa)
     ap.add_argument("--cusum_clip", type=float, default=d.cusum_clip)
     ap.add_argument("--cusum_margin", type=float, default=None,
-                    help="margine sulla soglia h del detector lento (default: --margin)")
+                    help="margin on the slow detector threshold h (default: --margin)")
     ap.add_argument("--compare_dir", default=None,
-                    help="cartella con trial da CONFRONTARE coi normali (es. senza pinna): "
-                         "non entrano nella calibrazione, si usano sigma e soglie appena calcolate")
+                    help="folder with trials to COMPARE with the normal ones (e.g. without fin): "
+                         "they are not used for calibration, the sigma and thresholds just "
+                         "computed are applied to them")
     args = ap.parse_args()
 
     cfg = DetectorConfig(hz=args.hz, W_s=args.W, T_s=args.T, Tc_s=args.Tc, Tb_s=args.Tb,
@@ -88,7 +89,7 @@ def main():
     iso_mask = np.array([c in [x.strip() for x in cfg.cusum_iso.split(",")] for c in CHANNELS])
 
     def slow_res(r, ok):
-        if iso:   # isolato sui canali di cusum_iso, un passo normale sugli altri
+        if iso:   # isolated on the cusum_iso channels, normal one-step on the others
             return np.where(iso_mask, r["resid_iso"][ok], r["resid"][ok][:, 0, :])
         return r["resid"][ok][:, mC, :]
     device = torch.device(args.device)
@@ -98,7 +99,7 @@ def main():
 
     det = PerturbationDetector(FM, Calibration.neutral(cfg), H=dataset.h, device=device)
 
-    # ---- 1. residui e score grezzi (sigma=1) per trial ----
+    # ---- 1. raw residuals and scores (sigma=1) per trial ----
     names, sumsq, count, rawmax = [], [], [], []
     ages, res_R, res_C = [], [], []
     for k, ti in enumerate(trials, start=1):
@@ -108,47 +109,47 @@ def main():
         r = replay(det, cmd, sens)
         ok = np.isfinite(r["resid"][:, 0, 0])
         if not np.isfinite(r["score"]).any():
-            print(f"\n  salto {dataset.trial_names[ti]}: troppo corto per uno score")
+            print(f"\n  skipping {dataset.trial_names[ti]}: too short for a score")
             continue
         names.append(dataset.trial_names[ti])
         sumsq.append((r["resid"][ok] ** 2).sum(axis=0))
         count.append(int(ok.sum()))
-        rawmax.append(np.nanmax(r["score"], axis=0))       # RMS_W grezzo massimo
+        rawmax.append(np.nanmax(r["score"], axis=0))       # maximum raw RMS_W
         ages.append(r["age"][ok])
         res_R.append(r["resid"][ok][:, MR, :])
-        res_C.append(slow_res(r, ok))                 # residuo del detector lento
+        res_C.append(slow_res(r, ok))                 # slow detector residual
     print()
     n = len(names)
     if n < 2:
-        raise SystemExit("Servono almeno 2 trial per calibrare.")
+        raise SystemExit("At least 2 trials are needed for calibration.")
     sumsq, count, rawmax = np.stack(sumsq), np.array(count), np.stack(rawmax)
 
-    # ---- 2-4. sigma e soglie ----
+    # ---- 2-4. sigma and thresholds ----
     sigma = np.sqrt(sumsq.sum(axis=0) / count.sum())                     # (2,2)
     thr_raw = args.margin * np.quantile(rawmax, args.quantile, axis=0)   # (2,2)
     threshold = thr_raw / sigma
 
     # ---- 5. leave-one-trial-out ----
-    # Lo score e' RMS_W(e)/sigma e la soglia e' un quantile degli stessi massimi
-    # divisi per la stessa sigma: sigma si semplifica, il confronto si fa sui grezzi.
+    # The score is RMS_W(e)/sigma and the threshold is a quantile of the same
+    # maxima divided by the same sigma: sigma cancels, the comparison is on raw values.
     ratio = np.zeros_like(rawmax)
     for i in range(n):
         others = np.delete(rawmax, i, axis=0)
         ratio[i] = rawmax[i] / (args.margin * np.quantile(others, args.quantile, axis=0))
     fa = ratio > 1.0
-    fa_alarm = fa[:, MR, :].any(axis=1)        # un allarme = S_R di almeno un canale
+    fa_alarm = fa[:, MR, :].any(axis=1)        # an alarm = S_R of at least one channel
 
-    # ---- z^2 medio per trial: errore medio del trial rispetto a quello normale ----
-    # 1 = errore tipico; quanto e' sparso tra i trial normali e' il limite di una
-    # detection "lenta" (CUSUM) con riferimento fisso.
+    # ---- mean z^2 per trial: mean error of the trial with respect to the normal one ----
+    # 1 = typical error; how spread it is across normal trials is the limit of a
+    # "slow" detection (CUSUM) with a fixed reference.
     meanz2 = (sumsq / count[:, None, None]) / sigma ** 2                   # (n,2,2)
 
-    # ---- trial da confrontare (es. senza pinna) ----
+    # ---- trials to compare (e.g. without fin) ----
     cmp_rows = []
     if args.compare_dir:
         if not os.path.exists(args.scaler_path):
-            raise SystemExit(f"--compare_dir richiede uno scaler gia' esistente "
-                             f"({args.scaler_path}): non va rifittato sui trial da confrontare.")
+            raise SystemExit(f"--compare_dir needs an existing scaler "
+                             f"({args.scaler_path}): it must not be refitted on the compared trials.")
         cds = FishJointDataset(args.compare_dir, h=dataset.h, p=1, scaler_path=args.scaler_path)
         cds.prepare(list(range(len(cds.trial_names))))
         for ti, cname in enumerate(cds.trial_names):
@@ -156,13 +157,13 @@ def main():
             r = replay(det, cmd, sens)
             ok = np.isfinite(r["resid"][:, 0, 0])
             if not np.isfinite(r["score"]).any():
-                print(f"  salto {cname}: troppo corto")
+                print(f"  skipping {cname}: too short")
                 continue
             mz = (r["resid"][ok] ** 2).mean(axis=0) / sigma ** 2
-            alarm = np.nanmax(r["score"], axis=0) / thr_raw                 # >1: allarme veloce
+            alarm = np.nanmax(r["score"], axis=0) / thr_raw                 # >1: fast alarm
             cmp_rows.append((cname, mz, alarm, slow_res(r, ok)))
 
-    # ---- crescita del residuo in rollout col tempo dall'ultimo riaggancio ----
+    # ---- growth of the rollout residual with the time since the last re-anchor ----
     ages, res_R = np.concatenate(ages), np.concatenate(res_R)
     blk = cfg.n(1.0)
     age_rows = []
@@ -171,68 +172,68 @@ def main():
         if sel.sum() < 5:
             continue
         rel = np.sqrt((res_R[sel] ** 2).mean(axis=0)) / sigma[MR]
-        age_rows.append({"eta_s": f"{b}-{b + 1}", "n": int(sel.sum()),
+        age_rows.append({"age_s": f"{b}-{b + 1}", "n": int(sel.sum()),
                          **{f"rmsR/sigma_{c}": float(rel[ci]) for ci, c in enumerate(CHANNELS)}})
 
-    # ---- stampa ----
+    # ---- print ----
     pd.set_option("display.width", 220)
-    print(f"\nCalibrazione su {n} trial ({'tutti' if args.all_trials else 'solo validation'}) | "
-          f"W={cfg.W_s}s riaggancio ogni {cfg.min_reanchor_s}s | "
+    print(f"\nCalibration on {n} trials ({'all' if args.all_trials else 'validation only'}) | "
+          f"W={cfg.W_s}s re-anchor every {cfg.min_reanchor_s}s | "
           f"quantile={args.quantile} margin={args.margin}")
-    print("\nsigma (unita' normalizzate) e soglie (in multipli di sigma):")
-    print(pd.DataFrame({"sigma": named(sigma), "soglia": named(threshold)}).round(4).to_string())
+    print("\nsigma (normalised units) and thresholds (in multiples of sigma):")
+    print(pd.DataFrame({"sigma": named(sigma), "threshold": named(threshold)}).round(4).to_string())
 
     df = pd.DataFrame([{"trial": names[i], **named(ratio[i])} for i in range(n)])
-    print("\nLeave-one-trial-out: massimo score del trial escluso / soglia ricalcolata "
-          "senza di lui (>1 = falso allarme)")
+    print("\nLeave-one-trial-out: maximum score of the excluded trial / threshold recomputed "
+          "without it (>1 = false alarm)")
     print(df.round(3).to_string(index=False))
-    print("\nFrazione di trial sopra soglia, per score:")
+    print("\nFraction of trials above threshold, per score:")
     print(pd.Series(named(fa.mean(axis=0))).round(3).to_string())
-    print(f"Tasso di falso allarme per trial (S_R di almeno un canale): "
+    print(f"False alarm rate per trial (S_R of at least one channel): "
           f"{fa_alarm.mean():.3f}  ({int(fa_alarm.sum())}/{n})")
     if args.quantile >= 1.0:
-        print("NB: con soglia = massimo, per ogni score il trial col massimo assoluto\n"
-              "    supera SEMPRE la soglia ricalcolata senza di lui. Il numero utile e' di\n"
-              "    QUANTO la supera: rapporti appena sopra 1 = soglia stabile; rapporti\n"
-              "    molto sopra 1 = code pesanti, servono piu' trial o un --margin.")
+        print("NB: with threshold = maximum, for every score the trial with the absolute\n"
+              "    maximum ALWAYS exceeds the threshold recomputed without it. The useful\n"
+              "    number is BY HOW MUCH: ratios just above 1 = stable threshold; ratios\n"
+              "    well above 1 = heavy tails, more trials or a --margin are needed.")
 
-    print("\nz^2 medio per trial (1 = errore tipico del modello). La dispersione tra i "
-          "trial normali e' il limite di una detection lenta con riferimento fisso:")
+    print("\nMean z^2 per trial (1 = typical model error). The spread across normal "
+          "trials is the limit of a slow detection with a fixed reference:")
     dz = pd.DataFrame([{"trial": names[i], **named(meanz2[i])} for i in range(n)])
     print(dz.round(3).to_string(index=False))
     summ = pd.DataFrame({"min": named(meanz2.min(axis=0)),
-                         "mediana": named(np.median(meanz2, axis=0)),
+                         "median": named(np.median(meanz2, axis=0)),
                          "max": named(meanz2.max(axis=0))})
-    print("\nRiepilogo z^2 medio sui trial normali:")
+    print("\nSummary of mean z^2 over the normal trials:")
     print(summ.round(3).to_string())
 
     for cname, mz, alarm, _ in cmp_rows:
-        print(f"\nConfronto: {cname} (non usato per la calibrazione)")
+        print(f"\nComparison: {cname} (not used for calibration)")
         rows = []
         for mi, m in enumerate(MODES):
             for ci, c in enumerate(CHANNELS):
                 col = meanz2[:, mi, ci]
-                rows.append({"score": f"S{m}_{c}", "z2_medio": mz[mi, ci],
-                             "normali_max": col.max(),
-                             "normali_sotto": f"{int((col < mz[mi, ci]).sum())}/{n}",
-                             "max_score/soglia": alarm[mi, ci]})
+                rows.append({"score": f"S{m}_{c}", "mean_z2": mz[mi, ci],
+                             "normal_max": col.max(),
+                             "normal_below": f"{int((col < mz[mi, ci]).sum())}/{n}",
+                             "max_score/threshold": alarm[mi, ci]})
         print(pd.DataFrame(rows).round(3).to_string(index=False))
-        print("  normali_sotto = quanti trial normali hanno z^2 medio piu' basso "
-              f"({n}/{n} = sopra tutti i normali); max_score/soglia > 1 = il detector "
-              "attuale andrebbe in allarme")
+        print("  normal_below = how many normal trials have a lower mean z^2 "
+              f"({n}/{n} = above all normal ones); max_score/threshold > 1 = the current "
+              "detector would alarm")
 
-    print("\nResiduo in rollout in funzione del tempo dall'ultimo riaggancio "
-          "(1 = media; se cresce molto, sigma_R costante non basta):")
+    print("\nRollout residual as a function of the time since the last re-anchor "
+          "(1 = mean; if it grows a lot, a constant sigma_R is not enough):")
     print(pd.DataFrame(age_rows).round(3).to_string(index=False))
 
-    # ---- detector lento (CUSUM): soglia h dai trial normali ----
-    # Due varianti: riferimento di SESSIONE (primi cusum_ref s del trial, quella
-    # usata online se cusum_ref > 0) e riferimento FISSO (ref = 1).
-    nmin = cfg.n(5.0)                              # almeno 5 s dopo il riferimento
-    variants = {"fisso": 0}
+    # ---- slow detector (CUSUM): threshold h from the normal trials ----
+    # Two variants: SESSION reference (first cusum_ref s of the trial, the one used
+    # online if cusum_ref > 0) and FIXED reference (ref = 1).
+    nmin = cfg.n(5.0)                              # at least 5 s after the reference
+    variants = {"fixed": 0}
     if cfg.cusum_ref_s > 0:
-        variants["sessione"] = cfg.n(cfg.cusum_ref_s)
-    # normalizzatore proprio del residuo lento (per "1"/"R" coincide con sigma del modo)
+        variants["session"] = cfg.n(cfg.cusum_ref_s)
+    # own normaliser of the slow residual (for "1"/"R" it equals the sigma of the mode)
     cusum_sigma = np.sqrt((np.concatenate(res_C) ** 2).mean(axis=0))
     cz = [(rc / cusum_sigma) ** 2 for rc in res_C]
     cusum = {}
@@ -245,8 +246,8 @@ def main():
             gmax.append(np.nanmax(g, axis=0))
             used.append(names[i])
         if len(gmax) < 2:
-            print(f"\n[CUSUM {vname}] trial troppo corti per il riferimento di "
-                  f"{ref_n / cfg.hz:.0f} s: soglia non calcolata")
+            print(f"\n[CUSUM {vname}] trials too short for a reference of "
+                  f"{ref_n / cfg.hz:.0f} s: threshold not computed")
             continue
         gmax = np.stack(gmax)
         h = cmargin * gmax.max(axis=0)
@@ -254,41 +255,41 @@ def main():
                         for i in range(len(gmax))])
         cusum[vname] = {"h": h, "ref_n": ref_n, "gmax": gmax, "loo": loo, "trials": used}
 
-    mode_txt = {"1i": f"un passo, isolato su [{cfg.cusum_iso}]", "1": "un passo",
+    mode_txt = {"1i": f"one-step, isolated on [{cfg.cusum_iso}]", "1": "one-step",
                 "R": "rollout"}[cfg.cusum_mode]
-    print(f"\nDetector lento (CUSUM) | residuo {mode_txt} | sigma "
-          f"{np.round(cusum_sigma, 4).tolist()} (un passo: {np.round(sigma[0], 4).tolist()}) | "
-          f"kappa={cfg.cusum_kappa} clip={cfg.cusum_clip} margine={cmargin}")
+    print(f"\nSlow detector (CUSUM) | residual {mode_txt} | sigma "
+          f"{np.round(cusum_sigma, 4).tolist()} (one-step: {np.round(sigma[0], 4).tolist()}) | "
+          f"kappa={cfg.cusum_kappa} clip={cfg.cusum_clip} margin={cmargin}")
     for vname, cu in cusum.items():
         dur = (np.mean([len(cz[names.index(t)]) for t in cu["trials"]]) - cu["ref_n"]) / cfg.hz
         h_txt = ", ".join("%s %.1f" % (c, cu["h"][ci]) for ci, c in enumerate(CHANNELS))
-        print(f"  riferimento {vname} ({cu['ref_n'] / cfg.hz:.0f} s): h = {h_txt} | "
-              f"{len(cu['trials'])} trial, ~{dur:.0f} s monitorati per trial | "
-              f"LOO max {cu['loo'].max(axis=0).round(2).tolist()} (>1 = falso allarme)")
-    print("  NB: h cresce con la durata monitorata. Calibrata su trial brevi e' "
-          "ottimistica per l'uso online: servono trial normali lunghi.")
+        print(f"  {vname} reference ({cu['ref_n'] / cfg.hz:.0f} s): h = {h_txt} | "
+              f"{len(cu['trials'])} trials, ~{dur:.0f} s monitored per trial | "
+              f"LOO max {cu['loo'].max(axis=0).round(2).tolist()} (>1 = false alarm)")
+    print("  NB: h grows with the monitored duration. Calibrated on short trials it is "
+          "optimistic for online use: long normal trials are needed.")
 
     for cname, _, _, rc in cmp_rows:
         z2 = (rc / cusum_sigma) ** 2
-        print(f"\nDetector lento su {cname}:")
+        print(f"\nSlow detector on {cname}:")
         for vname, cu in cusum.items():
             g, ref = cusum_run(z2, cu["ref_n"], cfg.cusum_kappa, cfg.cusum_clip)
             parts = []
             for ci, c in enumerate(CHANNELS):
                 hit = np.flatnonzero(g[:, ci] > cu["h"][ci])
-                when = (f"allarme a {(hit[0] + dataset.h) / cfg.hz:.1f} s dall'inizio"
-                        if len(hit) else "nessun allarme")
+                when = (f"alarm at {(hit[0] + dataset.h) / cfg.hz:.1f} s from the start"
+                        if len(hit) else "no alarm")
                 parts.append(f"{c}: {when} (g max {np.nanmax(g[:, ci]):.0f}, h {cu['h'][ci]:.0f})")
-            print(f"  riferimento {vname}: " + " | ".join(parts))
-        if "sessione" in cusum:
-            print("  (con riferimento di sessione la perturbazione presente dall'inizio "
-                  "entra nel riferimento: non e' un test valido per quella variante)")
+            print(f"  {vname} reference: " + " | ".join(parts))
+        if "session" in cusum:
+            print("  (with a session reference, a perturbation present from the start "
+                  "becomes part of the reference: not a valid test for that variant)")
 
-    use = "sessione" if cfg.cusum_ref_s > 0 else "fisso"
+    use = "session" if cfg.cusum_ref_s > 0 else "fixed"
     cusum_h = cusum[use]["h"] if use in cusum else np.full(2, np.inf)
     if use not in cusum:
-        print(f"\n[ATTENZIONE] soglia CUSUM ({use}) non calcolata: detector lento "
-              f"DISATTIVATO nel JSON (h = inf).")
+        print(f"\n[WARNING] CUSUM threshold ({use}) not computed: slow detector "
+              f"DISABLED in the JSON (h = inf).")
 
     out = args.out or default_calib_path(args.checkpoint)
     Calibration(sigma, threshold, cfg, cusum_h=cusum_h, cusum_sigma=cusum_sigma, meta={
@@ -306,7 +307,7 @@ def main():
                       "loo_max": {c: float(cu["loo"][:, ci].max()) for ci, c in enumerate(CHANNELS)}}
                   for v, cu in cusum.items()},
     }).save(out)
-    print(f"\nCalibrazione salvata in {out}")
+    print(f"\nCalibration saved to {out}")
 
 
 if __name__ == "__main__":

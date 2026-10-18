@@ -1,4 +1,4 @@
-canale,scenario,amp,n,rilev_%,ritardo_med_s,classe_ok_%,inizio_ok_%,canale_ok_%,solo_canale_%,allarmi_extra,lento_rilev_%,lento_ritardo_med_s,lento_origine_ok_%,fa_prima
+channel,scenario,amp,n,detected_%,delay_med_s,class_ok_%,onset_ok_%,channel_ok_%,channel_only_%,extra_alarms,slow_detected_%,slow_delay_med_s,slow_origin_ok_%,fa_before
 current,step_1s,0.25,24,0.0,,,,,,0.0,0.0,,,0
 current,step_1s,0.5,24,0.0,,,,,,0.0,75.0,0.8,100.0,0
 current,step_1s,1.0,24,0.0,,,,,,0.0,100.0,0.3,100.0,0

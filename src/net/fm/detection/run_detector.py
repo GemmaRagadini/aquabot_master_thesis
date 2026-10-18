@@ -1,23 +1,23 @@
 """
-REPLAY di un trial nel detector online, campione per campione, con figura e
-riepilogo degli eventi. Opzionalmente inietta perturbazioni SINTETICHE sui
-sensori per provare la catena allarme -> classificazione.
+REPLAY of a trial through the online detector, sample by sample, with figure
+and event summary. Optionally injects SYNTHETIC perturbations on the sensors
+to test the alarm -> classification chain.
 
---inject canale:tipo:t_inizio:durata:ampiezza   (ripetibile)
-  canale    sensor_diff | current
-  tipo      step  offset costante per `durata` secondi (durata 0 = fino alla fine)
-            ramp  cresce linearmente fino ad `ampiezza` in `durata` s, poi resta
-            gain  moltiplica il segnale per (1 + ampiezza) per `durata` secondi
-  ampiezza  in deviazioni standard del segnale (spazio normalizzato)
-  es: --inject sensor_diff:step:10:1:2      transitoria brusca di 1 s
-      --inject current:gain:15:0:0.5        ampiezza +50% da 15 s a fine trial
-                                            (test del detector lento)
-      --inject current:ramp:8:6:1.5         persistente graduale
+--inject channel:type:t_start:duration:amplitude   (repeatable)
+  channel    sensor_diff | current
+  type       step  constant offset for `duration` seconds (duration 0 = until the end)
+             ramp  grows linearly up to `amplitude` in `duration` s, then stays
+             gain  multiplies the signal by (1 + amplitude) for `duration` seconds
+  amplitude  in standard deviations of the signal (normalised space)
+  e.g. --inject sensor_diff:step:10:1:2      1 s abrupt transient
+       --inject current:gain:15:0:0.5        amplitude +50% from 15 s to the end
+                                             (test of the slow detector)
+       --inject current:ramp:8:6:1.5         gradual persistent
 
-ATTENZIONE: una perturbazione additiva sul sensore e' un surrogato. Quelle
-vere cambiano la dinamica; servono a verificare la logica, non la sensibilita'.
+WARNING: an additive perturbation on the sensor is a surrogate. Real ones
+change the dynamics; these serve to verify the logic, not the sensitivity.
 
-Uso:
+Usage:
   python3 src/net/fm/detection/run_detector.py --checkpoint .../best_fm_tuned.pt
   python3 .../run_detector.py --checkpoint ... --trial trial_106.csv --inject sensor_diff:step:10:1:2
 """
@@ -35,14 +35,14 @@ import torch
 from det_common import (CH_TO_KEY, CH_UNIT, DEFAULT_DATASET, DEFAULT_SCALER, SCRIPT_DIR,
                         default_calib_path, load_dataset, load_model, replay,
                         resolve_trial, trial_series)
-from detector import (ALLARME, CHANNELS, M1, MR, PERSISTENTE, Calibration,
+from detector import (ALARM, CHANNELS, M1, MR, PERSISTENT, Calibration,
                       PerturbationDetector)
 
 COL_SURFACE, COL_TEXT, COL_TEXT_SEC = "#fcfcfb", "#0b0b0b", "#52514e"
 COL_MUTED, COL_GRID, COL_BASELINE   = "#898781", "#e1e0d9", "#c3c2b7"
 COL_SIGNAL, COL_ONE, COL_ROLL       = "#0b0b0b", "#2a78d6", "#d9822b"
 COL_CH        = {"sensor_diff": "#2a78d6", "current": "#d9822b"}
-COL_STATE     = {ALLARME: "#f2c14e", PERSISTENTE: "#c1666b"}
+COL_STATE     = {ALARM: "#f2c14e", PERSISTENT: "#c1666b"}
 
 
 def parse_inject(spec):
@@ -50,16 +50,16 @@ def parse_inject(spec):
         ch, kind, t0, dur, amp = spec.split(":")
         t0, dur, amp = float(t0), float(dur), float(amp)
     except ValueError:
-        raise SystemExit(f"--inject '{spec}': formato canale:tipo:t_inizio:durata:ampiezza")
+        raise SystemExit(f"--inject '{spec}': format channel:type:t_start:duration:amplitude")
     if ch not in CHANNELS or kind not in ("step", "ramp", "gain"):
-        raise SystemExit(f"--inject '{spec}': canale o tipo non valido")
+        raise SystemExit(f"--inject '{spec}': invalid channel or type")
     if kind == "ramp" and dur <= 0:
-        raise SystemExit(f"--inject '{spec}': ramp richiede durata > 0")
+        raise SystemExit(f"--inject '{spec}': ramp needs duration > 0")
     return ch, kind, t0, dur, amp
 
 
 def apply_injections(sens, injections, hz):
-    """Ritorna (sens perturbato, lista di intervalli (t0, t1) in secondi)."""
+    """Returns (perturbed sens, list of intervals (t0, t1) in seconds)."""
     sens = sens.copy()
     t = np.arange(len(sens)) / hz
     spans = []
@@ -73,7 +73,7 @@ def apply_injections(sens, injections, hz):
         elif kind == "gain":
             sens[inside, ci] *= 1.0 + amp
             spans.append((t0, t1))
-        else:  # ramp: sale in [t0, t1) e poi resta
+        else:  # ramp: rises in [t0, t1) and then stays
             sens[:, ci] += amp * np.clip((t - t0) / dur, 0.0, 1.0)
             spans.append((t0, float(t[-1])))
     return sens, spans
@@ -90,7 +90,7 @@ def style_axis(ax):
 
 
 def shade(ax, t, r, spans, hz):
-    """Sfondo: stati ALLARME/PERSISTENTE, intervalli iniettati, riagganci."""
+    """Background: ALARM/PERSISTENT states, injected intervals, re-anchors."""
     for st, col in COL_STATE.items():
         on = np.concatenate([[False], r["state"] == st, [False]])
         edges = np.flatnonzero(np.diff(on.astype(int)))
@@ -106,13 +106,13 @@ def shade(ax, t, r, spans, hz):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint", required=True)
-    ap.add_argument("--calib", default=None, help="JSON di calibrate.py")
+    ap.add_argument("--calib", default=None, help="JSON from calibrate.py")
     ap.add_argument("--dataset_dir", default=DEFAULT_DATASET)
     ap.add_argument("--scaler_path", default=DEFAULT_SCALER)
     ap.add_argument("--device", default="cpu")
-    ap.add_argument("--trial", default=None, help="nome/sottostringa/indice. Default: primo di val.")
+    ap.add_argument("--trial", default=None, help="name/substring/index. Default: first validation trial.")
     ap.add_argument("--inject", action="append", default=[],
-                    help="canale:tipo:t_inizio:durata:ampiezza (ripetibile)")
+                    help="channel:type:t_start:duration:amplitude (repeatable)")
     ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "detection_out"))
     args = ap.parse_args()
 
@@ -126,7 +126,7 @@ def main():
     name = dataset.trial_names[ti]
     split = "val" if ti in val_trials else "train"
     if name in calib.meta.get("trials", []):
-        print(f"[nota] {name} e' stato usato per calibrare le soglie.")
+        print(f"[note] {name} was used to calibrate the thresholds.")
 
     cmd, sens_clean = trial_series(dataset, ti)
     sens, spans = apply_injections(sens_clean, [parse_inject(s) for s in args.inject], hz)
@@ -136,52 +136,53 @@ def main():
     r = replay(det, cmd, sens)
     t = np.arange(len(cmd)) / hz
 
-    # ---- riepilogo ----
-    print(f"\nTrial {name} [{split}] | {len(cmd)} campioni ({t[-1]:.1f} s) | "
-          f"{len(spans)} perturbazioni iniettate")
-    print(f"Riagganci del rollout a t = {[round(float(x), 1) for x in t[r['reanchored']]]} s")
-    if not det.events and det.state != ALLARME:
-        print("Nessun allarme.")
+    # ---- summary ----
+    print(f"\nTrial {name} [{split}] | {len(cmd)} samples ({t[-1]:.1f} s) | "
+          f"{len(spans)} injected perturbations")
+    print(f"Rollout re-anchors at t = {[round(float(x), 1) for x in t[r['reanchored']]]} s")
+    if not det.events and det.state != ALARM:
+        print("No alarm.")
     for ev in det.events:
-        print(f"ALLARME a {ev['t_alarm_s']:.1f} s (canali: {', '.join(ev['trigger'])}) "
-              f"-> {ev['classe'].upper()} deciso a {ev['t_decision_s']:.1f} s")
+        print(f"ALARM at {ev['t_alarm_s']:.1f} s (channels: {', '.join(ev['trigger'])}) "
+              f"-> {ev['class'].upper()} decided at {ev['t_decision_s']:.1f} s")
         if "t_end_s" in ev:
-            print(f"    finita a {ev['t_end_s']:.1f} s (durata {ev['durata_s']:.1f} s), "
-                  f"ritorno automatico a normale")
-        elif ev["classe"] == "persistente":
-            print("    ancora in corso a fine trial")
+            print(f"    ended at {ev['t_end_s']:.1f} s (duration {ev['duration_s']:.1f} s), "
+                  f"automatic return to normal")
+        elif ev["class"] == "persistent":
+            print("    still in progress at the end of the trial")
         for c, v in ev["channels"].items():
-            if v["classe"] != "nessuna":
-                if v["salita_SR"] is None:
-                    print(f"    {c:12s} {v['classe']:12s} inizio {v['inizio']} "
-                          f"(allarme all'avvio: storia di S_R troppo corta per la salita)")
+            if v["class"] != "none":
+                by = f", persistent by {v['persistent_by']}" if v.get("persistent_by") else ""
+                if v["SR_rise"] is None:
+                    print(f"    {c:12s} {v['class']:12s} onset {v['onset']} "
+                          f"(alarm at startup: S_R history too short to measure the rise{by})")
                 else:
-                    print(f"    {c:12s} {v['classe']:12s} inizio {v['inizio']} "
-                          f"(salita di S_R: {v['salita_SR']:.2f} soglie)")
-    if det.state == ALLARME:
-        print("Trial finito con un allarme non ancora classificato.")
-    print(f"Stato finale: {det.state}")
+                    print(f"    {c:12s} {v['class']:12s} onset {v['onset']} "
+                          f"(S_R rise: {v['SR_rise']:.2f} thresholds{by})")
+    if det.state == ALARM:
+        print("Trial ended with an alarm not yet classified.")
+    print(f"Final state: {det.state}")
 
-    # ---- detector lento (CUSUM) ----
+    # ---- slow detector (CUSUM) ----
     if not np.isfinite(det.h).any():
-        print("Detector lento: disattivato (nessuna soglia CUSUM nel JSON: ricalibra).")
+        print("Slow detector: disabled (no CUSUM threshold in the JSON: recalibrate).")
     elif det.ref is None:
-        print("Detector lento: riferimento di sessione non completato (trial troppo corto).")
+        print("Slow detector: session reference not completed (trial too short).")
     else:
-        print(f"Detector lento: riferimento {np.round(det.ref, 3).tolist()} "
-              f"({'fisso' if calib.config.cusum_ref_s <= 0 else 'primi %.0f s' % calib.config.cusum_ref_s}), "
-              f"soglie h {np.round(det.h, 1).tolist()}")
+        print(f"Slow detector: reference {np.round(det.ref, 3).tolist()} "
+              f"({'fixed' if calib.config.cusum_ref_s <= 0 else 'first %.0f s' % calib.config.cusum_ref_s}), "
+              f"thresholds h {np.round(det.h, 1).tolist()}")
         if not det.slow_events:
-            print("  nessun allarme lento")
+            print("  no slow alarm")
         for ev in det.slow_events:
-            fine = (f"finito a {ev['t_end_s']:.1f} s (durata {ev['durata_s']:.1f} s)"
-                    if "t_end_s" in ev else "ancora attivo a fine trial")
-            tipo = (f"SECONDARIO, probabile effetto di {ev['origine']}"
-                    if ev.get("secondario") else "origine")
-            print(f"  ALLARME LENTO su {ev['canale']} a {ev['t_alarm_s']:.1f} s, {fine} "
-                  f"({tipo})")
+            end = (f"ended at {ev['t_end_s']:.1f} s (duration {ev['duration_s']:.1f} s)"
+                   if "t_end_s" in ev else "still active at the end of the trial")
+            kind = (f"SECONDARY, probable effect of {ev['origin']}"
+                    if ev.get("secondary") else "origin")
+            print(f"  SLOW ALARM on {ev['channel']} at {ev['t_alarm_s']:.1f} s, {end} "
+                  f"({kind})")
 
-    # ---- figura ----
+    # ---- figure ----
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(5, 1, figsize=(11, 12.5), sharex=True)
@@ -253,7 +254,7 @@ def main():
     fig_path = out_dir / f"detector_{stem}.png"
     fig.savefig(fig_path, dpi=160, facecolor=COL_SURFACE)
     plt.close(fig)
-    print(f"Salvato {fig_path}")
+    print(f"Saved {fig_path}")
 
     ev_path = out_dir / f"detector_{stem}_events.json"
     with open(ev_path, "w") as f:
@@ -261,7 +262,7 @@ def main():
                    "reanchor_s": [float(x) for x in t[r["reanchored"]]],
                    "slow_events": det.slow_events,
                    "final_state": det.state, "events": det.events}, f, indent=2)
-    print(f"Salvato {ev_path}")
+    print(f"Saved {ev_path}")
 
 
 if __name__ == "__main__":

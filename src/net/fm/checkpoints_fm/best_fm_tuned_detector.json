@@ -42,7 +42,8 @@
     "cusum_kappa": 1.0,
     "cusum_clip": 9.0,
     "cusum_off": 0.5,
-    "cusum_merge_s": 5.0
+    "cusum_merge_s": 5.0,
+    "persist_cusum": true
   },
   "meta": {
     "checkpoint": "src/net/fm/checkpoints_fm/best_fm_tuned.pt",
@@ -518,128 +519,128 @@
     },
     "rollout_rms_vs_age": [
       {
-        "eta_s": "0-1",
+        "age_s": "0-1",
         "n": 480,
         "rmsR/sigma_sensor_diff": 0.8447008029628269,
         "rmsR/sigma_current": 0.7897083223597398
       },
       {
-        "eta_s": "1-2",
+        "age_s": "1-2",
         "n": 480,
         "rmsR/sigma_sensor_diff": 0.9379082306292484,
         "rmsR/sigma_current": 0.9993757004501316
       },
       {
-        "eta_s": "2-3",
+        "age_s": "2-3",
         "n": 480,
         "rmsR/sigma_sensor_diff": 0.9643065201945579,
         "rmsR/sigma_current": 0.9003999838610379
       },
       {
-        "eta_s": "3-4",
+        "age_s": "3-4",
         "n": 480,
         "rmsR/sigma_sensor_diff": 0.9716964815046313,
         "rmsR/sigma_current": 1.0917904001142673
       },
       {
-        "eta_s": "4-5",
+        "age_s": "4-5",
         "n": 480,
         "rmsR/sigma_sensor_diff": 1.0371899751419422,
         "rmsR/sigma_current": 1.0273659824012331
       },
       {
-        "eta_s": "5-6",
+        "age_s": "5-6",
         "n": 480,
         "rmsR/sigma_sensor_diff": 0.8985950578502552,
         "rmsR/sigma_current": 1.0339132036287952
       },
       {
-        "eta_s": "6-7",
+        "age_s": "6-7",
         "n": 480,
         "rmsR/sigma_sensor_diff": 1.0008613811501683,
         "rmsR/sigma_current": 1.0161810517968968
       },
       {
-        "eta_s": "7-8",
+        "age_s": "7-8",
         "n": 479,
         "rmsR/sigma_sensor_diff": 1.0483089078444168,
         "rmsR/sigma_current": 0.9263225725984529
       },
       {
-        "eta_s": "8-9",
+        "age_s": "8-9",
         "n": 242,
         "rmsR/sigma_sensor_diff": 0.9044025277422615,
         "rmsR/sigma_current": 0.8270510256325213
       },
       {
-        "eta_s": "9-10",
+        "age_s": "9-10",
         "n": 240,
         "rmsR/sigma_sensor_diff": 0.9800004981817146,
         "rmsR/sigma_current": 0.9213983257783563
       },
       {
-        "eta_s": "10-11",
+        "age_s": "10-11",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.0543723408810495,
         "rmsR/sigma_current": 1.204658515749492
       },
       {
-        "eta_s": "11-12",
+        "age_s": "11-12",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.0320952430448045,
         "rmsR/sigma_current": 1.0247545202008184
       },
       {
-        "eta_s": "12-13",
+        "age_s": "12-13",
         "n": 240,
         "rmsR/sigma_sensor_diff": 0.9555146238617553,
         "rmsR/sigma_current": 0.9614945467284711
       },
       {
-        "eta_s": "13-14",
+        "age_s": "13-14",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.078991546250295,
         "rmsR/sigma_current": 1.1722631581849439
       },
       {
-        "eta_s": "14-15",
+        "age_s": "14-15",
         "n": 240,
         "rmsR/sigma_sensor_diff": 0.9275056316919276,
         "rmsR/sigma_current": 1.1344018193342793
       },
       {
-        "eta_s": "15-16",
+        "age_s": "15-16",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.1466517430197707,
         "rmsR/sigma_current": 1.2328881811103651
       },
       {
-        "eta_s": "16-17",
+        "age_s": "16-17",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.107754552552958,
         "rmsR/sigma_current": 1.0343753504652047
       },
       {
-        "eta_s": "17-18",
+        "age_s": "17-18",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.1586325370400714,
         "rmsR/sigma_current": 0.9798242550482842
       },
       {
-        "eta_s": "18-19",
+        "age_s": "18-19",
         "n": 240,
         "rmsR/sigma_sensor_diff": 1.0636288563480754,
         "rmsR/sigma_current": 0.8588711523033299
       },
       {
-        "eta_s": "19-20",
+        "age_s": "19-20",
         "n": 216,
         "rmsR/sigma_sensor_diff": 1.1146904053309,
         "rmsR/sigma_current": 0.9283958489493555
       }
     ],
     "cusum": {
-      "fisso": {
+      "fixed": {
         "h": {
           "sensor_diff": 29.314536234780977,
           "current": 27.985735222661788

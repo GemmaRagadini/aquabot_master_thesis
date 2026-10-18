@@ -1,5 +1,5 @@
-"""Funzioni condivise da calibrate.py e run_detector.py: caricamento di modello
-e dataset, serie temporale di un trial, replay di un trial nel detector."""
+"""Functions shared by calibrate.py, run_detector.py and evaluate.py: loading of
+model and dataset, time series of a trial, replay of a trial through the detector."""
 import os
 import sys
 
@@ -8,14 +8,14 @@ import torch
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Il detector chiama il modello migliaia di volte con batch minuscoli: con molti
-# thread PyTorch spende piu' tempo a coordinarli che a calcolare. Un thread solo
-# e' molto piu' veloce. Per cambiare: DETECTOR_THREADS=4 python3 ...
+# The detector calls the model thousands of times with tiny batches: with many
+# threads PyTorch spends more time coordinating them than computing. A single
+# thread is much faster. To change it: DETECTOR_THREADS=4 python3 ...
 torch.set_num_threads(int(os.environ.get("DETECTOR_THREADS", "1")))
 
 
 def find_repo_root(start):
-    """Risale le cartelle finche' trova quella che contiene src/net."""
+    """Walks up the folders until it finds the one containing src/net."""
     d = os.path.abspath(start)
     while True:
         if os.path.isdir(os.path.join(d, "src", "net")):
@@ -49,7 +49,7 @@ def default_calib_path(checkpoint):
 def load_model(checkpoint, device):
     ckpt = torch.load(checkpoint, map_location=device, weights_only=False)
     if ckpt.get("residual", True):
-        raise ValueError(f"{checkpoint}: checkpoint con uscita residua, non supportato.")
+        raise ValueError(f"{checkpoint}: checkpoint with residual output, not supported.")
     FM = build_model(gru_hidden=ckpt["gru_hidden"], mlp_hidden=ckpt["mlp_hidden"],
                      num_layers=ckpt.get("num_layers", 1))
     FM.load_state_dict(ckpt["fm_state"])
@@ -58,7 +58,7 @@ def load_model(checkpoint, device):
 
 
 def load_dataset(dataset_dir, scaler_path, ckpt):
-    """Dataset con p=1 e H del checkpoint. Ritorna (dataset, indici dei trial di val)."""
+    """Dataset with p=1 and the H of the checkpoint. Returns (dataset, indices of the validation trials)."""
     kwargs = {"scaler_path": scaler_path, "p": 1}
     if ckpt.get("H") is not None:
         kwargs["h"] = int(ckpt["H"])
@@ -70,12 +70,12 @@ def load_dataset(dataset_dir, scaler_path, ckpt):
 
 
 def trial_series(dataset, trial_idx):
-    """Serie NORMALIZZATE dell'intero trial: cmd (n,), sens (n,2).
-    Ricostruite dalle finestre p=1: i primi H campioni dalla prima finestra,
-    i successivi dai target."""
+    """NORMALISED series of the whole trial: cmd (n,), sens (n,2).
+    Rebuilt from the p=1 windows: the first H samples from the first window,
+    the following ones from the targets."""
     idxs = np.sort(np.flatnonzero(dataset.window_trial == trial_idx))
     if len(idxs) == 0:
-        raise ValueError(f"Trial {trial_idx} senza finestre.")
+        raise ValueError(f"Trial {trial_idx} has no windows.")
     first = int(idxs[0])
     cmd = torch.cat([dataset.seq_cmd[first], dataset.tgt_cmd[idxs][:, 0, :]], dim=0)
     sens = torch.cat([dataset.seq_sens[first], dataset.tgt_sens[idxs][:, 0, :]], dim=0)
@@ -95,14 +95,14 @@ def resolve_trial(dataset, trial_arg, val_trials):
     matches = [i for i, n in enumerate(names) if trial_arg in n]
     if len(matches) == 1:
         return matches[0]
-    raise ValueError(f"Trial '{trial_arg}' non trovato o ambiguo: "
+    raise ValueError(f"Trial '{trial_arg}' not found or ambiguous: "
                      f"{[names[i] for i in matches]}")
 
 
 def replay(det, cmd, sens):
-    """Fa passare un trial nel detector, campione per campione.
-    Ritorna un dict di array lunghi n: state (n,), pred/resid/score (n,2,2)
-    [modo, canale], age (n,), alarm/reanchored (n,) bool, g/slow (n,2)."""
+    """Runs a trial through the detector, sample by sample.
+    Returns a dict of arrays of length n: state (n,), pred/resid/score (n,2,2)
+    [mode, channel], age (n,), alarm/reanchored (n,) bool, g/slow (n,2)."""
     det.start()
     outs = [det.step(cmd[i], sens[i]) for i in range(len(cmd))]
     return {
@@ -113,7 +113,7 @@ def replay(det, cmd, sens):
         "age":        np.array([o["age"] for o in outs]),
         "alarm":      np.array([o["alarm"] for o in outs]),
         "reanchored": np.array([o["reanchored"] for o in outs]),
-        "g":          np.stack([o["g"] for o in outs]),          # (n,2) CUSUM lento
-        "slow":       np.stack([o["slow"] for o in outs]),       # (n,2) allarme lento attivo
-        "resid_iso":  np.stack([o["resid_iso"] for o in outs]),  # (n,2) un passo isolato
+        "g":          np.stack([o["g"] for o in outs]),          # (n,2) slow CUSUM
+        "slow":       np.stack([o["slow"] for o in outs]),       # (n,2) slow alarm active
+        "resid_iso":  np.stack([o["resid_iso"] for o in outs]),  # (n,2) isolated one-step
     }
