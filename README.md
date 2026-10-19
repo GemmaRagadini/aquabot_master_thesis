@@ -65,3 +65,8 @@ Se riesci ad aggiungerli mi farebbe piacere vederli, anche solo un paio di esemp
 # Requirements 
 uv pip install -r requirements.txt
 
+30 s: tocco leggero, solo appoggiato;
+60 s: un po’ più deciso;
+90 s: trattenuta di 4 s invece di 2;
+120 s: tocco sulla pinna invece che sulla coda;
+150 s: tocco leggero.
