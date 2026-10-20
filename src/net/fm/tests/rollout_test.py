@@ -1,20 +1,20 @@
 """
-Valutazione AUTOREGRESSIVA del FORWARD MODEL su TUTTO il trial, senza riallenare.
+AUTOREGRESSIVE evaluation of the FORWARD MODEL over the WHOLE trial, without retraining.
 
-Per ogni trial si fa UN solo rollout dall'inizio alla fine:
-  - si parte dalla storia VERA dei primi H campioni (comandi e sensori)
-  - a ogni passo il modello predice sens(t) dal comando VERO a t
-  - la predizione rientra nella storia dei sensori al posto del valore vero
-Dopo i primi H campioni il modello non rivede piu' nessun sensore reale: usa
-solo le proprie predizioni e i comandi veri, fino alla fine del trial.
+For every trial ONE single rollout is run from the start to the end:
+  - it starts from the TRUE history of the first H samples (commands and sensors)
+  - at every step the model predicts sens(t) from the TRUE command at t
+  - the prediction goes back into the sensor history instead of the true value
+After the first H samples the model never sees a real sensor again: it only
+uses its own predictions and the true commands, until the end of the trial.
 
-Produce (nella cartella --out):
-  full_rollout_<canale>.png  — trial d'esempio: segnale vero vs modello
-  full_rmse_vs_time.png      — RMSE in funzione del tempo dall'ultimo sensore
-                               vero (blocchi di 1 s), sui trial di validation
-  + a schermo: RMSE e R2 sull'intero rollout, e la tabella secondo per secondo
+Produces (in the --out folder):
+  full_rollout_<channel>.png — example trial: true signal vs model
+  full_rmse_vs_time.png      — RMSE as a function of the time since the last true
+                               sensor value (1 s blocks), on the validation trials
+  + on screen: RMSE and R2 over the whole rollout, and the second-by-second table
 
-Uso:
+Usage:
   python3 src/net/fm/tests/rollout_test.py --checkpoint src/net/fm/checkpoints_fm/best_fm_tuned.pt
   python3 src/net/fm/tests/rollout_test.py --checkpoint ... --trial trial_106.csv
 """
@@ -34,7 +34,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-# flat import (come train_fm). In repo: from net.Estimator.model_fm import ...
+# flat import (as in train_fm). In repo: from net.Estimator.model_fm import ...
 from net.fm.model import build_model
 from net.dataset  import FishJointDataset
 
@@ -42,7 +42,7 @@ FM_CHANNELS = ["sensor_diff", "current"]
 CH_TO_KEY = {"sensor_diff": "sd", "current": "vf"}
 CH_UNIT   = {"sensor_diff": "sensor units", "current": "mA"}
 
-SAMPLE_HZ = 10.0     # frequenza di logging: converte i passi in secondi
+SAMPLE_HZ = 10.0     # logging frequency: converts steps into seconds
 
 COL_SURFACE  = "#fcfcfb"
 COL_TEXT     = "#0b0b0b"
@@ -58,32 +58,32 @@ SPLIT_SEED = 42
 
 
 def load_model(checkpoint, device):
-    """Ricostruisce il forward model con gli iperparametri salvati nel checkpoint."""
+    """Rebuilds the forward model with the hyperparameters saved in the checkpoint."""
     ckpt = torch.load(checkpoint, map_location=device, weights_only=False)
     if ckpt.get("residual", True):
         raise ValueError(
-            f"{checkpoint} e' stato allenato con uscita residua, non piu' "
-            f"supportata: riallena con train_fm.py.")
+            f"{checkpoint} was trained with residual output, no longer "
+            f"supported: retrain with train_fm.py.")
     FM = build_model(gru_hidden=ckpt["gru_hidden"], mlp_hidden=ckpt["mlp_hidden"],
                      num_layers=ckpt.get("num_layers", 1))
     FM.load_state_dict(ckpt["fm_state"])
     FM.to(device).eval()
-    print(f"Modello dal checkpoint: GRU {FM.gru_hidden}x{FM.num_layers} | "
+    print(f"Model from checkpoint: GRU {FM.gru_hidden}x{FM.num_layers} | "
           f"MLP {FM.mlp_hidden} | H={ckpt.get('H')}")
     return FM, ckpt
 
 
 @torch.no_grad()
 def rollout_predict(FM, seq_cmd, seq_sens, fut_cmd):
-    """Rollout autoregressivo su N = fut_cmd.shape[1] passi.
-    seq_cmd (b,H,1), seq_sens (b,H,2): storia vera iniziale.
-    fut_cmd (b,N,1): comandi VERI t .. t+N-1.
-    Ritorna pred (b,N,2): sensori predetti t .. t+N-1."""
+    """Autoregressive rollout over N = fut_cmd.shape[1] steps.
+    seq_cmd (b,H,1), seq_sens (b,H,2): initial true history.
+    fut_cmd (b,N,1): TRUE commands t .. t+N-1.
+    Returns pred (b,N,2): predicted sensors t .. t+N-1."""
     buf_cmd, buf_sens = seq_cmd, seq_sens
     preds = []
     for k in range(fut_cmd.shape[1]):
-        cmd_t = fut_cmd[:, k, :]                                  # (b,1) vero
-        s = FM(buf_cmd, buf_sens, cmd_t)                          # (b,2) predetto
+        cmd_t = fut_cmd[:, k, :]                                  # (b,1) true
+        s = FM(buf_cmd, buf_sens, cmd_t)                          # (b,2) predicted
         preds.append(s.unsqueeze(1))
         buf_cmd  = torch.cat([buf_cmd[:, 1:, :],  cmd_t.unsqueeze(1)], dim=1)
         buf_sens = torch.cat([buf_sens[:, 1:, :], s.unsqueeze(1)],     dim=1)
@@ -91,11 +91,11 @@ def rollout_predict(FM, seq_cmd, seq_sens, fut_cmd):
 
 
 def rollout_trial(dataset, FM, device, trial_idx):
-    """Un solo rollout su tutto il trial. Ritorna (pred, true) normalizzati, (n,2)."""
+    """A single rollout over the whole trial. Returns normalised (pred, true), (n,2)."""
     idxs = np.sort(np.nonzero(dataset.window_trial == trial_idx)[0])
-    seq_cmd  = dataset.seq_cmd[idxs[:1]]                       # (1,H,1) storia iniziale
+    seq_cmd  = dataset.seq_cmd[idxs[:1]]                       # (1,H,1) initial history
     seq_sens = dataset.seq_sens[idxs[:1]]                      # (1,H,2)
-    fut_cmd  = dataset.tgt_cmd[idxs][:, 0, :].unsqueeze(0)     # (1,n,1) comandi veri
+    fut_cmd  = dataset.tgt_cmd[idxs][:, 0, :].unsqueeze(0)     # (1,n,1) true commands
     true     = dataset.tgt_sens[idxs][:, 0, :].cpu().numpy()   # (n,2)
     pred = rollout_predict(FM, seq_cmd.to(device), seq_sens.to(device),
                            fut_cmd.to(device))[0].cpu().numpy()
@@ -115,7 +115,7 @@ def resolve_trial(dataset, trial_arg, val_trials):
     matches = [i for i, n in enumerate(names) if trial_arg in n]
     if len(matches) == 1:
         return matches[0]
-    raise ValueError(f"Trial '{trial_arg}' non trovato o ambiguo: {[names[i] for i in matches]}")
+    raise ValueError(f"Trial '{trial_arg}' not found or ambiguous: {[names[i] for i in matches]}")
 
 
 def style_axis(ax):
@@ -135,9 +135,11 @@ def main():
     ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl"))
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--trial", default=None,
-                    help="trial per il grafico d'esempio. Default: primo del validation split.")
+                    help="trial for the example plot. Default: first of the validation split.")
+    ap.add_argument("--all_trials", action="store_true",
+                    help="use all the trials of --dataset_dir (e.g. a test set), not only the validation split")
     ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "rollout_fm"),
-                    help="CARTELLA di output")
+                    help="output FOLDER")
     args = ap.parse_args()
 
     device = torch.device(args.device)
@@ -150,21 +152,21 @@ def main():
     _, val_ds = dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
     val_trials = set(int(i) for i in np.unique(
         dataset.window_trial[np.asarray(val_ds.indices)]))
-    trials = sorted(val_trials)
-    ex_idx = resolve_trial(dataset, args.trial, val_trials)
+    trials = list(range(len(dataset.trial_names))) if args.all_trials else sorted(val_trials)
+    ex_idx = resolve_trial(dataset, args.trial, set(trials))
 
     outs = {ti: rollout_trial(dataset, FM, device, ti) for ti in set(trials) | {ex_idx}}
     n_min = min(len(outs[ti][0]) for ti in trials)
-    print(f"Rollout su tutto il trial | {len(trials)} trial di validation | "
-          f"durata comune: {n_min} passi ({n_min / SAMPLE_HZ:.1f} s) | "
-          f"esempio: {dataset.trial_names[ex_idx]}")
+    print(f"Whole-trial rollout | {len(trials)} {'trials (all)' if args.all_trials else 'validation trials'} | "
+          f"common duration: {n_min} steps ({n_min / SAMPLE_HZ:.1f} s) | "
+          f"example: {dataset.trial_names[ex_idx]}")
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     pred = np.stack([outs[ti][0][:n_min] for ti in trials])    # (T, n_min, 2)
     true = np.stack([outs[ti][1][:n_min] for ti in trials])
 
-    # ---- errore in funzione del tempo dall'inizio del rollout (blocchi di 1 s) ----
+    # ---- error as a function of the time since the start of the rollout (1 s blocks) ----
     blk = int(SAMPLE_HZ)
     n_blk = n_min // blk
     rows = {"from_s": np.arange(n_blk), "to_s": np.arange(1, n_blk + 1)}
@@ -172,7 +174,7 @@ def main():
     fig.patch.set_facecolor(COL_SURFACE)
     print()
     for ci, ch in enumerate(FM_CHANNELS):
-        scale = float(dataset.scalers[CH_TO_KEY[ch]].scale_[0])   # norm -> unita' reali
+        scale = float(dataset.scalers[CH_TO_KEY[ch]].scale_[0])   # norm -> real units
         err = (pred[:, :, ci] - true[:, :, ci]) * scale
         rmse_blk = np.array([np.sqrt((err[:, b * blk:(b + 1) * blk] ** 2).mean())
                              for b in range(n_blk)])
@@ -180,8 +182,8 @@ def main():
         rmse_all = float(np.sqrt((err ** 2).mean()))
         r2 = 1.0 - rmse_all ** 2 / std ** 2
         rows[f"{ch}_RMSE"] = rmse_blk
-        print(f"{ch:12s} RMSE su tutto il rollout: {rmse_all:.4g} {CH_UNIT[ch]} | "
-              f"std segnale {std:.4g} | R2 {r2:.3f}")
+        print(f"{ch:12s} RMSE over the whole rollout: {rmse_all:.4g} {CH_UNIT[ch]} | "
+              f"signal std {std:.4g} | R2 {r2:.3f}")
 
         ax = axes[ci]
         style_axis(ax)
@@ -202,20 +204,20 @@ def main():
     path = out_dir / "full_rmse_vs_time.png"
     fig.savefig(path, dpi=160, facecolor=COL_SURFACE)
     plt.close(fig)
-    print(f"Salvato {path}")
+    print(f"Saved {path}")
 
     pd.set_option("display.width", 220)
     print()
     print(pd.DataFrame(rows).round(4).to_string(index=False))
 
-    # ---- trial d'esempio: un solo rollout dall'inizio alla fine ----
+    # ---- example trial: a single rollout from the start to the end ----
     p_ex, t_ex = outs[ex_idx]
     name = dataset.trial_names[ex_idx]
     t = (dataset.h + np.arange(len(p_ex))) / SAMPLE_HZ
     raw = pd.read_csv(Path(args.dataset_dir) / name)
     if "t_rel_sec" in raw.columns and len(raw) >= dataset.h + len(p_ex):
         t = raw["t_rel_sec"].values[dataset.h: dataset.h + len(p_ex)].astype(np.float32)
-    split_txt = "val" if ex_idx in val_trials else "train"
+    split_txt = "test" if args.all_trials else ("val" if ex_idx in val_trials else "train")
     print()
     for ci, ch in enumerate(FM_CHANNELS):
         sc = dataset.scalers[CH_TO_KEY[ch]]
@@ -244,7 +246,7 @@ def main():
         path = out_dir / f"full_rollout_{ch}.png"
         fig.savefig(path, dpi=160, facecolor=COL_SURFACE, bbox_inches="tight")
         plt.close(fig)
-        print(f"Salvato {path}")
+        print(f"Saved {path}")
 
 
 if __name__ == "__main__":
