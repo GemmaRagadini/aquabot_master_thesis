@@ -1,0 +1,20 @@
+{
+  "trial": "trial_NOFIN_5.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9
+  ],
+  "slow_events": [
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 284,
+      "t_alarm_s": 28.4,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "normal",
+  "events": []
+}

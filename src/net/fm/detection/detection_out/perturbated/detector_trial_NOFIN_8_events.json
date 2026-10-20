@@ -1,0 +1,48 @@
+{
+  "trial": "trial_NOFIN_8.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    28.0
+  ],
+  "slow_events": [
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 91,
+      "t_alarm_s": 9.1,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0,
+      "t_end_s": 24.3,
+      "duration_s": 15.2
+    }
+  ],
+  "final_state": "normal",
+  "events": [
+    {
+      "t_alarm": 115,
+      "t_alarm_s": 11.5,
+      "t_decision_s": 18.0,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "abrupt",
+          "SR_rise": 0.674,
+          "persistent_by": "CUSUM"
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      },
+      "t_end_s": 18.1,
+      "duration_s": 6.6
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+Trovati 2 trial.
+Dataset grezzo: 2 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
+Dataset: 2068 campioni da 2 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_TOUCH_1.csv [train] | 1808 samples (180.7 s) | 0 injected perturbations
+Rollout re-anchors at t = [21.9, 42.5, 72.4, 107.3, 136.2, 169.7] s
+ALARM at 31.0 s (channels: current) -> TRANSIENT decided at 37.5 s
+    sensor_diff  transient    onset abrupt (S_R rise: 0.91 thresholds)
+    current      transient    onset abrupt (S_R rise: 1.87 thresholds)
+ALARM at 60.9 s (channels: sensor_diff) -> TRANSIENT decided at 67.4 s
+    sensor_diff  transient    onset abrupt (S_R rise: 0.62 thresholds)
+    current      transient    onset gradual (S_R rise: 0.34 thresholds)
+ALARM at 90.8 s (channels: current) -> PERSISTENT decided at 97.3 s
+    ended at 97.4 s (duration 6.6 s), automatic return to normal
+    sensor_diff  persistent   onset abrupt (S_R rise: 1.07 thresholds, persistent by CUSUM)
+    current      transient    onset abrupt (S_R rise: 1.00 thresholds)
+ALARM at 119.7 s (channels: current) -> PERSISTENT decided at 126.2 s
+    ended at 126.3 s (duration 6.6 s), automatic return to normal
+    sensor_diff  persistent   onset abrupt (S_R rise: 0.55 thresholds, persistent by CUSUM)
+    current      transient    onset abrupt (S_R rise: 1.02 thresholds)
+ALARM at 153.2 s (channels: current) -> PERSISTENT decided at 159.7 s
+    ended at 159.8 s (duration 6.6 s), automatic return to normal
+    sensor_diff  persistent   onset abrupt (S_R rise: 0.91 thresholds, persistent by CUSUM)
+    current      transient    onset abrupt (S_R rise: 1.37 thresholds)
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [39.4, 44.0]
+  SLOW ALARM on current at 61.8 s, ended at 66.8 s (duration 5.0 s) (origin)
+  SLOW ALARM on sensor_diff at 63.2 s, ended at 68.4 s (duration 5.2 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on sensor_diff at 77.2 s, ended at 82.2 s (duration 5.0 s) (origin)
+  SLOW ALARM on current at 91.2 s, ended at 98.3 s (duration 7.1 s) (origin)
+  SLOW ALARM on sensor_diff at 91.3 s, ended at 100.0 s (duration 8.7 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on sensor_diff at 112.8 s, ended at 166.4 s (duration 53.6 s) (origin)
+  SLOW ALARM on current at 120.4 s, ended at 124.0 s (duration 3.6 s) (SECONDARY, probable effect of sensor_diff)
+  SLOW ALARM on current at 153.5 s, ended at 156.4 s (duration 2.9 s) (SECONDARY, probable effect of sensor_diff)
+Saved src/net/fm/detection/detection_out/perturbated/detector_trial_TOUCH_1.png
+Saved src/net/fm/detection/detection_out/perturbated/detector_trial_TOUCH_1_events.json

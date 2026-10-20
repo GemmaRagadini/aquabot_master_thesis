@@ -322,14 +322,14 @@ def main():
     df_out.to_csv(os.path.join(args.out, "evaluate_runs.csv"), index=False)
 
     # ---- clean trials ----
-    print("\n=== Clean trials (thresholds calibrated on these same trials) ===")
+    print("\n=== Clean trials (no injection) ===")
     print(f"  fast alarms: {int(clean.n_alarms.sum())} | slow alarms: "
           f"{int(clean.n_slow_alarms.sum())} over {len(clean)} trials")
     print(f"  max S_R/threshold: sensor_diff {clean.max_SR_sd.max():.2f}, current {clean.max_SR_cur.max():.2f}"
           f" | max g/h: sensor_diff {clean.max_g_sd.max():.2f}, current {clean.max_g_cur.max():.2f}")
     meta = calib.meta
     if "loo_false_alarm_rate_per_trial" in meta:
-        print(f"  leave-one-trial-out (from calibrate.py): fast false alarms in "
+        print(f"  leave-one-trial-out on the CALIBRATION trials (from calibrate.py): fast false alarms in "
               f"{100 * meta['loo_false_alarm_rate_per_trial']:.0f}% of the trials")
     for v, cu in meta.get("cusum", {}).items():
         if "loo_max" in cu:
