@@ -57,7 +57,6 @@ Test sul robot (suggerimenti)
     Registra tutto e fai l'analisi prima offline. Il detector è deterministico, quindi puoi regolare k, W e T senza rifare le prove. Tieni separate le sessioni che usi per calibrare da quelle che usi per valutare. Solo alla fine lo farei girare online sul robot, per controllare tempi e integrazione con ROS.
     Come metriche: percentuale di eventi rilevati, ritardo di rilevamento, falsi allarmi per ora, matrice di confusione per transitorio/persistente e brusco/graduale, e la perturbazione più piccola che riesci a rilevare (con le masse crescenti viene abbastanza naturale).
 
-Nella slide con e senza pinna, senza pinna la corrente di picco è più alta: mi aspettavo il contrario, mi spieghi come mai?
 
 Nelle slide non ho trovato i risultati sulle perturbazioni sintetiche, le slide dopo "Calibration results" sono vuote.
 Se riesci ad aggiungerli mi farebbe piacere vederli, anche solo un paio di esempi e una tabella riassuntiva.
