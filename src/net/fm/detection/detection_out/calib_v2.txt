@@ -1,0 +1,137 @@
+Trovati 174 trial.
+Dataset grezzo: 174 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scalers_joint_v2.pkl (nessun refit).
+Dataset: 48721 campioni da 174 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+  trial 1/35: trial_101.csv          trial 2/35: trial_105.csv          trial 3/35: trial_106.csv          trial 4/35: trial_107.csv          trial 5/35: trial_117.csv          trial 6/35: trial_120.csv          trial 7/35: trial_13.csv          trial 8/35: trial_20.csv          trial 9/35: trial_24.csv          trial 10/35: trial_25.csv          trial 11/35: trial_36.csv          trial 12/35: trial_4.csv          trial 13/35: trial_41.csv          trial 14/35: trial_47.csv          trial 15/35: trial_50.csv          trial 16/35: trial_51.csv          trial 17/35: trial_59.csv          trial 18/35: trial_68.csv          trial 19/35: trial_70.csv          trial 20/35: trial_73.csv          trial 21/35: trial_84.csv          trial 22/35: trial_91.csv          trial 23/35: trial_92.csv          trial 24/35: trial_95.csv          trial 25/35: trial_125.csv          trial 26/35: trial_131.csv          trial 27/35: trial_132.csv          trial 28/35: trial_136.csv          trial 29/35: trial_143.csv          trial 30/35: trial_152.csv          trial 31/35: trial_155.csv          trial 32/35: trial_157.csv          trial 33/35: trial_167.csv          trial 34/35: trial_171.csv          trial 35/35: trial_172.csv        
+
+Calibration on 35 trials (validation only) | W=0.5s re-anchor every 20.0s | quantile=1.0 margin=1.15
+
+sigma (normalised units) and thresholds (in multiples of sigma):
+                 sigma  threshold
+S1_sensor_diff  0.1512     3.9973
+S1_current      0.2936     7.9646
+SR_sensor_diff  0.1999     3.7912
+SR_current      0.3847     5.8957
+
+Leave-one-trial-out: maximum score of the excluded trial / threshold recomputed without it (>1 = false alarm)
+        trial  S1_sensor_diff  S1_current  SR_sensor_diff  SR_current
+trial_101.csv           0.375       0.200           0.574       0.428
+trial_105.csv           0.613       0.330           0.499       0.377
+trial_106.csv           0.800       0.460           0.652       0.529
+trial_107.csv           0.626       0.285           0.634       0.285
+trial_117.csv           0.314       0.312           0.486       0.327
+trial_120.csv           0.373       0.303           0.364       0.278
+ trial_13.csv           0.268       0.769           0.374       0.779
+ trial_20.csv           0.744       0.230           0.599       0.377
+ trial_24.csv           0.851       0.492           0.456       0.513
+ trial_25.csv           0.273       0.437           0.448       0.557
+ trial_36.csv           0.467       0.211           0.308       0.225
+  trial_4.csv           0.569       0.202           0.558       0.312
+ trial_41.csv           0.752       0.231           0.575       0.274
+ trial_47.csv           0.464       0.349           0.348       0.335
+ trial_50.csv           0.299       0.386           0.285       0.430
+ trial_51.csv           0.240       0.287           0.355       0.347
+ trial_59.csv           0.749       0.234           0.546       0.231
+ trial_68.csv           0.257       0.336           0.262       0.285
+ trial_70.csv           0.324       0.168           0.273       0.220
+ trial_73.csv           0.567       0.203           0.590       0.178
+ trial_84.csv           0.352       0.267           0.291       0.196
+ trial_91.csv           0.639       0.352           0.606       0.400
+ trial_92.csv           0.823       0.349           0.633       0.350
+ trial_95.csv           0.392       0.273           0.293       0.348
+trial_125.csv           0.297       0.423           0.499       0.431
+trial_131.csv           0.714       0.391           0.460       0.665
+trial_132.csv           0.366       0.451           0.467       0.640
+trial_136.csv           0.300       0.458           0.410       0.693
+trial_143.csv           0.702       0.542           0.516       0.970
+trial_152.csv           0.343       0.302           0.612       0.409
+trial_155.csv           0.839       0.312           0.832       0.672
+trial_157.csv           0.769       0.476           0.763       0.637
+trial_167.csv           0.407       0.313           0.522       0.437
+trial_171.csv           0.816       0.436           0.608       0.740
+trial_172.csv           0.888       0.983           0.909       0.552
+
+Fraction of trials above threshold, per score:
+S1_sensor_diff    0.0
+S1_current        0.0
+SR_sensor_diff    0.0
+SR_current        0.0
+False alarm rate per trial (S_R of at least one channel): 0.000  (0/35)
+NB: with threshold = maximum, for every score the trial with the absolute
+    maximum ALWAYS exceeds the threshold recomputed without it. The useful
+    number is BY HOW MUCH: ratios just above 1 = stable threshold; ratios
+    well above 1 = heavy tails, more trials or a --margin are needed.
+
+Mean z^2 per trial (1 = typical model error). The spread across normal trials is the limit of a slow detection with a fixed reference:
+        trial  S1_sensor_diff  S1_current  SR_sensor_diff  SR_current
+trial_101.csv           0.322       0.478           0.725       0.659
+trial_105.csv           0.746       0.781           0.617       0.546
+trial_106.csv           2.498       1.136           2.039       0.696
+trial_107.csv           2.030       0.530           1.841       0.354
+trial_117.csv           0.289       0.786           0.262       0.592
+trial_120.csv           0.469       0.982           0.430       0.623
+ trial_13.csv           0.244       1.553           0.411       1.112
+ trial_20.csv           1.396       0.479           1.050       0.458
+ trial_24.csv           0.806       0.922           0.489       0.709
+ trial_25.csv           0.251       0.837           0.490       0.675
+ trial_36.csv           0.499       0.576           0.404       0.376
+  trial_4.csv           0.792       0.533           0.725       0.382
+ trial_41.csv           1.831       0.445           1.006       0.294
+ trial_47.csv           0.451       0.994           0.402       0.792
+ trial_50.csv           0.433       0.809           0.293       0.518
+ trial_51.csv           0.230       0.627           0.228       0.403
+ trial_59.csv           1.820       0.660           0.881       0.376
+ trial_68.csv           0.187       0.586           0.186       0.336
+ trial_70.csv           0.288       0.339           0.243       0.241
+ trial_73.csv           1.557       0.441           1.776       0.260
+ trial_84.csv           0.324       0.453           0.242       0.250
+ trial_91.csv           1.864       0.664           1.891       0.469
+ trial_92.csv           2.862       0.890           1.890       0.572
+ trial_95.csv           0.394       0.651           0.270       0.488
+trial_125.csv           0.293       0.887           0.640       1.059
+trial_131.csv           0.556       1.921           0.853       3.289
+trial_132.csv           0.495       1.675           0.654       3.083
+trial_136.csv           0.340       1.400           0.723       2.156
+trial_143.csv           0.870       1.878           0.981       2.049
+trial_152.csv           0.406       1.215           1.071       1.064
+trial_155.csv           2.425       0.934           3.234       1.359
+trial_157.csv           2.458       2.011           2.597       2.556
+trial_167.csv           0.349       1.053           0.986       1.072
+trial_171.csv           1.125       2.266           1.738       3.302
+trial_172.csv           3.092       2.608           2.730       1.837
+
+Summary of mean z^2 over the normal trials:
+                  min  median    max
+S1_sensor_diff  0.187   0.499  3.092
+S1_current      0.339   0.837  2.608
+SR_sensor_diff  0.186   0.725  3.234
+SR_current      0.241   0.623  3.302
+
+Rollout residual as a function of the time since the last re-anchor (1 = mean; if it grows a lot, a constant sigma_R is not enough):
+age_s   n  rmsR/sigma_sensor_diff  rmsR/sigma_current
+  0-1 700                   0.953               0.882
+  1-2 700                   0.947               0.940
+  2-3 700                   0.946               0.852
+  3-4 700                   0.981               0.931
+  4-5 700                   0.934               0.966
+  5-6 700                   0.956               0.966
+  6-7 700                   0.952               1.132
+  7-8 697                   1.009               1.042
+  8-9 352                   0.934               1.037
+ 9-10 350                   0.940               0.930
+10-11 350                   1.031               0.968
+11-12 350                   1.126               1.038
+12-13 350                   0.987               0.990
+13-14 350                   1.042               0.928
+14-15 350                   1.107               1.181
+15-16 350                   1.049               1.153
+16-17 350                   1.119               1.093
+17-18 350                   1.123               1.068
+18-19 350                   1.065               0.958
+19-20 315                   1.056               1.127
+
+Slow detector (CUSUM) | residual one-step, isolated on [sensor_diff] | sigma [0.1588, 0.2936] (one-step: [0.1512, 0.2936]) | kappa=1.0 clip=9.0 margin=1.15
+  fixed reference (0 s): h = sensor_diff 128.1, current 90.1 | 35 trials, ~28 s monitored per trial | LOO max [1.33, 1.5] (>1 = false alarm)
+  NB: h grows with the monitored duration. Calibrated on short trials it is optimistic for online use: long normal trials are needed.
+
+Calibration saved to src/net/fm/checkpoints_fm/detector_v2.json
