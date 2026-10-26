@@ -299,31 +299,31 @@ def compare_bending(csv_paths, save_dir=None, t_range=None, sensor=0):
 #  Configurazione
 # ======================================================================
 
-# CSV = 'logs/trial_20260922_135914.csv'
+CSV = 'logs/trial_20261026_172447.csv'
 
 SAVE_DIR = 'plots'
 
 # Per il confronto: elenca i due (o piu') CSV da sovrapporre.
-CSV_LIST = [
-    'logs/std_con_pinna.csv',
-    'logs/std_senza_pinna.csv',
-]
+# CSV_LIST = [
+#     'logs/std_con_pinna.csv',
+#     'logs/std_senza_pinna.csv',
+# ]
 
 # Intervallo temporale da plottare, in secondi (colonna t_rel_sec).
 # None  -> plotta tutto
 # (5, 20)     -> solo da 5 a 20 s
 # (10, None)  -> da 10 s fino alla fine
 # (None, 30)  -> dall'inizio fino a 30 s
-T_RANGE = (10,20)
+T_RANGE = (330,360)
 
 # --- Grafici singolo trial ---
-# plot_motor(CSV, SAVE_DIR, t_range=T_RANGE)
+plot_motor(CSV, SAVE_DIR, t_range=T_RANGE)
 # plot_current(CSV, SAVE_DIR, t_range=T_RANGE)
 
 # plot_bending(CSV, SAVE_DIR, t_range=T_RANGE)
 # plot_combined_sweep(CSV, SAVE_DIR, t_range=T_RANGE)   # usare con trial combined_sweep
 
 # --- Grafici di confronto fra due (o piu') trial ---
-compare_motor(CSV_LIST, SAVE_DIR, t_range=T_RANGE, which="real")
-compare_current(CSV_LIST, SAVE_DIR, t_range=T_RANGE)
+# compare_motor(CSV_LIST, SAVE_DIR, t_range=T_RANGE, which="real")
+# compare_current(CSV_LIST, SAVE_DIR, t_range=T_RANGE)
 # compare_bending(CSV_LIST, SAVE_DIR, t_range=T_RANGE, sensor=0)

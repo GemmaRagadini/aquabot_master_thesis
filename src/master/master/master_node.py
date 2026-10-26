@@ -21,13 +21,14 @@ def clamp(x: float, lo: float, hi: float):
 class MasterNode(Node):
 
     # Limiti meccanici misurati empiricamente con Dynamixel Wizard
-    # Tick 2299 => +0.385 rad   Tick 2975 => +1.422 rad
-    # Centro di oscillazione: (0.385 + 1.422) / 2 = 0.903 rad
-    # Semiampiezza massima:   (1.422 - 0.385) / 2 = 0.519 rad
-    TAIL_MIN_RAD  = 0.385
-    TAIL_MAX_RAD  = 1.422
-    TAIL_BIAS_RAD = 0.903
-    MAX_AMP_RAD   = 0.519
+    # Conversione: rad = tick * 2*pi/4096 - pi
+    # Tick 1860 => -0.288 rad   Tick 2320 => +0.417 rad   Tick 2090 (centro) => +0.064 rad
+    # Semiampiezza massima: 230 tick = 0.353 rad
+    # DEVONO coincidere con i valori del launch file.
+    TAIL_MIN_RAD  = -0.288
+    TAIL_MAX_RAD  = 0.417
+    TAIL_BIAS_RAD = 0.064
+    MAX_AMP_RAD   = 0.353
 
     def __init__(self):
         super().__init__('master_node')
@@ -38,7 +39,7 @@ class MasterNode(Node):
         self.declare_parameter('sensor_topic', '/sensor_reading')
         self.declare_parameter('mode', 'amp_sweep')
         self.declare_parameter('tail_bias_rad',  self.TAIL_BIAS_RAD)
-        self.declare_parameter('tail_amp_rad',   0.4)
+        self.declare_parameter('tail_amp_rad',   0.15)
         self.declare_parameter('tail_freq_hz',   0.5)
         self.declare_parameter('tail_min_rad',   self.TAIL_MIN_RAD)
         self.declare_parameter('tail_max_rad',   self.TAIL_MAX_RAD)
@@ -60,7 +61,9 @@ class MasterNode(Node):
         self.declare_parameter("feedback_max_offset", self.MAX_AMP_RAD)
 
         # parametri per turning (variazione sinusoidale del centro di oscillazione)
-        self.declare_parameter("turning_bias_amp_rad", 0.4)
+        # NB: in turning_combined lo spostamento del centro viene comunque limitato
+        # a MAX_AMP_RAD - amp_corrente, cosi' il comando resta dentro i limiti.
+        self.declare_parameter("turning_bias_amp_rad", 0.08)
         self.declare_parameter("turning_bias_freq_hz", 0.08)
 
         # --- NUOVA MODALITA': random_continuous ---------------------------------
@@ -91,13 +94,16 @@ class MasterNode(Node):
         self.trial_duration = float(self.get_parameter('trial_duration_sec').value)
         self.freq_min = float(self.get_parameter('freq_min_hz').value)
         self.freq_max = float(self.get_parameter('freq_max_hz').value)
-        self.amp_min = float(self.get_parameter('amp_min_rad').value)
-        self.amp_max = float(self.get_parameter('amp_max_rad').value)
+        # ampiezze limitate alla semiampiezza massima gia' all'avvio (prima il
+        # clamp c'era solo in parameter_callback, cioe' solo per cambi a runtime)
+        self.amp_min = clamp(float(self.get_parameter('amp_min_rad').value), 0.0, self.MAX_AMP_RAD)
+        self.amp_max = clamp(float(self.get_parameter('amp_max_rad').value), 0.0, self.MAX_AMP_RAD)
         self.target_topic = self.get_parameter('target_topic').value
         self.sensor_topic = self.get_parameter('sensor_topic').value
         self.mode = self.get_parameter('mode').value
-        self.bias = float(self.get_parameter('tail_bias_rad').value)
-        self.amp = float(self.get_parameter('tail_amp_rad').value)
+        self.bias = clamp(float(self.get_parameter('tail_bias_rad').value),
+                          self.TAIL_MIN_RAD, self.TAIL_MAX_RAD)
+        self.amp = clamp(float(self.get_parameter('tail_amp_rad').value), 0.0, self.MAX_AMP_RAD)
         self.freq = float(self.get_parameter('tail_freq_hz').value)
         self.tail_min = float(self.get_parameter('tail_min_rad').value)
         self.tail_max = float(self.get_parameter('tail_max_rad').value)
@@ -409,8 +415,12 @@ class MasterNode(Node):
             self.current_amp  = self.amp_min  + alpha_amp  * (self.amp_max  - self.amp_min)
             self.current_freq = self.freq_min + alpha_freq * (self.freq_max - self.freq_min)
             # il centro oscilla lentamente: ORA e' loggato nel center effettivo
-            self.current_center = self.bias + self.turning_bias_amp * math.sin(
+            coff = self.turning_bias_amp * math.sin(
                 2.0 * math.pi * self.turning_bias_freq * t_rel)
+            # stesso vincolo di sicurezza di random_continuous:
+            # |offset| + amp_corrente <= MAX_AMP, cosi' la sinusoide non viene tosata
+            cap = max(0.0, self.MAX_AMP_RAD - self.current_amp)
+            self.current_center = self.bias + clamp(coff, -cap, cap)
             self._advance_phase(dt)
 
         elif mode == 'random_continuous':

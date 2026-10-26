@@ -3,18 +3,19 @@ from launch.actions import TimerAction, ExecuteProcess
 from launch_ros.actions import Node
 
 # Limiti meccanici misurati empiricamente con Dynamixel Wizard
-# Tick 2299 => +0.385 rad   Tick 2975 => +1.422 rad
-# Centro di oscillazione: (0.385 + 1.422) / 2 = 0.903 rad
-# Semiampiezza massima:   (1.422 - 0.385) / 2 = 0.519 rad
+# Conversione: rad = tick * 2*pi/4096 - pi
+# Tick 1860 => -0.288 rad   Tick 2320 => +0.417 rad   Tick 2090 (centro) => +0.064 rad
+# Semiampiezza massima: 230 tick = 0.353 rad
 
-# DA NON CAMBIARE!!
-TAIL_MIN_RAD  = 0.385
-TAIL_MAX_RAD  = 1.422
-TAIL_BIAS_RAD = 0.903
-MAX_AMP_RAD   = 0.519
+# DA NON CAMBIARE!! (devono coincidere con le costanti di master_node.py)
+TAIL_MIN_RAD  = -0.288
+TAIL_MAX_RAD  = 0.417
+TAIL_BIAS_RAD = 0.064
+MAX_AMP_RAD   = 0.353
 
 TRIAL_DURATION = 30.0   # durata registrazione in secondi
-STARTUP_DELAY  = 5.0    # attesa prima di avviare il trial 
+STARTUP_DELAY  = 5.0    # attesa prima di avviare il trial
+
 
 def generate_launch_description():
     master_node = Node(
@@ -32,7 +33,7 @@ def generate_launch_description():
             'tail_bias_rad': TAIL_BIAS_RAD,
 
             # ampiezza e freq default
-            'tail_amp_rad': 0.3,
+            'tail_amp_rad': 0.35,
             'tail_freq_hz': 0.5,
 
             # LIMITI
@@ -56,7 +57,7 @@ def generate_launch_description():
             'freq_max_hz': 1.0,
 
             # turning combined
-            'turning_bias_amp_rad': 0.2,
+            'turning_bias_amp_rad': 0.08,
             'turning_bias_freq_hz': 0.08,
         }]
     )
@@ -78,8 +79,12 @@ def generate_launch_description():
             'tail_max_rad': TAIL_MAX_RAD,
 
             # limiti assoluti in tick
-            'min_position_tick': 2299,
-            'max_position_tick': 2975,
+            'min_position_tick': 1860,
+            'max_position_tick': 2320,
+
+            # ritorno al centro allo spegnimento
+            'center_tick': 2090,
+            'keep_torque_on_shutdown': False,
 
             'profile_velocity': 500,
             'profile_acceleration': 400,
@@ -91,7 +96,7 @@ def generate_launch_description():
         executable='arduino_reader_node',
         parameters=[{
             'port': '/dev/ttyACM0',
-            'baud_rate': 57600
+            'baud_rate': 57600,
         }]
     )
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
+import time
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Float64
 from dynamixel_sdk import PortHandler, PacketHandler
@@ -25,12 +27,13 @@ class DynamixelController(Node):
     TORQUE_DISABLE          = 0
     OPERATING_MODE_POSITION = 3   # Position Control 
 
-    # Limiti 
-    # Tick 2299 => +0.385 rad   Tick 2975 => +1.422 rad
-    DEFAULT_TAIL_MIN_RAD      = 0.385
-    DEFAULT_TAIL_MAX_RAD      = 1.422
-    DEFAULT_MIN_POSITION_TICK = 2299
-    DEFAULT_MAX_POSITION_TICK = 2975
+    # Limiti
+    # Tick 1860 => -0.288 rad   Tick 2320 => +0.417 rad   Tick 2090 (centro) => +0.064 rad
+    DEFAULT_TAIL_MIN_RAD      = -0.288
+    DEFAULT_TAIL_MAX_RAD      = 0.417
+    DEFAULT_MIN_POSITION_TICK = 1860
+    DEFAULT_MAX_POSITION_TICK = 2320
+    DEFAULT_CENTER_TICK       = 2090
 
     def __init__(self):
         super().__init__('dynamixel_controller_node')
@@ -50,6 +53,14 @@ class DynamixelController(Node):
         self.declare_parameter('profile_velocity', 100)
         self.declare_parameter('profile_acceleration', 10)
 
+        # ritorno al centro allo spegnimento
+        self.declare_parameter('center_tick', self.DEFAULT_CENTER_TICK)
+        self.declare_parameter('shutdown_center_timeout_sec', 3.0)  # attesa massima
+        self.declare_parameter('shutdown_center_tolerance_tick', 10)  # "arrivato" se entro +/- tick
+        # False = dopo il centraggio la coppia viene spenta (coda libera, come prima)
+        # True  = la coppia resta attiva e il motore tiene il centro finche' alimentato
+        self.declare_parameter('keep_torque_on_shutdown', False)
+
         # legge i parametri ROS
         self.target_topic         = self.get_parameter('target_topic').value
         self.device_name          = self.get_parameter('device_name').value
@@ -62,6 +73,11 @@ class DynamixelController(Node):
         self.max_position_tick    = int(self.get_parameter('max_position_tick').value)
         self.profile_velocity     = int(self.get_parameter('profile_velocity').value)
         self.profile_acceleration = int(self.get_parameter('profile_acceleration').value)
+        self.center_tick          = int(clamp(int(self.get_parameter('center_tick').value),
+                                              self.min_position_tick, self.max_position_tick))
+        self.shutdown_timeout     = float(self.get_parameter('shutdown_center_timeout_sec').value)
+        self.shutdown_tolerance   = int(self.get_parameter('shutdown_center_tolerance_tick').value)
+        self.keep_torque_on_shutdown = bool(self.get_parameter('keep_torque_on_shutdown').value)
 
         
         self.port_handler   = PortHandler(self.device_name)
@@ -180,11 +196,53 @@ class DynamixelController(Node):
 
     # ── Shutdown ─────────────────────────────────────────────────────────────
 
+    def return_to_center(self):
+        """Porta il motore al centro scrivendo direttamente sulla seriale e
+        aspetta che ci arrivi (o che scada il timeout). Non usa messaggi ROS,
+        quindi funziona anche se il master o il contesto ROS sono gia' chiusi."""
+        # Il Ctrl+C puo' interrompere a meta' una lettura/scrittura del timer:
+        # l'SDK lascia allora la porta segnata come "occupata" (is_using = True)
+        # e ogni nuova richiesta fallisce con COMM_PORT_BUSY (-1000).
+        # Qui nessun altro usa piu' la porta: si libera il flag e si svuota il buffer.
+        self.port_handler.is_using = False
+        try:
+            self.port_handler.clearPort()
+        except Exception:
+            pass
+
+        for _ in range(5):
+            result, error = self.packet_handler.write4ByteTxRx(
+                self.port_handler, self.dxl_id, self.ADDR_GOAL_POSITION, self.center_tick)
+            if result == 0 and error == 0:
+                break
+            self.port_handler.is_using = False
+            time.sleep(0.02)
+        if result != 0 or error != 0:
+            print(f'[dynamixel_controller_node] ritorno al centro: errore scrittura '
+                  f'(result={result}, error={error})', flush=True)
+            return False
+
+        t_end = time.monotonic() + self.shutdown_timeout
+        pos_tick = None
+        while time.monotonic() < t_end:
+            self.port_handler.is_using = False
+            pos_tick, result, error = self.packet_handler.read4ByteTxRx(
+                self.port_handler, self.dxl_id, self.ADDR_PRESENT_POSITION)
+            if result == 0 and error == 0 and abs(pos_tick - self.center_tick) <= self.shutdown_tolerance:
+                print(f'[dynamixel_controller_node] coda al centro (tick {pos_tick}).', flush=True)
+                return True
+            time.sleep(0.05)
+        print(f'[dynamixel_controller_node] ritorno al centro: timeout dopo '
+              f'{self.shutdown_timeout:.1f} s (ultima posizione: {pos_tick}).', flush=True)
+        return False
+
     def destroy_node(self):
         try:
-            self.packet_handler.write1ByteTxRx(
-                self.port_handler, self.dxl_id,
-                self.ADDR_TORQUE_ENABLE, self.TORQUE_DISABLE)
+            self.return_to_center()
+            if not self.keep_torque_on_shutdown:
+                self.packet_handler.write1ByteTxRx(
+                    self.port_handler, self.dxl_id,
+                    self.ADDR_TORQUE_ENABLE, self.TORQUE_DISABLE)
             self.port_handler.closePort()
         except Exception:
             pass
@@ -196,11 +254,13 @@ def main(args=None):
     node = DynamixelController()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
+        # Ctrl+C diretto oppure arresto da ros2 launch
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
