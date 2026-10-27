@@ -1,2 +1,0 @@
-channel,scenario,amp,n,detected_%,delay_med_s,class_ok_%,onset_ok_%,channel_ok_%,channel_only_%,extra_alarms,slow_detected_%,slow_delay_med_s,slow_origin_ok_%,fa_before
-current,step_pers,1.0,15,46.666666666666664,10.6,100.0,16.666666666666664,100.0,100.0,0.0,100.0,1.5,100.0,0

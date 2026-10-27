@@ -1,33 +1,0 @@
-persist_cusum = True
-Trovati 30 trial.
-Dataset grezzo: 30 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
-Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
-Dataset: 8400 campioni da 30 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
-30 trials, 60 replays, 159 processes
-Amplitude 1 = 163.3 sensor units on sensor_diff, 54.7 mA on current
-Amplitude 1 = 6.7 sigma of the one-step residual on sensor_diff, 4.1 on current
-  1/60  elapsed 0.0 min, remaining ~1.8 min     2/60  elapsed 0.0 min, remaining ~0.9 min     3/60  elapsed 0.0 min, remaining ~0.6 min     4/60  elapsed 0.0 min, remaining ~0.4 min     5/60  elapsed 0.0 min, remaining ~0.3 min     6/60  elapsed 0.0 min, remaining ~0.3 min     7/60  elapsed 0.0 min, remaining ~0.2 min     8/60  elapsed 0.0 min, remaining ~0.2 min     9/60  elapsed 0.0 min, remaining ~0.2 min     10/60  elapsed 0.0 min, remaining ~0.2 min     11/60  elapsed 0.0 min, remaining ~0.1 min     12/60  elapsed 0.0 min, remaining ~0.1 min     13/60  elapsed 0.0 min, remaining ~0.1 min     14/60  elapsed 0.0 min, remaining ~0.1 min     15/60  elapsed 0.0 min, remaining ~0.1 min     16/60  elapsed 0.0 min, remaining ~0.1 min     17/60  elapsed 0.0 min, remaining ~0.1 min     18/60  elapsed 0.0 min, remaining ~0.1 min     19/60  elapsed 0.0 min, remaining ~0.1 min     20/60  elapsed 0.0 min, remaining ~0.1 min     21/60  elapsed 0.0 min, remaining ~0.1 min     22/60  elapsed 0.0 min, remaining ~0.1 min     23/60  elapsed 0.0 min, remaining ~0.1 min     24/60  elapsed 0.0 min, remaining ~0.1 min     25/60  elapsed 0.0 min, remaining ~0.0 min     26/60  elapsed 0.0 min, remaining ~0.0 min     27/60  elapsed 0.0 min, remaining ~0.0 min     28/60  elapsed 0.0 min, remaining ~0.0 min     29/60  elapsed 0.0 min, remaining ~0.0 min     30/60  elapsed 0.0 min, remaining ~0.0 min     31/60  elapsed 0.0 min, remaining ~0.0 min     32/60  elapsed 0.0 min, remaining ~0.0 min     33/60  elapsed 0.0 min, remaining ~0.0 min     34/60  elapsed 0.0 min, remaining ~0.0 min     35/60  elapsed 0.0 min, remaining ~0.0 min     36/60  elapsed 0.0 min, remaining ~0.0 min     37/60  elapsed 0.0 min, remaining ~0.0 min     38/60  elapsed 0.0 min, remaining ~0.0 min     39/60  elapsed 0.0 min, remaining ~0.0 min     40/60  elapsed 0.0 min, remaining ~0.0 min     41/60  elapsed 0.0 min, remaining ~0.0 min     42/60  elapsed 0.0 min, remaining ~0.0 min     43/60  elapsed 0.0 min, remaining ~0.0 min     44/60  elapsed 0.0 min, remaining ~0.0 min     45/60  elapsed 0.0 min, remaining ~0.0 min     46/60  elapsed 0.0 min, remaining ~0.0 min     47/60  elapsed 0.0 min, remaining ~0.0 min     48/60  elapsed 0.0 min, remaining ~0.0 min     49/60  elapsed 0.0 min, remaining ~0.0 min     50/60  elapsed 0.0 min, remaining ~0.0 min     51/60  elapsed 0.0 min, remaining ~0.0 min     52/60  elapsed 0.0 min, remaining ~0.0 min     53/60  elapsed 0.0 min, remaining ~0.0 min     54/60  elapsed 0.0 min, remaining ~0.0 min     55/60  elapsed 0.0 min, remaining ~0.0 min     56/60  elapsed 0.0 min, remaining ~0.0 min     57/60  elapsed 0.0 min, remaining ~0.0 min     58/60  elapsed 0.0 min, remaining ~0.0 min     59/60  elapsed 0.0 min, remaining ~0.0 min     60/60  elapsed 0.0 min, remaining ~0.0 min   
-
-=== Clean trials (thresholds calibrated on these same trials) ===
-  fast alarms: 2 | slow alarms: 41 over 30 trials
-  max S_R/threshold: sensor_diff 0.85, current 1.04 | max g/h: sensor_diff 1.20, current 1.20
-  leave-one-trial-out (from calibrate.py): fast false alarms in 0% of the trials
-  leave-one-trial-out CUSUM (fixed): max g/h sensor_diff 0.93, current 0.90 (>1 = slow false alarm)
-
-=== Injected perturbations ===
-detected_%       fast alarm during the perturbation (transients: up to 1 s + W after)
-class/onset/channel_ok_%   among the detected ones | channel_only_% = the other channel is 'none'
-extra_alarms     additional fast alarms per replay (fragmentation or after the end)
-slow_*           slow detector on the perturbed channel | origin_ok = first slow alarm on the right channel
-fa_before        alarms (fast + slow) before the start of the perturbation
-
---- current ---
- scenario  amp  n  detected_%  delay_med_s  class_ok_%  onset_ok_%  channel_ok_%  channel_only_%  extra_alarms  slow_detected_%  slow_delay_med_s  slow_origin_ok_%  fa_before
-step_pers  1.0 30       63.33          5.6       100.0       23.53         100.0           100.0           0.1            46.67               0.3              87.5         17
-
-Minimum amplitude with fast detection >= 90%:
-  current      step_pers  never
-Minimum amplitude with slow detection >= 90%:
-  current      step_pers  never
-
-Saved in src/net/fm/detection/detection_out/fa_testset/: evaluate_runs.csv, evaluate_summary.csv, evaluate_summary.png

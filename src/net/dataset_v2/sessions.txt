@@ -1,4 +1,0 @@
-trial_121..trial_150 <- reg1910.csv [all]
-trial_151..trial_160 <- 21105min.csv [all]
-trial_161..trial_174 <- reg21107min3.csv [all]
-trial_175..trial_188 <- 21107min.csv [all]
