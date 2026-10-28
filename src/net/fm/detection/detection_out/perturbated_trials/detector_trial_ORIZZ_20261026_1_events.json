@@ -1,0 +1,36 @@
+{
+  "trial": "trial_ORIZZ_20261026_1.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9,
+    61.9,
+    81.9,
+    101.9
+  ],
+  "slow_events": [
+    {
+      "channel": "current",
+      "t_alarm": 209,
+      "t_alarm_s": 20.9,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 34.6,
+      "duration_s": 13.7
+    },
+    {
+      "channel": "current",
+      "t_alarm": 781,
+      "t_alarm_s": 78.1,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 93.1,
+      "duration_s": 15.0
+    }
+  ],
+  "final_state": "normal",
+  "events": []
+}

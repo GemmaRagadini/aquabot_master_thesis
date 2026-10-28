@@ -1,0 +1,14 @@
+Trovati 7 trial.
+Dataset grezzo: 7 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 7762 campioni da 7 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_NOFIN_20261026_182228_2min.csv [train] | 1215 samples (121.4 s) | 0 injected perturbations
+Rollout re-anchors at t = [21.9, 41.9, 61.9, 81.9, 101.9] s
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  SLOW ALARM on sensor_diff at 5.0 s, ended at 8.7 s (duration 3.7 s) (origin)
+  SLOW ALARM on current at 45.4 s, ended at 57.8 s (duration 12.4 s) (origin)
+Saved src/net/fm/detection/detection_out/perturbated_trials/detector_trial_NOFIN_20261026_182228_2min.png
+Saved src/net/fm/detection/detection_out/perturbated_trials/detector_trial_NOFIN_20261026_182228_2min_events.json

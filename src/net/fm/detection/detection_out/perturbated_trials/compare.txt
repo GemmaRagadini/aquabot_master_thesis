@@ -1,0 +1,184 @@
+Trovati 90 trial.
+Dataset grezzo: 90 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 25200 campioni da 90 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+  trial 1/18: trial_12_DS.csv          trial 2/18: trial_14_DS.csv          trial 3/18: trial_17_DS.csv          trial 4/18: trial_27_DS.csv          trial 5/18: trial_35_DS.csv          trial 6/18: trial_37_DS.csv          trial 7/18: trial_40_DS.csv          trial 8/18: trial_45_DS.csv          trial 9/18: trial_47_DS.csv          trial 10/18: trial_49_DS.csv          trial 11/18: trial_58_DS.csv          trial 12/18: trial_60_DS.csv          trial 13/18: trial_68_DS.csv          trial 14/18: trial_75_DS.csv          trial 15/18: trial_78_DS.csv          trial 16/18: trial_7_DS.csv          trial 17/18: trial_87_DS.csv          trial 18/18: trial_9_DS.csv        
+Trovati 7 trial.
+Dataset grezzo: 7 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 7762 campioni da 7 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Calibration on 18 trials (validation only) | W=0.5s re-anchor every 20.0s | quantile=1.0 margin=1.15
+
+sigma (normalised units) and thresholds (in multiples of sigma):
+                 sigma  threshold
+S1_sensor_diff  0.1926     8.2810
+S1_current      0.2991     3.6794
+SR_sensor_diff  0.2688     4.5785
+SR_current      0.3885     3.9524
+
+Leave-one-trial-out: maximum score of the excluded trial / threshold recomputed without it (>1 = false alarm)
+          trial  S1_sensor_diff  S1_current  SR_sensor_diff  SR_current
+trial_12_DS.csv           0.275       0.739           0.277       0.661
+trial_14_DS.csv           0.158       0.545           0.215       0.506
+trial_17_DS.csv           0.344       0.800           0.652       0.551
+trial_27_DS.csv           0.323       0.416           0.358       0.392
+trial_35_DS.csv           0.177       0.536           0.897       0.824
+trial_37_DS.csv           0.180       0.735           0.487       0.567
+trial_40_DS.csv           0.359       0.694           0.571       0.552
+trial_45_DS.csv           0.184       0.592           0.767       0.717
+trial_47_DS.csv           0.194       0.783           0.524       0.591
+trial_49_DS.csv           0.177       0.642           0.213       0.868
+trial_58_DS.csv           2.106       0.833           0.843       0.872
+trial_60_DS.csv           0.157       0.464           0.471       0.384
+trial_68_DS.csv           0.189       0.665           0.482       0.673
+trial_75_DS.csv           0.226       0.602           0.297       0.394
+trial_78_DS.csv           0.119       0.821           0.170       0.782
+ trial_7_DS.csv           0.235       0.773           0.242       0.663
+trial_87_DS.csv           0.350       0.538           0.552       0.497
+ trial_9_DS.csv           0.183       0.908           0.264       0.850
+
+Fraction of trials above threshold, per score:
+S1_sensor_diff    0.056
+S1_current        0.000
+SR_sensor_diff    0.000
+SR_current        0.000
+False alarm rate per trial (S_R of at least one channel): 0.000  (0/18)
+NB: with threshold = maximum, for every score the trial with the absolute
+    maximum ALWAYS exceeds the threshold recomputed without it. The useful
+    number is BY HOW MUCH: ratios just above 1 = stable threshold; ratios
+    well above 1 = heavy tails, more trials or a --margin are needed.
+
+Mean z^2 per trial (1 = typical model error). The spread across normal trials is the limit of a slow detection with a fixed reference:
+          trial  S1_sensor_diff  S1_current  SR_sensor_diff  SR_current
+trial_12_DS.csv           0.602       1.412           0.341       0.962
+trial_14_DS.csv           0.451       0.983           0.256       0.753
+trial_17_DS.csv           2.636       1.230           2.081       1.067
+trial_27_DS.csv           0.602       0.584           0.292       0.500
+trial_35_DS.csv           0.405       0.776           2.515       1.147
+trial_37_DS.csv           0.355       0.727           1.105       0.642
+trial_40_DS.csv           2.427       0.955           2.036       0.659
+trial_45_DS.csv           0.372       0.923           1.551       0.973
+trial_47_DS.csv           0.516       1.048           0.686       0.854
+trial_49_DS.csv           0.427       0.938           0.278       1.057
+trial_58_DS.csv           3.636       1.575           2.208       2.319
+trial_60_DS.csv           0.234       0.562           0.412       0.421
+trial_68_DS.csv           0.714       1.171           0.904       1.201
+trial_75_DS.csv           0.513       0.806           0.293       0.525
+trial_78_DS.csv           0.307       1.077           0.193       1.107
+ trial_7_DS.csv           0.701       1.473           0.324       1.434
+trial_87_DS.csv           2.687       0.685           2.216       0.434
+ trial_9_DS.csv           0.414       1.075           0.310       1.946
+
+Summary of mean z^2 over the normal trials:
+                  min  median    max
+S1_sensor_diff  0.234   0.515  3.636
+S1_current      0.562   0.969  1.575
+SR_sensor_diff  0.193   0.549  2.515
+SR_current      0.421   0.967  2.319
+
+Comparison: trial_NOFIN_20261026_182228_2min.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    2.238       3.636        14/18                0.563
+    S1_current    1.385       1.575        15/18                0.877
+SR_sensor_diff    1.220       2.515        12/18                0.552
+    SR_current    0.872       2.319         8/18                0.593
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Comparison: trial_NOFIN_STD_20261026_181842.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    0.876       3.636        14/18                0.208
+    S1_current    1.233       1.575        15/18                0.474
+SR_sensor_diff    0.655       2.515         9/18                0.306
+    SR_current    1.501       2.319        16/18                0.530
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Comparison: trial_ORIZZ_20261026_1.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    1.159       3.636        14/18                0.461
+    S1_current    1.876       1.575        18/18                1.025
+SR_sensor_diff    0.864       2.515        10/18                0.692
+    SR_current    1.363       2.319        15/18                0.952
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Comparison: trial_ORIZZ_20261026_std.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    2.792       3.636        17/18                0.374
+    S1_current    2.990       1.575        18/18                0.883
+SR_sensor_diff    2.095       2.515        15/18                0.553
+    SR_current    1.712       2.319        16/18                0.518
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Comparison: trial_STD_20261026_182029.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    0.812       3.636        14/18                0.212
+    S1_current    0.584       1.575         2/18                0.393
+SR_sensor_diff    0.620       2.515         9/18                0.324
+    SR_current    0.615       2.319         4/18                0.307
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Comparison: trial_TESTSET_20261026_5min.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    0.570       3.636        10/18                0.362
+    S1_current    1.167       1.575        13/18                0.862
+SR_sensor_diff    1.554       2.515        13/18                1.016
+    SR_current    1.067       2.319        12/18                0.804
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Comparison: trial_TOUCHES_20261026_184129.csv (not used for calibration)
+         score  mean_z2  normal_max normal_below  max_score/threshold
+S1_sensor_diff    2.752       3.636        17/18                1.035
+    S1_current    4.475       1.575        18/18                5.562
+SR_sensor_diff    1.866       2.515        13/18                0.988
+    SR_current    2.812       2.319        18/18                3.592
+  normal_below = how many normal trials have a lower mean z^2 (18/18 = above all normal ones); max_score/threshold > 1 = the current detector would alarm
+
+Rollout residual as a function of the time since the last re-anchor (1 = mean; if it grows a lot, a constant sigma_R is not enough):
+age_s   n  rmsR/sigma_sensor_diff  rmsR/sigma_current
+  0-1 360                   0.856               0.790
+  1-2 360                   0.826               0.869
+  2-3 360                   0.748               0.779
+  3-4 360                   0.885               0.814
+  4-5 360                   0.944               1.001
+  5-6 360                   1.046               0.958
+  6-7 360                   1.164               0.964
+  7-8 360                   1.152               0.940
+  8-9 180                   0.954               1.208
+ 9-10 180                   0.888               0.989
+10-11 180                   1.015               1.014
+11-12 180                   0.881               1.170
+12-13 180                   0.945               1.037
+13-14 180                   0.933               1.091
+14-15 180                   1.137               1.292
+15-16 180                   1.235               1.257
+16-17 180                   1.206               1.220
+17-18 180                   1.132               1.121
+18-19 180                   1.130               1.070
+19-20 162                   1.024               1.003
+
+Slow detector (CUSUM) | residual one-step, isolated on [sensor_diff] | sigma [0.1893, 0.2991] (one-step: [0.1926, 0.2991]) | kappa=1.0 clip=9.0 margin=1.15
+  fixed reference (0 s): h = sensor_diff 41.3, current 37.8 | 18 trials, ~28 s monitored per trial | LOO max [0.89, 0.95] (>1 = false alarm)
+  NB: h grows with the monitored duration. Calibrated on short trials it is optimistic for online use: long normal trials are needed.
+
+Slow detector on trial_NOFIN_20261026_182228_2min.csv:
+  fixed reference: sensor_diff: alarm at 5.0 s from the start (g max 47, h 41) | current: alarm at 45.4 s from the start (g max 62, h 38)
+
+Slow detector on trial_NOFIN_STD_20261026_181842.csv:
+  fixed reference: sensor_diff: no alarm (g max 10, h 41) | current: no alarm (g max 7, h 38)
+
+Slow detector on trial_ORIZZ_20261026_1.csv:
+  fixed reference: sensor_diff: no alarm (g max 20, h 41) | current: alarm at 20.9 s from the start (g max 64, h 38)
+
+Slow detector on trial_ORIZZ_20261026_std.csv:
+  fixed reference: sensor_diff: no alarm (g max 40, h 41) | current: no alarm (g max 27, h 38)
+
+Slow detector on trial_STD_20261026_182029.csv:
+  fixed reference: sensor_diff: no alarm (g max 5, h 41) | current: no alarm (g max 4, h 38)
+
+Slow detector on trial_TESTSET_20261026_5min.csv:
+  fixed reference: sensor_diff: no alarm (g max 14, h 41) | current: no alarm (g max 32, h 38)
+
+Slow detector on trial_TOUCHES_20261026_184129.csv:
+  fixed reference: sensor_diff: alarm at 91.5 s from the start (g max 137, h 41) | current: alarm at 91.4 s from the start (g max 178, h 38)
+
+Calibration saved to src/net/fm/detection/detection_out/perturbated_trials/calib_compare.json

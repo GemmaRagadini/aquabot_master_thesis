@@ -212,7 +212,7 @@ if __name__ == "__main__":
     ap.add_argument("--seed", type=int, default=None, help="seed TPE (None con piu' worker)")
     # --- dati / hardware ---
     ap.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
-    ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl"))
+    ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scaler.pkl"))
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--threads", type=int, default=4)
     args = ap.parse_args()

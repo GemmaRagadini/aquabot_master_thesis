@@ -397,7 +397,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip_norm',      type=float, default=1.0)
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
-    parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers_joint.pkl'))
+    parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scaler.pkl'))
     parser.add_argument('--tag',            default=None,
                         help="tag per distinguere la run (checkpoint best_<tag>.pt / "
                              "fish_joint_<tag>.pt e curva loss_curve_<tag>.png). Se "

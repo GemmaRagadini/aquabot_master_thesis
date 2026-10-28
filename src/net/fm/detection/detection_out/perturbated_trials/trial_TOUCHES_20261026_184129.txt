@@ -1,0 +1,21 @@
+Trovati 7 trial.
+Dataset grezzo: 7 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 7762 campioni da 7 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_TOUCHES_20261026_184129.csv [train] | 1554 samples (155.3 s) | 0 injected perturbations
+Rollout re-anchors at t = [21.9, 42.9, 62.9, 82.9, 102.9, 133.6, 153.6] s
+ALARM at 31.4 s (channels: current) -> TRANSIENT decided at 37.9 s
+    current      transient    onset abrupt (S_R rise: 1.46 thresholds)
+ALARM at 90.8 s (channels: current) -> TRANSIENT decided at 97.3 s
+    current      transient    onset abrupt (S_R rise: 1.11 thresholds)
+ALARM at 122.1 s (channels: current) -> TRANSIENT decided at 128.6 s
+    current      transient    onset abrupt (S_R rise: 0.92 thresholds)
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  SLOW ALARM on current at 91.4 s, ended at 96.4 s (duration 5.0 s) (origin)
+  SLOW ALARM on sensor_diff at 91.5 s, ended at 97.0 s (duration 5.5 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on current at 122.8 s, ended at 126.5 s (duration 3.7 s) (origin)
+  SLOW ALARM on sensor_diff at 145.9 s, still active at the end of the trial (origin)
+Saved src/net/fm/detection/detection_out/perturbated_trials/detector_trial_TOUCHES_20261026_184129.png
+Saved src/net/fm/detection/detection_out/perturbated_trials/detector_trial_TOUCHES_20261026_184129_events.json

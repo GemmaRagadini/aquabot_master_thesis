@@ -1,0 +1,13 @@
+Trovati 7 trial.
+Dataset grezzo: 7 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 7762 campioni da 7 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_ORIZZ_20261026_std.csv [val] | 301 samples (30.0 s) | 0 injected perturbations
+Rollout re-anchors at t = [21.9] s
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  no slow alarm
+Saved src/net/fm/detection/detection_out/perturbated_trials/detector_trial_ORIZZ_20261026_std.png
+Saved src/net/fm/detection/detection_out/perturbated_trials/detector_trial_ORIZZ_20261026_std_events.json
