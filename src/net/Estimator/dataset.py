@@ -396,7 +396,7 @@ class FishJointDataset(Dataset):
 if __name__ == '__main__':
     import sys
     log_dir     = sys.argv[1] if len(sys.argv) > 1 else "src/net/dataset"
-    scaler_path = sys.argv[2] if len(sys.argv) > 2 else str(Path(log_dir) / "scalers_joint.pkl")
+    scaler_path = sys.argv[2] if len(sys.argv) > 2 else str(Path(log_dir) / "scaler.pkl")
 
     ds = FishJointDataset(log_dir, scaler_path=scaler_path)
     ds.split_by_trial(val_frac=0.2, seed=42)

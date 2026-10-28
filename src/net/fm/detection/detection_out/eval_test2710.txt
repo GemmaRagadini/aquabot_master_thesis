@@ -1,0 +1,33 @@
+persist_cusum = True
+Trovati 10 trial.
+Dataset grezzo: 10 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 2800 campioni da 10 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+10 trials, 20 replays, 159 processes
+Amplitude 1 = 123.7 sensor units on sensor_diff, 91.4 mA on current
+Amplitude 1 = 5.2 sigma of the one-step residual on sensor_diff, 3.3 on current
+  1/20  elapsed 0.0 min, remaining ~0.7 min     2/20  elapsed 0.0 min, remaining ~0.3 min     3/20  elapsed 0.0 min, remaining ~0.2 min     4/20  elapsed 0.0 min, remaining ~0.1 min     5/20  elapsed 0.0 min, remaining ~0.1 min     6/20  elapsed 0.0 min, remaining ~0.1 min     7/20  elapsed 0.0 min, remaining ~0.1 min     8/20  elapsed 0.0 min, remaining ~0.1 min     9/20  elapsed 0.0 min, remaining ~0.0 min     10/20  elapsed 0.0 min, remaining ~0.0 min     11/20  elapsed 0.0 min, remaining ~0.0 min     12/20  elapsed 0.0 min, remaining ~0.0 min     13/20  elapsed 0.0 min, remaining ~0.0 min     14/20  elapsed 0.0 min, remaining ~0.0 min     15/20  elapsed 0.0 min, remaining ~0.0 min     16/20  elapsed 0.0 min, remaining ~0.0 min     17/20  elapsed 0.0 min, remaining ~0.0 min     18/20  elapsed 0.0 min, remaining ~0.0 min     19/20  elapsed 0.0 min, remaining ~0.0 min     20/20  elapsed 0.0 min, remaining ~0.0 min   
+
+=== Clean trials (no injection) ===
+  fast alarms: 0 | slow alarms: 0 over 10 trials
+  max S_R/threshold: sensor_diff 0.98, current 0.68 | max g/h: sensor_diff 0.34, current 0.85
+  leave-one-trial-out on the CALIBRATION trials (from calibrate.py): fast false alarms in 0% of the trials
+  leave-one-trial-out CUSUM (fixed): max g/h sensor_diff 0.89, current 0.95 (>1 = slow false alarm)
+
+=== Injected perturbations ===
+detected_%       fast alarm during the perturbation (transients: up to 1 s + W after)
+class/onset/channel_ok_%   among the detected ones | channel_only_% = the other channel is 'none'
+extra_alarms     additional fast alarms per replay (fragmentation or after the end)
+slow_*           slow detector on the perturbed channel | origin_ok = first slow alarm on the right channel
+fa_before        alarms (fast + slow) before the start of the perturbation
+
+--- sensor_diff ---
+scenario  amp  n  detected_%  delay_med_s  class_ok_%  onset_ok_%  channel_ok_%  channel_only_%  extra_alarms  slow_detected_%  slow_delay_med_s  slow_origin_ok_%  fa_before
+ step_1s  1.0 10        10.0          0.1       100.0       100.0         100.0           100.0           0.0            100.0               0.5             100.0          0
+
+Minimum amplitude with fast detection >= 90%:
+  sensor_diff  step_1s    never
+Minimum amplitude with slow detection >= 90%:
+  sensor_diff  step_1s    1
+
+Saved in src/net/fm/detection/detection_out/eval_test2710/: evaluate_runs.csv, evaluate_summary.csv, evaluate_summary.png

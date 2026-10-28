@@ -1,0 +1,65 @@
+=== fm_h20_nores | forward model 1 passo ===
+61 completati, 43 pruned
+
+  #1  val=0.06088  (epoch 56, sd 0.03544, current 0.08631, val/persist 0.111, params 464386)
+    gru_hidden: 256
+    mlp_hidden: 512
+    num_layers: 1
+    dropout: 0.09521580978692334
+    weight_decay: 0.00031464050304464146
+    lr: 0.0006005748664321513
+    batch_size: 128
+    clip_norm: 0.5
+
+  #2  val=0.06125  (epoch 38, sd 0.03841, current 0.08409, val/persist 0.112, params 464386)
+    gru_hidden: 256
+    mlp_hidden: 512
+    num_layers: 1
+    dropout: 0.0016478650940685222
+    weight_decay: 1.7530418129313492e-06
+    lr: 0.0013129774066406705
+    batch_size: 256
+    clip_norm: 0.5
+
+  #3  val=0.06151  (epoch 34, sd 0.03746, current 0.08556, val/persist 0.112, params 694402)
+    gru_hidden: 256
+    mlp_hidden: 256
+    num_layers: 2
+    dropout: 0.1229220345954156
+    weight_decay: 0.0001726610013184428
+    lr: 0.0006668874327553501
+    batch_size: 64
+    clip_norm: 0.5
+
+  #4  val=0.06183  (epoch 41, sd 0.03775, current 0.08591, val/persist 0.113, params 464386)
+    gru_hidden: 256
+    mlp_hidden: 512
+    num_layers: 1
+    dropout: 0.11446858141695769
+    weight_decay: 4.396856868766151e-06
+    lr: 0.0006756054067338025
+    batch_size: 64
+    clip_norm: 0.5
+
+  #5  val=0.06191  (epoch 45, sd 0.03609, current 0.08773, val/persist 0.113, params 464386)
+    gru_hidden: 256
+    mlp_hidden: 512
+    num_layers: 1
+    dropout: 0.03774473089714692
+    weight_decay: 1.9341539463109793e-06
+    lr: 0.0010934302943269695
+    batch_size: 256
+    clip_norm: 1.0
+
+=== Comando train_fm.py con il best ===
+python3 -u src/net/fm/train.py --dataset_dir src/net/dataset2710 --scaler_path src/net/scaler/scaler.pkl --gru_hidden 256 --mlp_hidden 512 --num_layers 1 --dropout 0.09521580978692334 --weight_decay 0.00031464050304464146 --lr 0.0006005748664321513 --batch_size 128 --clip_norm 0.5 --tag fm_tuned
+
+=== Importanza parametri (fANOVA) ===
+  lr             0.367
+  dropout        0.278
+  gru_hidden     0.225
+  batch_size     0.041
+  weight_decay   0.038
+  num_layers     0.024
+  mlp_hidden     0.013
+  clip_norm      0.012

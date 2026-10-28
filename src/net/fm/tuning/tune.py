@@ -30,9 +30,9 @@ REPO_ROOT     = os.path.abspath(os.path.join(ESTIMATOR_DIR, "..", "..", ".."))
 sys.path.insert(0, ESTIMATOR_DIR)                 # train_fm.py, model_fm.py, dataset.py
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-import train_fm as T                               # noqa: E402
-from model_fm import build_model, H as MODEL_H     # noqa: E402
-from dataset  import FishJointDataset              # noqa: E402
+import train as T                               # noqa: E402
+from model import build_model, H as MODEL_H     # noqa: E402
+from net.dataset  import FishJointDataset              # noqa: E402
 
 # ---------------------------------------------------------------- search space
 GRU      = [32, 64, 128, 256]
@@ -47,8 +47,8 @@ CLIP     = [0.5, 1.0, 5.0]
 # config attuale di train_fm.py (run fm_base): primo trial accodato, cosi' il
 # tuning parte almeno da li'
 CURRENT_DEFAULTS = dict(
-    gru_hidden=128, mlp_hidden=256, num_layers=1, dropout=0.1,
-    weight_decay=1e-4, lr=1e-3, batch_size=64, clip_norm=1.0,
+    gru_hidden=256, mlp_hidden=512, num_layers=1, dropout=0.06668923974698159,
+    weight_decay=1.582283830185358e-05, lr=0.0005621588402773221, batch_size=64, clip_norm=0.5,
 )
 
 
@@ -138,7 +138,7 @@ def finite_trials(study):
 
 def train_cmd(params):
     """Comando train_fm.py equivalente ai parametri di un trial."""
-    cmd = "python3 src/net/Estimator/train_fm.py"
+    cmd = "python3 -u src/net/fm/train.py --dataset_dir src/net/dataset2710 --scaler_path src/net/scaler/scaler.pkl"
     for k, v in params.items():
         cmd += f" --{k} {v}"
     return cmd + " --tag fm_tuned"
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     ap.add_argument("--seed", type=int, default=None, help="seed TPE (None con piu' worker)")
     # --- dati / hardware ---
     ap.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
-    ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl"))
+    ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scaler.pkl"))
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--threads", type=int, default=4)
     args = ap.parse_args()

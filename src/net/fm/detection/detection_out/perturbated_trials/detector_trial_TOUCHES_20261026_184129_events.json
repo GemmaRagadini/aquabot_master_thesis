@@ -1,0 +1,126 @@
+{
+  "trial": "trial_TOUCHES_20261026_184129.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    42.9,
+    62.9,
+    82.9,
+    102.9,
+    133.6,
+    153.6
+  ],
+  "slow_events": [
+    {
+      "channel": "current",
+      "t_alarm": 914,
+      "t_alarm_s": 91.4,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 96.4,
+      "duration_s": 5.0
+    },
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 915,
+      "t_alarm_s": 91.5,
+      "secondary": true,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 97.0,
+      "duration_s": 5.5
+    },
+    {
+      "channel": "current",
+      "t_alarm": 1228,
+      "t_alarm_s": 122.8,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 126.5,
+      "duration_s": 3.7
+    },
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 1459,
+      "t_alarm_s": 145.9,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "normal",
+  "events": [
+    {
+      "t_alarm": 314,
+      "t_alarm_s": 31.4,
+      "t_decision_s": 37.9,
+      "trigger": [
+        "current"
+      ],
+      "class": "transient",
+      "channels": {
+        "sensor_diff": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        },
+        "current": {
+          "class": "transient",
+          "onset": "abrupt",
+          "SR_rise": 1.463,
+          "persistent_by": null
+        }
+      }
+    },
+    {
+      "t_alarm": 908,
+      "t_alarm_s": 90.8,
+      "t_decision_s": 97.3,
+      "trigger": [
+        "current"
+      ],
+      "class": "transient",
+      "channels": {
+        "sensor_diff": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        },
+        "current": {
+          "class": "transient",
+          "onset": "abrupt",
+          "SR_rise": 1.107,
+          "persistent_by": null
+        }
+      }
+    },
+    {
+      "t_alarm": 1221,
+      "t_alarm_s": 122.1,
+      "t_decision_s": 128.6,
+      "trigger": [
+        "current"
+      ],
+      "class": "transient",
+      "channels": {
+        "sensor_diff": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        },
+        "current": {
+          "class": "transient",
+          "onset": "abrupt",
+          "SR_rise": 0.919,
+          "persistent_by": null
+        }
+      }
+    }
+  ]
+}

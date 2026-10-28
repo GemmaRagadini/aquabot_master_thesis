@@ -1,0 +1,11 @@
+{
+  "trial": "trial_STD_20261026_182029.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9
+  ],
+  "slow_events": [],
+  "final_state": "normal",
+  "events": []
+}

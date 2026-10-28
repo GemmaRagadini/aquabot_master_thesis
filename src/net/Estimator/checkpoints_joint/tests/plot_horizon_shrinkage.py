@@ -195,7 +195,7 @@ def main():
     ap.add_argument("--trial", default="trial_25.csv",
                     help="trial per il grafico di esempio (nome completo)")
     ap.add_argument("--dataset_dir", default=str(REPO_ROOT / "src" / "net" / "dataset"))
-    ap.add_argument("--scaler_path", default=str(REPO_ROOT / "src" / "net" / "scaler" / "scalers_joint.pkl"))
+    ap.add_argument("--scaler_path", default=str(REPO_ROOT / "src" / "net" / "scaler" / "scaler.pkl"))
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--pick", default="typical", choices=["typical", "extreme"],
                     help="esempio: picco/valle 'typical' (95/5 percentile, default) "

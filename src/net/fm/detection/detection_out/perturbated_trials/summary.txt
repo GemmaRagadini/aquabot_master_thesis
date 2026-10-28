@@ -1,0 +1,46 @@
+########## trial_NOFIN_20261026_182228_2min.csv
+Trial trial_NOFIN_20261026_182228_2min.csv [train] | 1215 samples (121.4 s) | 0 injected perturbations
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  SLOW ALARM on sensor_diff at 5.0 s, ended at 8.7 s (duration 3.7 s) (origin)
+  SLOW ALARM on current at 45.4 s, ended at 57.8 s (duration 12.4 s) (origin)
+########## trial_NOFIN_STD_20261026_181842.csv
+Trial trial_NOFIN_STD_20261026_181842.csv [train] | 299 samples (29.8 s) | 0 injected perturbations
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  no slow alarm
+########## trial_ORIZZ_20261026_1.csv
+Trial trial_ORIZZ_20261026_1.csv [train] | 1216 samples (121.5 s) | 0 injected perturbations
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  SLOW ALARM on current at 20.9 s, ended at 34.6 s (duration 13.7 s) (origin)
+  SLOW ALARM on current at 78.1 s, ended at 93.1 s (duration 15.0 s) (origin)
+########## trial_ORIZZ_20261026_std.csv
+Trial trial_ORIZZ_20261026_std.csv [val] | 301 samples (30.0 s) | 0 injected perturbations
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  no slow alarm
+########## trial_STD_20261026_182029.csv
+Trial trial_STD_20261026_182029.csv [train] | 301 samples (30.0 s) | 0 injected perturbations
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  no slow alarm
+########## trial_TOUCHES_20261026_184129.csv
+Trial trial_TOUCHES_20261026_184129.csv [train] | 1554 samples (155.3 s) | 0 injected perturbations
+ALARM at 31.4 s (channels: current) -> TRANSIENT decided at 37.9 s
+    current      transient    onset abrupt (S_R rise: 1.46 thresholds)
+ALARM at 90.8 s (channels: current) -> TRANSIENT decided at 97.3 s
+    current      transient    onset abrupt (S_R rise: 1.11 thresholds)
+ALARM at 122.1 s (channels: current) -> TRANSIENT decided at 128.6 s
+    current      transient    onset abrupt (S_R rise: 0.92 thresholds)
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [41.3, 37.8]
+  SLOW ALARM on current at 91.4 s, ended at 96.4 s (duration 5.0 s) (origin)
+  SLOW ALARM on sensor_diff at 91.5 s, ended at 97.0 s (duration 5.5 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on current at 122.8 s, ended at 126.5 s (duration 3.7 s) (origin)
+  SLOW ALARM on sensor_diff at 145.9 s, still active at the end of the trial (origin)

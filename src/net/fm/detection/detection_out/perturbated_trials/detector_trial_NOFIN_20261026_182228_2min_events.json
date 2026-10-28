@@ -1,0 +1,36 @@
+{
+  "trial": "trial_NOFIN_20261026_182228_2min.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9,
+    61.9,
+    81.9,
+    101.9
+  ],
+  "slow_events": [
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 50,
+      "t_alarm_s": 5.0,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0,
+      "t_end_s": 8.7,
+      "duration_s": 3.7
+    },
+    {
+      "channel": "current",
+      "t_alarm": 454,
+      "t_alarm_s": 45.4,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 57.8,
+      "duration_s": 12.4
+    }
+  ],
+  "final_state": "normal",
+  "events": []
+}
