@@ -299,7 +299,7 @@ def compare_bending(csv_paths, save_dir=None, t_range=None, sensor=0):
 #  Configurazione
 # ======================================================================
 
-CSV = 'logs/trial_20261026_172447.csv'
+CSV = 'logs/trial_20261028_162437.csv'
 
 SAVE_DIR = 'plots'
 
@@ -314,13 +314,13 @@ SAVE_DIR = 'plots'
 # (5, 20)     -> solo da 5 a 20 s
 # (10, None)  -> da 10 s fino alla fine
 # (None, 30)  -> dall'inizio fino a 30 s
-T_RANGE = (330,360)
+T_RANGE = (30,60)
 
 # --- Grafici singolo trial ---
-plot_motor(CSV, SAVE_DIR, t_range=T_RANGE)
+# plot_motor(CSV, SAVE_DIR, t_range=T_RANGE)
 # plot_current(CSV, SAVE_DIR, t_range=T_RANGE)
 
-# plot_bending(CSV, SAVE_DIR, t_range=T_RANGE)
+plot_bending(CSV, SAVE_DIR, t_range=T_RANGE)
 # plot_combined_sweep(CSV, SAVE_DIR, t_range=T_RANGE)   # usare con trial combined_sweep
 
 # --- Grafici di confronto fra due (o piu') trial ---
