@@ -1,0 +1,204 @@
+example sensor_values: [647.4000244140625, 701.4000244140625]
+                 trial session  cmd_freq_hz  lag_samples  corr freq_band
+       trial_38_DS.csv   27/10         1.05         2.26 -0.95    1-2 Hz
+     trial_10_test.csv   27/10         1.54         2.27 -0.94    1-2 Hz
+       trial_39_DS.csv   27/10         1.28         2.27 -0.93    1-2 Hz
+       trial_56_DS.csv   27/10         0.96         2.28 -0.94     <1 Hz
+       trial_54_DS.csv   27/10         1.52         2.28 -0.94    1-2 Hz
+       trial_40_DS.csv   27/10         1.22         2.29 -0.91    1-2 Hz
+       trial_68_DS.csv   27/10         0.95         2.30 -0.95     <1 Hz
+       trial_22_DS.csv   27/10         1.22         2.30 -0.95    1-2 Hz
+       trial_53_DS.csv   27/10         1.10         2.30 -0.95    1-2 Hz
+       trial_23_DS.csv   27/10         1.20         2.31 -0.95    1-2 Hz
+       trial_51_DS.csv   27/10         0.88         2.31 -0.96     <1 Hz
+       trial_52_DS.csv   27/10         1.35         2.31 -0.93    1-2 Hz
+       trial_34_DS.csv   27/10         0.87         2.32 -0.97     <1 Hz
+      trial_9_test.csv   27/10         1.16         2.32 -0.95    1-2 Hz
+      trial_6_test.csv   27/10         1.11         2.33 -0.95    1-2 Hz
+       trial_21_DS.csv   27/10         1.12         2.33 -0.97    1-2 Hz
+       trial_70_DS.csv   27/10         0.79         2.33 -0.95     <1 Hz
+       trial_55_DS.csv   27/10         1.07         2.33 -0.95    1-2 Hz
+      trial_3_test.csv   27/10         1.48         2.34 -0.94    1-2 Hz
+       trial_36_DS.csv   27/10         1.22         2.35 -0.94    1-2 Hz
+       trial_67_DS.csv   27/10         1.32         2.35 -0.94    1-2 Hz
+       trial_64_DS.csv   27/10         1.67         2.36 -0.92    1-2 Hz
+       trial_57_DS.csv   27/10         1.02         2.36 -0.89    1-2 Hz
+       trial_62_DS.csv   27/10         1.40         2.36 -0.94    1-2 Hz
+       trial_41_DS.csv   27/10         0.86         2.36 -0.90     <1 Hz
+       trial_49_DS.csv   27/10         1.22         2.37 -0.95    1-2 Hz
+      trial_4_test.csv   27/10         1.15         2.37 -0.92    1-2 Hz
+       trial_24_DS.csv   27/10         1.12         2.37 -0.89    1-2 Hz
+       trial_58_DS.csv   27/10         1.53         2.37 -0.87    1-2 Hz
+       trial_35_DS.csv   27/10         1.19         2.37 -0.93    1-2 Hz
+      trial_8_test.csv   27/10         1.12         2.37 -0.95    1-2 Hz
+      trial_5_test.csv   27/10         1.12         2.38 -0.95    1-2 Hz
+       trial_48_DS.csv   27/10         1.16         2.38 -0.93    1-2 Hz
+       trial_69_DS.csv   27/10         0.92         2.38 -0.94     <1 Hz
+       trial_44_DS.csv   27/10         1.43         2.39 -0.93    1-2 Hz
+      trial_7_test.csv   27/10         1.06         2.40 -0.96    1-2 Hz
+       trial_50_DS.csv   27/10         0.86         2.40 -0.95     <1 Hz
+       trial_30_DS.csv   27/10         1.02         2.40 -0.94    1-2 Hz
+       trial_32_DS.csv   27/10         1.18         2.40 -0.94    1-2 Hz
+      trial_1_test.csv   27/10         1.56         2.40 -0.93    1-2 Hz
+       trial_33_DS.csv   27/10         1.00         2.41 -0.93    1-2 Hz
+       trial_65_DS.csv   27/10         0.86         2.43 -0.96     <1 Hz
+       trial_61_DS.csv   27/10         1.02         2.43 -0.95    1-2 Hz
+       trial_46_DS.csv   27/10         1.37         2.43 -0.92    1-2 Hz
+      trial_2_test.csv   27/10         1.10         2.43 -0.93    1-2 Hz
+       trial_47_DS.csv   27/10         1.16         2.43 -0.94    1-2 Hz
+       trial_63_DS.csv   27/10         1.07         2.43 -0.95    1-2 Hz
+       trial_25_DS.csv   27/10         0.91         2.44 -0.92     <1 Hz
+       trial_28_DS.csv   27/10         1.23         2.45 -0.93    1-2 Hz
+       trial_43_DS.csv   27/10         1.53         2.45 -0.88    1-2 Hz
+       trial_45_DS.csv   27/10         1.27         2.45 -0.94    1-2 Hz
+       trial_31_DS.csv   27/10         1.34         2.46 -0.89    1-2 Hz
+       trial_29_DS.csv   27/10         1.18         2.46 -0.91    1-2 Hz
+       trial_26_DS.csv   27/10         1.25         2.47 -0.90    1-2 Hz
+       trial_42_DS.csv   27/10         1.11         2.48 -0.87    1-2 Hz
+       trial_37_DS.csv   27/10         0.70         2.50 -0.94     <1 Hz
+       trial_66_DS.csv   27/10         0.83         2.51 -0.96     <1 Hz
+       trial_27_DS.csv   27/10         0.69         2.54 -0.97     <1 Hz
+       trial_59_DS.csv   27/10         1.22         2.57 -0.91    1-2 Hz
+       trial_60_DS.csv   27/10         1.02         2.58 -0.94    1-2 Hz
+       trial_87_DS.csv   27/10         1.35         3.07 -0.90    1-2 Hz
+       trial_85_DS.csv   27/10         0.67         3.09 -0.98     <1 Hz
+       trial_83_DS.csv   27/10         1.12         3.09 -0.98    1-2 Hz
+       trial_82_DS.csv   27/10         1.52         3.10 -0.97    1-2 Hz
+       trial_84_DS.csv   27/10         0.84         3.10 -0.98     <1 Hz
+        trial_1_DS.csv   27/10         1.55         3.12 -0.95    1-2 Hz
+       trial_76_DS.csv   27/10         1.17         3.12 -0.97    1-2 Hz
+       trial_15_DS.csv   27/10         1.53         3.13 -0.97    1-2 Hz
+       trial_86_DS.csv   27/10         0.99         3.13 -0.93     <1 Hz
+       trial_72_DS.csv   27/10         1.63         3.15 -0.89    1-2 Hz
+       trial_16_DS.csv   27/10         1.28         3.15 -0.95    1-2 Hz
+        trial_2_DS.csv   27/10         0.93         3.15 -0.92     <1 Hz
+       trial_12_DS.csv   27/10         1.35         3.15 -0.96    1-2 Hz
+       trial_10_DS.csv   27/10         1.23         3.15 -0.97    1-2 Hz
+       trial_81_DS.csv   27/10         0.81         3.16 -0.97     <1 Hz
+       trial_88_DS.csv   27/10         1.52         3.17 -0.89    1-2 Hz
+       trial_71_DS.csv   27/10         0.97         3.18 -0.93     <1 Hz
+       trial_78_DS.csv   27/10         1.22         3.18 -0.98    1-2 Hz
+        trial_3_DS.csv   27/10         0.84         3.18 -0.91     <1 Hz
+       trial_80_DS.csv   27/10         0.47         3.18 -0.97     <1 Hz
+        trial_4_DS.csv   27/10         1.33         3.19 -0.92    1-2 Hz
+        trial_8_DS.csv   27/10         1.66         3.20 -0.97    1-2 Hz
+       trial_73_DS.csv   27/10         1.41         3.20 -0.95    1-2 Hz
+       trial_74_DS.csv   27/10         1.30         3.20 -0.96    1-2 Hz
+       trial_13_DS.csv   27/10         1.35         3.21 -0.97    1-2 Hz
+       trial_90_DS.csv   27/10         1.13         3.22 -0.96    1-2 Hz
+       trial_11_DS.csv   27/10         1.06         3.22 -0.97    1-2 Hz
+       trial_17_DS.csv   27/10         1.27         3.23 -0.88    1-2 Hz
+       trial_14_DS.csv   27/10         1.12         3.23 -0.98    1-2 Hz
+        trial_9_DS.csv   27/10         0.95         3.24 -0.97     <1 Hz
+       trial_79_DS.csv   27/10         0.84         3.24 -0.97     <1 Hz
+        trial_7_DS.csv   27/10         1.40         3.24 -0.97    1-2 Hz
+        trial_5_DS.csv   27/10         1.26         3.25 -0.92    1-2 Hz
+        trial_6_DS.csv   27/10         1.26         3.25 -0.96    1-2 Hz
+       trial_18_DS.csv   27/10         0.96         3.26 -0.94     <1 Hz
+       trial_75_DS.csv   27/10         0.87         3.27 -0.97     <1 Hz
+       trial_89_DS.csv   27/10         1.53         3.28 -0.89    1-2 Hz
+       trial_20_DS.csv   27/10         1.13         3.30 -0.97    1-2 Hz
+       trial_77_DS.csv   27/10         0.98         3.31 -0.96     <1 Hz
+       trial_19_DS.csv   27/10         1.25         3.32 -0.96    1-2 Hz
+ trial_143_DS_2810.csv   28/10         1.41         2.30 -0.94    1-2 Hz
+ trial_141_DS_2810.csv   28/10         1.42         2.34 -0.93    1-2 Hz
+ trial_160_DS_2810.csv   28/10         1.47         2.34 -0.91    1-2 Hz
+ trial_145_DS_2810.csv   28/10         1.58         2.35 -0.85    1-2 Hz
+ trial_157_DS_2810.csv   28/10         1.03         2.38 -0.95    1-2 Hz
+ trial_158_DS_2810.csv   28/10         0.93         2.40 -0.94     <1 Hz
+ trial_165_DS_2810.csv   28/10         1.69         2.41 -0.92    1-2 Hz
+ trial_138_DS_2810.csv   28/10         1.24         2.41 -0.93    1-2 Hz
+ trial_142_DS_2810.csv   28/10         0.88         2.42 -0.96     <1 Hz
+ trial_155_DS_2810.csv   28/10         1.32         2.42 -0.95    1-2 Hz
+ trial_131_DS_2810.csv   28/10         1.47         2.42 -0.83    1-2 Hz
+ trial_144_DS_2810.csv   28/10         0.81         2.43 -0.94     <1 Hz
+ trial_154_DS_2810.csv   28/10         1.28         2.44 -0.94    1-2 Hz
+ trial_170_DS_2810.csv   28/10         1.32         2.46 -0.91    1-2 Hz
+ trial_146_DS_2810.csv   28/10         1.15         2.46 -0.87    1-2 Hz
+ trial_162_DS_2810.csv   28/10         1.67         2.46 -0.84    1-2 Hz
+ trial_153_DS_2810.csv   28/10         1.56         2.47 -0.89    1-2 Hz
+ trial_139_DS_2810.csv   28/10         1.32         2.47 -0.91    1-2 Hz
+ trial_159_DS_2810.csv   28/10         0.89         2.47 -0.94     <1 Hz
+ trial_166_DS_2810.csv   28/10         0.86         2.47 -0.92     <1 Hz
+ trial_151_DS_2810.csv   28/10         1.33         2.49 -0.91    1-2 Hz
+ trial_168_DS_2810.csv   28/10         1.33         2.49 -0.92    1-2 Hz
+ trial_135_DS_2810.csv   28/10         1.48         2.49 -0.89    1-2 Hz
+ trial_169_DS_2810.csv   28/10         0.92         2.50 -0.93     <1 Hz
+ trial_140_DS_2810.csv   28/10         0.95         2.50 -0.94     <1 Hz
+ trial_137_DS_2810.csv   28/10         1.37         2.50 -0.92    1-2 Hz
+ trial_132_DS_2810.csv   28/10         1.05         2.51 -0.86    1-2 Hz
+ trial_164_DS_2810.csv   28/10         1.40         2.52 -0.90    1-2 Hz
+ trial_152_DS_2810.csv   28/10         1.17         2.53 -0.92    1-2 Hz
+ trial_148_DS_2810.csv   28/10         1.54         2.53 -0.88    1-2 Hz
+ trial_156_DS_2810.csv   28/10         1.46         2.53 -0.88    1-2 Hz
+ trial_147_DS_2810.csv   28/10         0.87         2.55 -0.81     <1 Hz
+ trial_134_DS_2810.csv   28/10         0.84         2.57 -0.96     <1 Hz
+ trial_163_DS_2810.csv   28/10         0.57         2.57 -0.93     <1 Hz
+ trial_149_DS_2810.csv   28/10         1.01         2.58 -0.94    1-2 Hz
+ trial_167_DS_2810.csv   28/10         1.34         2.59 -0.92    1-2 Hz
+ trial_161_DS_2810.csv   28/10         0.62         2.59 -0.89     <1 Hz
+ trial_136_DS_2810.csv   28/10         0.90         2.61 -0.94     <1 Hz
+ trial_133_DS_2810.csv   28/10         1.20         2.61 -0.93    1-2 Hz
+ trial_150_DS_2810.csv   28/10         0.49         2.62 -0.97     <1 Hz
+trial_12_test_2810.csv   28/10         1.51         2.88 -0.93    1-2 Hz
+trial_11_test_2810.csv   28/10         0.97         2.94 -0.96     <1 Hz
+trial_15_test_2810.csv   28/10         1.49         2.95 -0.92    1-2 Hz
+trial_14_test_2810.csv   28/10         1.17         3.00 -0.90    1-2 Hz
+trial_16_test_2810.csv   28/10         0.99         3.01 -0.97     <1 Hz
+trial_17_test_2810.csv   28/10         1.22         3.02 -0.95    1-2 Hz
+trial_18_test_2810.csv   28/10         1.13         3.03 -0.95    1-2 Hz
+trial_13_test_2810.csv   28/10         0.97         3.04 -0.88     <1 Hz
+ trial_104_DS_2810.csv   28/10         1.26         3.52 -0.87    1-2 Hz
+ trial_103_DS_2810.csv   28/10         1.09         3.54 -0.93    1-2 Hz
+  trial_97_DS_2810.csv   28/10         1.65         3.54 -0.88    1-2 Hz
+ trial_102_DS_2810.csv   28/10         1.24         3.54 -0.94    1-2 Hz
+  trial_96_DS_2810.csv   28/10         1.14         3.55 -0.91    1-2 Hz
+  trial_91_DS_2810.csv   28/10         1.07         3.55 -0.95    1-2 Hz
+ trial_106_DS_2810.csv   28/10         1.00         3.56 -0.90     <1 Hz
+ trial_110_DS_2810.csv   28/10         1.06         3.57 -0.88    1-2 Hz
+  trial_95_DS_2810.csv   28/10         1.08         3.58 -0.94    1-2 Hz
+ trial_100_DS_2810.csv   28/10         1.12         3.59 -0.92    1-2 Hz
+ trial_122_DS_2810.csv   28/10         1.39         3.59 -0.92    1-2 Hz
+  trial_93_DS_2810.csv   28/10         1.11         3.59 -0.92    1-2 Hz
+ trial_113_DS_2810.csv   28/10         1.19         3.60 -0.89    1-2 Hz
+ trial_101_DS_2810.csv   28/10         1.30         3.60 -0.93    1-2 Hz
+ trial_108_DS_2810.csv   28/10         1.30         3.60 -0.84    1-2 Hz
+  trial_98_DS_2810.csv   28/10         1.29         3.60 -0.95    1-2 Hz
+ trial_123_DS_2810.csv   28/10         1.38         3.61 -0.93    1-2 Hz
+ trial_130_DS_2810.csv   28/10         1.23         3.61 -0.94    1-2 Hz
+ trial_107_DS_2810.csv   28/10         1.41         3.62 -0.87    1-2 Hz
+ trial_109_DS_2810.csv   28/10         0.98         3.63 -0.87     <1 Hz
+ trial_112_DS_2810.csv   28/10         1.00         3.63 -0.89    1-2 Hz
+ trial_124_DS_2810.csv   28/10         1.41         3.63 -0.94    1-2 Hz
+ trial_125_DS_2810.csv   28/10         1.41         3.63 -0.92    1-2 Hz
+ trial_129_DS_2810.csv   28/10         1.36         3.64 -0.92    1-2 Hz
+ trial_117_DS_2810.csv   28/10         1.56         3.64 -0.90    1-2 Hz
+ trial_127_DS_2810.csv   28/10         1.24         3.65 -0.95    1-2 Hz
+ trial_128_DS_2810.csv   28/10         1.10         3.65 -0.95    1-2 Hz
+  trial_92_DS_2810.csv   28/10         1.02         3.65 -0.95    1-2 Hz
+ trial_121_DS_2810.csv   28/10         1.28         3.66 -0.94    1-2 Hz
+ trial_126_DS_2810.csv   28/10         1.07         3.68 -0.97    1-2 Hz
+ trial_119_DS_2810.csv   28/10         1.32         3.69 -0.96    1-2 Hz
+ trial_120_DS_2810.csv   28/10         1.20         3.69 -0.96    1-2 Hz
+  trial_94_DS_2810.csv   28/10         0.92         3.69 -0.95     <1 Hz
+ trial_116_DS_2810.csv   28/10         1.08         3.70 -0.96    1-2 Hz
+ trial_114_DS_2810.csv   28/10         1.08         3.71 -0.93    1-2 Hz
+ trial_111_DS_2810.csv   28/10         0.68         3.72 -0.92     <1 Hz
+ trial_118_DS_2810.csv   28/10         0.87         3.72 -0.96     <1 Hz
+ trial_105_DS_2810.csv   28/10         0.62         3.74 -0.92     <1 Hz
+ trial_115_DS_2810.csv   28/10         0.99         3.83 -0.94     <1 Hz
+  trial_99_DS_2810.csv   28/10         0.51         3.84 -0.98     <1 Hz
+
+lag sensor_diff vs command, in samples (1 sample = 0.1 s), by session:
+         count  mean   std   min   max
+session                               
+27/10      100  2.71  0.40  2.26  3.32
+28/10       88  3.05  0.56  2.30  3.84
+
+same, by session and command frequency band:
+                   count  mean   std
+freq_band session                   
+<1 Hz     27/10       26  2.79  0.41
+          28/10       24  2.98  0.56
+1-2 Hz    27/10       74  2.68  0.40
+          28/10       64  3.08  0.56

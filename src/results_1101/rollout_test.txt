@@ -1,0 +1,43 @@
+Model from checkpoint: GRU 256x1 | MLP 512 | H=20
+Trovati 18 trial.
+Dataset grezzo: 18 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 5040 campioni da 18 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+Whole-trial rollout | 18 trials (all) | common duration: 280 steps (28.0 s) | example: trial_8_test.csv
+
+sensor_diff  RMSE over the whole rollout: 34.16 sensor units | signal std 122.9 | R2 0.923
+current      RMSE over the whole rollout: 37.65 mA | signal std 90.82 | R2 0.828
+Saved src/results_1101/rollout_test/full_rmse_vs_time.png
+
+ from_s  to_s  sensor_diff_RMSE  current_RMSE
+      0     1         28.647400     36.723202
+      1     2         32.910702     39.342300
+      2     3         29.614401     37.912800
+      3     4         25.309200     33.511799
+      4     5         31.948700     37.749500
+      5     6         30.297300     33.534500
+      6     7         30.475100     36.228001
+      7     8         31.754299     36.170399
+      8     9         30.735001     42.062199
+      9    10         33.634998     40.881599
+     10    11         32.826401     35.511600
+     11    12         26.775400     30.895800
+     12    13         26.606100     37.511299
+     13    14         28.391199     38.667599
+     14    15         33.289700     36.735100
+     15    16         30.975401     33.362202
+     16    17         37.531898     32.804199
+     17    18         33.002602     35.941799
+     18    19         37.155800     36.342499
+     19    20         35.808899     40.066601
+     20    21         35.272999     38.919300
+     21    22         37.460999     40.091099
+     22    23         40.629200     39.276501
+     23    24         42.938702     41.229401
+     24    25         40.014900     36.253399
+     25    26         40.827900     40.590698
+     26    27         38.264301     39.587601
+     27    28         43.493198     43.147598
+
+Saved src/results_1101/rollout_test/full_rollout_sensor_diff.png
+Saved src/results_1101/rollout_test/full_rollout_current.png

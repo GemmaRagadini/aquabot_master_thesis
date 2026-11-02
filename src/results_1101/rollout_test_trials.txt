@@ -1,0 +1,26 @@
+Model from checkpoint: GRU 256x1 | MLP 512 | H=20
+Trovati 18 trial.
+Dataset grezzo: 18 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 5040 campioni da 18 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+trial_9_test.csv             rollout RMSE sd   15.1 cur   41.9 mA | amp sd 0.977 cur 0.957
+trial_3_test.csv             rollout RMSE sd   15.3 cur   41.7 mA | amp sd 0.996 cur 0.964
+trial_4_test.csv             rollout RMSE sd   15.6 cur   42.5 mA | amp sd 0.988 cur 0.942
+trial_2_test.csv             rollout RMSE sd   16.8 cur   29.8 mA | amp sd 0.993 cur 0.984
+trial_10_test.csv            rollout RMSE sd   17.0 cur   32.4 mA | amp sd 0.976 cur 0.900
+trial_7_test.csv             rollout RMSE sd   17.3 cur   39.8 mA | amp sd 0.975 cur 0.944
+trial_5_test.csv             rollout RMSE sd   17.8 cur   44.5 mA | amp sd 0.982 cur 0.949
+trial_1_test.csv             rollout RMSE sd   18.4 cur   40.0 mA | amp sd 1.004 cur 1.071
+trial_17_test_2810.csv       rollout RMSE sd   22.4 cur   33.2 mA | amp sd 1.094 cur 0.992
+trial_8_test.csv             rollout RMSE sd   22.7 cur   37.8 mA | amp sd 0.970 cur 0.949
+trial_11_test_2810.csv       rollout RMSE sd   26.0 cur   32.5 mA | amp sd 1.018 cur 1.016
+trial_18_test_2810.csv       rollout RMSE sd   31.9 cur   38.5 mA | amp sd 1.032 cur 1.050
+trial_12_test_2810.csv       rollout RMSE sd   41.5 cur   29.6 mA | amp sd 1.071 cur 0.975
+trial_6_test.csv             rollout RMSE sd   41.7 cur   34.9 mA | amp sd 0.994 cur 1.024
+trial_13_test_2810.csv       rollout RMSE sd   51.1 cur   26.0 mA | amp sd 1.023 cur 1.011
+trial_16_test_2810.csv       rollout RMSE sd   52.2 cur   40.8 mA | amp sd 1.013 cur 1.000
+trial_14_test_2810.csv       rollout RMSE sd   54.9 cur   28.2 mA | amp sd 0.983 cur 0.966
+trial_15_test_2810.csv       rollout RMSE sd   65.3 cur   53.0 mA | amp sd 0.972 cur 1.017
+
+median rollout RMSE sd 22.5 cur 38.2 | amp sd mean 1.003 [0.970, 1.094]
+typical: trial_8_test.csv

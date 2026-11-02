@@ -123,7 +123,8 @@ class DynamixelController(Node):
         self.create_subscription(Float64, self.target_topic, self.on_target, 10)
         self.pub_position = self.create_publisher(Float64, '/aquabot/dynamixel/present_position', 10)
         self.pub_current  = self.create_publisher(Float64, '/aquabot/dynamixel/present_current', 10)
-        self.read_timer   = self.create_timer(1.0 / 20.0, self.read_motor_state)
+        # position/current are read RIGHT AFTER every goal write (see on_target):
+        # no free-running timer, so their delay w.r.t. the command is the same in every recording
 
     # ── Helper di scrittura ──────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ class DynamixelController(Node):
         if error != 0:
             self.get_logger().error(f'Errore dynamixel write goal: {error}')
             return
+        self.read_motor_state()
 
     # ── Shutdown ─────────────────────────────────────────────────────────────
 

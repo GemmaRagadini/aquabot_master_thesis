@@ -3,6 +3,7 @@ import math
 import csv
 import os
 import random
+from collections import deque
 import rclpy
 from datetime import datetime
 from rclpy.node import Node
@@ -46,6 +47,9 @@ class MasterNode(Node):
         self.declare_parameter('control_rate_hz', 10.0)
         self.declare_parameter('log_rate_hz', 20.0)
         self.declare_parameter('log_dir', 'logs')
+        # sensors: average of the Arduino lines received in the last window, computed
+        # HERE at every log tick -> fixed delay between command and sensor in every recording
+        self.declare_parameter('sensor_avg_window_s', 0.1)
 
         # parametri per variazione frequenza/ampiezza
         self.declare_parameter('trial_duration_sec', 20.0)
@@ -144,6 +148,10 @@ class MasterNode(Node):
             self.current_callback, 10)
         self.last_sensor = None
         self.last_sensor_time = None
+        self.sensor_buf = deque(maxlen=500)   # (t_ns, [a0, a5]) of every Arduino line
+        self.sensor_window_ns = int(float(self.get_parameter('sensor_avg_window_s').value) * 1e9)
+        self.position_time = None
+        self.current_time = None
         self.t0 = None
         self.latest_target = 0.0
         self.recording = False
@@ -246,6 +254,7 @@ class MasterNode(Node):
     def sensor_callback(self, msg: Float32MultiArray):
         self.last_sensor = list(msg.data)
         self.last_sensor_time = self.get_clock().now()
+        self.sensor_buf.append((self.last_sensor_time.nanoseconds, self.last_sensor))
         if not self.calibration_done:
             if len(self.last_sensor) >= 2:
                 diff = float(self.last_sensor[0]) - float(self.last_sensor[1])
@@ -275,9 +284,11 @@ class MasterNode(Node):
 
     def position_callback(self, msg: Float64):
         self.present_position = msg.data
+        self.position_time = self.get_clock().now()
 
     def current_callback(self, msg: Float64):
         self.present_current = msg.data
+        self.current_time = self.get_clock().now()
 
     def start_new_trial(self):
         self.stop_trial()
@@ -298,7 +309,11 @@ class MasterNode(Node):
             "phase_rad",           # fase accumulata mod 2pi (diagnostica)
             "real_position_rad",   # posizione reale del motore (diagnostica plot)
             "present_current_ma",  # corrente misurata
-            "sensor_values",       # letture sensori grezze
+            "sensor_values",       # media delle righe Arduino arrivate nell'ultima finestra
+            "sensor_n",            # quante righe Arduino nella finestra
+            "sensor_age_ms",       # eta' della riga Arduino piu' recente
+            "position_age_ms",     # eta' dell'ultima posizione del motore
+            "current_age_ms",      # eta' dell'ultima corrente del motore
         ])
         self.csv_file.flush()
         self.t0 = self.get_clock().now()
@@ -573,10 +588,17 @@ class MasterNode(Node):
         t_rel = (now - self.t0).nanoseconds * 1e-9 if self.t0 else 0.0
         phase = self.phase_acc % (2.0 * math.pi)
 
-        if self.last_sensor is None:
-            sensor_values = []
+        # average of the Arduino lines received in (now - window, now]
+        t_now = now.nanoseconds
+        win = [v for (t, v) in self.sensor_buf if t_now - t <= self.sensor_window_ns]
+        if win:
+            sensor_values = [sum(v[i] for v in win) / len(win) for i in range(2)]
+        elif self.last_sensor is not None:
+            sensor_values = self.last_sensor          # no new line in the window: keep the last one
         else:
-            sensor_values = self.last_sensor
+            sensor_values = []
+        age = lambda t: (t_now - t.nanoseconds) * 1e-6 if t is not None else float('nan')
+        sensor_age = (t_now - self.sensor_buf[-1][0]) * 1e-6 if self.sensor_buf else float('nan')
 
         self.csv_writer.writerow([
             self.mode,
@@ -590,6 +612,10 @@ class MasterNode(Node):
             float(self.present_position),
             float(self.present_current),
             sensor_values,
+            len(win),
+            round(sensor_age, 1),
+            round(age(self.position_time), 1),
+            round(age(self.current_time), 1),
         ])
         self.csv_file.flush()
 

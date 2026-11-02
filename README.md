@@ -34,8 +34,9 @@ root in aquabot
 # Cosa fare ora
 - RIPARTIRE DA : 
 
+- capire a quanto corrisponde un unit sensor 
+- controllare che la scrittura della tesi sia coerente alle ultime modifiche sulla frequenza di campionamento
 - riguardare codice 
-- riprendere tutti i dati
 
 # Requirements 
 uv pip install -r requirements.txt
