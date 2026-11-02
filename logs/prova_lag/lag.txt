@@ -1,0 +1,2 @@
+trial_20261102_114921_random1.csv        rows  1815 | cmd->pos 1.92 | pos->sensor 0.35 | cmd->sensor 2.26 samples | dt median 100.0 ms, max 103.5 ms
+trial_20261102_115450_random2.csv        rows  1842 | cmd->pos 1.91 | pos->sensor 0.44 | cmd->sensor 2.34 samples | dt median 100.0 ms, max 105.5 ms
