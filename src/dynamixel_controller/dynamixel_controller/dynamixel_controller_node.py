@@ -60,6 +60,9 @@ class DynamixelController(Node):
         # False = dopo il centraggio la coppia viene spenta (coda libera, come prima)
         # True  = la coppia resta attiva e il motore tiene il centro finche' alimentato
         self.declare_parameter('keep_torque_on_shutdown', False)
+        # state read rate: current and position are read together at this rate and
+        # published sample by sample; the master averages the current over its log window
+        self.declare_parameter('read_rate_hz', 100.0)
 
         # legge i parametri ROS
         self.target_topic         = self.get_parameter('target_topic').value
@@ -123,8 +126,10 @@ class DynamixelController(Node):
         self.create_subscription(Float64, self.target_topic, self.on_target, 10)
         self.pub_position = self.create_publisher(Float64, '/aquabot/dynamixel/present_position', 10)
         self.pub_current  = self.create_publisher(Float64, '/aquabot/dynamixel/present_current', 10)
-        # position/current are read RIGHT AFTER every goal write (see on_target):
-        # no free-running timer, so their delay w.r.t. the command is the same in every recording
+        self.read_rate = float(self.get_parameter('read_rate_hz').value)
+        self.n_reads, self.n_fail, self.t_stats = 0, 0, time.monotonic()
+        self.read_timer = self.create_timer(1.0 / self.read_rate, self.read_motor_state)
+        self.get_logger().info(f'Motor state read at {self.read_rate:.0f} Hz (current + position in one packet)')
 
     # ── Helper di scrittura ──────────────────────────────────────────────────
 
@@ -147,23 +152,30 @@ class DynamixelController(Node):
     # ── Lettura stato motore ─────────────────────────────────────────────────
 
     def read_motor_state(self):
-        pos_tick, result, error = self.packet_handler.read4ByteTxRx(
-            self.port_handler, self.dxl_id, self.ADDR_PRESENT_POSITION)
-        if result == 0 and error == 0:
-            pos_rad = (pos_tick - 2048.0) / 4096.0 * (2.0 * math.pi)
-            msg = Float64()
-            msg.data = pos_rad
-            self.pub_position.publish(msg)
-
-        current_raw, result, error = self.packet_handler.read2ByteTxRx(
-            self.port_handler, self.dxl_id, self.ADDR_PRESENT_CURRENT)
-        if result == 0 and error == 0:
+        # ONE packet from address 126: present current (126-127), velocity (128-131),
+        # position (132-135) -> current and position refer to the same instant
+        data, result, error = self.packet_handler.readTxRx(
+            self.port_handler, self.dxl_id, self.ADDR_PRESENT_CURRENT, 10)
+        if result != 0 or error != 0 or len(data) < 10:
+            self.n_fail += 1
+        else:
+            current_raw = data[0] | (data[1] << 8)
             if current_raw > 32767:
                 current_raw -= 65536
-            current_ma = current_raw * 2.69
-            msg = Float64()
-            msg.data = current_ma
+            pos_tick = data[6] | (data[7] << 8) | (data[8] << 16) | (data[9] << 24)
+            if pos_tick > 2147483647:
+                pos_tick -= 4294967296
+            msg = Float64(); msg.data = (pos_tick - 2048.0) / 4096.0 * (2.0 * math.pi)
+            self.pub_position.publish(msg)
+            msg = Float64(); msg.data = current_raw * 2.69
             self.pub_current.publish(msg)
+            self.n_reads += 1
+        # once every 10 s: real read rate (if well below read_rate_hz, see the USB latency_timer)
+        now = time.monotonic()
+        if now - self.t_stats >= 10.0:
+            self.get_logger().info(f"Motor state: {self.n_reads / (now - self.t_stats):.1f} reads/s, "
+                                   f"{self.n_fail} failed in the last {now - self.t_stats:.0f} s")
+            self.n_reads, self.n_fail, self.t_stats = 0, 0, now
 
     # ── Conversione radianti => tick ─────────────────────────────────────────
 
@@ -194,7 +206,6 @@ class DynamixelController(Node):
         if error != 0:
             self.get_logger().error(f'Errore dynamixel write goal: {error}')
             return
-        self.read_motor_state()
 
     # ── Shutdown ─────────────────────────────────────────────────────────────
 

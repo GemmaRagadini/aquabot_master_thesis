@@ -18,7 +18,7 @@
 #   ./collect_dataset_random.sh --secs 120 --dry-run
 
 DRY_RUN=false
-DURATION=1200     # secondi
+DURATION=600     # secondi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

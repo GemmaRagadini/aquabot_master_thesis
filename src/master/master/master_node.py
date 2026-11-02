@@ -152,6 +152,7 @@ class MasterNode(Node):
         self.sensor_window_ns = int(float(self.get_parameter('sensor_avg_window_s').value) * 1e9)
         self.position_time = None
         self.current_time = None
+        self.current_buf = deque(maxlen=500)  # (t_ns, current) of every motor read
         self.t0 = None
         self.latest_target = 0.0
         self.recording = False
@@ -289,6 +290,7 @@ class MasterNode(Node):
     def current_callback(self, msg: Float64):
         self.present_current = msg.data
         self.current_time = self.get_clock().now()
+        self.current_buf.append((self.current_time.nanoseconds, msg.data))
 
     def start_new_trial(self):
         self.stop_trial()
@@ -314,6 +316,7 @@ class MasterNode(Node):
             "sensor_age_ms",       # eta' della riga Arduino piu' recente
             "position_age_ms",     # eta' dell'ultima posizione del motore
             "current_age_ms",      # eta' dell'ultima corrente del motore
+            "current_n",           # quante letture di corrente nella finestra (present_current_ma = loro media)
         ])
         self.csv_file.flush()
         self.t0 = self.get_clock().now()
@@ -597,6 +600,9 @@ class MasterNode(Node):
             sensor_values = self.last_sensor          # no new line in the window: keep the last one
         else:
             sensor_values = []
+        # current: same window average as the sensors
+        cwin = [c for (t, c) in self.current_buf if t_now - t <= self.sensor_window_ns]
+        current_avg = sum(cwin) / len(cwin) if cwin else float(self.present_current)
         age = lambda t: (t_now - t.nanoseconds) * 1e-6 if t is not None else float('nan')
         sensor_age = (t_now - self.sensor_buf[-1][0]) * 1e-6 if self.sensor_buf else float('nan')
 
@@ -610,12 +616,13 @@ class MasterNode(Node):
             float(self.current_freq),
             float(phase),
             float(self.present_position),
-            float(self.present_current),
+            float(current_avg),
             sensor_values,
             len(win),
             round(sensor_age, 1),
             round(age(self.position_time), 1),
             round(age(self.current_time), 1),
+            len(cwin),
         ])
         self.csv_file.flush()
 

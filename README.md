@@ -38,6 +38,7 @@ root in aquabot
 - controllare che la scrittura della tesi sia coerente alle ultime modifiche sulla frequenza di campionamento
 - riguardare codice 
 - valutare se mettere o no immagine con e senza pinna
+- chiarire bene la questione accumulazione della fase 
 
 # Requirements 
 uv pip install -r requirements.txt
