@@ -1,0 +1,40 @@
+Model from checkpoint: GRU 256x1 | MLP 512 | H=20
+Trovati 140 trial.
+Dataset grezzo: 140 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 39200 campioni da 140 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+           trial  sd_rmse_1  sd_rmse_R  sd_amp_1  sd_amp_R  cur_rmse_1  cur_rmse_R  cur_amp_1  cur_amp_R
+ trial_60_DS.csv      8.357      9.434     0.995     0.980       5.671       5.846      0.994      0.992
+ trial_59_DS.csv      8.700      9.548     0.995     1.003       6.680       6.637      1.001      1.008
+trial_123_DS.csv      8.251      9.686     0.996     0.982       6.833       6.899      0.994      0.989
+ trial_52_DS.csv      8.391     10.356     1.007     1.022       5.333       5.260      1.006      1.015
+ trial_55_DS.csv      8.305     10.418     0.993     0.988       7.454       7.927      0.999      1.001
+  trial_7_DS.csv      7.842     10.508     1.006     1.007       6.130       6.142      0.994      0.989
+trial_119_DS.csv      8.939     10.834     0.995     0.985       5.886       5.872      0.995      0.992
+ trial_57_DS.csv      9.026     10.893     0.991     0.973       6.412       6.425      0.986      0.983
+ trial_24_DS.csv     10.141     11.009     0.991     1.010       6.638       8.684      1.041      1.074
+trial_102_DS.csv      8.954     11.029     1.000     0.989       6.791       6.869      0.996      0.988
+trial_122_DS.csv      8.446     11.042     0.996     0.982       5.335       5.675      1.001      0.998
+trial_112_DS.csv      9.129     11.074     1.000     0.999       8.578       9.537      1.001      0.997
+ trial_70_DS.csv      8.625     11.180     0.984     0.960       5.832       6.065      0.998      0.991
+ trial_86_DS.csv      9.144     11.186     1.005     1.003       7.358       6.904      0.991      0.984
+trial_105_DS.csv      9.191     11.321     0.993     0.992       8.173       9.539      0.998      0.999
+ trial_15_DS.csv      9.513     11.520     1.002     1.000       7.016       7.213      0.995      0.989
+trial_130_DS.csv      9.128     11.605     0.988     0.972       7.106       7.394      0.997      0.987
+ trial_58_DS.csv      9.754     11.784     0.994     0.981       6.576       6.348      0.994      0.987
+ trial_48_DS.csv      8.511     11.835     0.990     0.989       7.040       7.009      1.009      1.013
+trial_104_DS.csv      9.122     11.910     0.989     0.971       5.778       6.431      0.989      0.977
+ trial_80_DS.csv      9.301     12.078     0.978     0.951       6.545       6.496      0.991      0.988
+ trial_19_DS.csv     10.628     12.274     0.987     0.991       6.688       7.173      1.008      1.016
+ trial_67_DS.csv      8.181     12.500     0.984     0.994       5.619       5.778      1.001      1.011
+ trial_44_DS.csv     10.269     12.649     0.998     1.029       6.220       6.850      1.011      1.025
+trial_103_DS.csv     10.870     12.698     1.006     1.010       7.319       7.603      1.007      1.011
+trial_134_DS.csv      9.680     12.765     0.983     0.958       5.769       5.867      1.000      0.993
+trial_100_DS.csv      8.567     12.969     0.980     0.976       5.051       5.346      0.992      0.988
+trial_126_DS.csv     11.694     13.849     0.982     0.951       7.208       6.992      0.997      0.993
+mean   {'sd_rmse_1': 9.166, 'sd_rmse_R': 11.427, 'sd_amp_1': 0.993, 'sd_amp_R': 0.987, 'cur_rmse_1': 6.537, 'cur_rmse_R': 6.814, 'cur_amp_1': 1.0, 'cur_amp_R': 0.999}
+median {'sd_rmse_1': 9.074, 'sd_rmse_R': 11.253, 'sd_amp_1': 0.993, 'sd_amp_R': 0.988, 'cur_rmse_1': 6.607, 'cur_rmse_R': 6.743, 'cur_amp_1': 0.997, 'cur_amp_R': 0.993}
+min    {'sd_rmse_1': 7.842, 'sd_rmse_R': 9.434, 'sd_amp_1': 0.978, 'sd_amp_R': 0.951, 'cur_rmse_1': 5.051, 'cur_rmse_R': 5.26, 'cur_amp_1': 0.986, 'cur_amp_R': 0.977}
+max    {'sd_rmse_1': 11.694, 'sd_rmse_R': 13.849, 'sd_amp_1': 1.007, 'sd_amp_R': 1.029, 'cur_rmse_1': 8.578, 'cur_rmse_R': 9.539, 'cur_amp_1': 1.041, 'cur_amp_R': 1.074}
+typical (median)   trial_105_DS.csv: rollout sd 11.32 cur 9.54 | amp sd 1-step 0.993 rollout 0.992
+harder (75th pct)  trial_80_DS.csv: rollout sd 12.08 cur 6.50 | amp sd 1-step 0.978 rollout 0.951

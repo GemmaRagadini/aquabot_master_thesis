@@ -1,0 +1,43 @@
+Model from checkpoint: GRU 256x1 | MLP 512 | H=20
+Trovati 140 trial.
+Dataset grezzo: 140 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 39200 campioni da 140 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+Whole-trial rollout | 28 validation trials | common duration: 280 steps (28.0 s) | example: trial_86_DS.csv
+
+sensor_diff  RMSE over the whole rollout: 11.48 sensor units | signal std 111.1 | R2 0.989
+current      RMSE over the whole rollout: 6.898 mA | signal std 82.52 | R2 0.993
+Saved src/results_1103/rollout_typical/full_rmse_vs_time.png
+
+ from_s  to_s  sensor_diff_RMSE  current_RMSE
+      0     1           10.4350        6.6904
+      1     2           10.1615        6.4609
+      2     3           11.6155        8.7311
+      3     4           11.4637        6.2777
+      4     5           11.2276        7.8742
+      5     6           10.9451        6.8834
+      6     7           11.3081        8.0328
+      7     8           11.0230        5.7566
+      8     9           10.4439        6.5391
+      9    10           11.0075        7.0109
+     10    11           10.6896        7.5547
+     11    12           11.3345        6.0184
+     12    13           11.1479        5.7416
+     13    14           11.5407        6.6058
+     14    15           11.6408        6.8937
+     15    16           12.1310        8.3474
+     16    17           10.9092        5.5104
+     17    18           11.9119        6.6818
+     18    19           12.8774        7.2514
+     19    20           11.8005        5.8096
+     20    21           12.0464        6.0793
+     21    22           11.4517        7.4679
+     22    23           12.8024        8.6544
+     23    24           11.5023        6.7940
+     24    25           12.2357        6.4486
+     25    26           12.8324        6.8809
+     26    27           11.2376        6.5436
+     27    28           11.0040        6.0858
+
+Saved src/results_1103/rollout_typical/full_rollout_sensor_diff.png
+Saved src/results_1103/rollout_typical/full_rollout_current.png

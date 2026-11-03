@@ -1,0 +1,26 @@
+Model from checkpoint: GRU 256x1 | MLP 512 | H=20
+Trovati 17 trial.
+Dataset grezzo: 17 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 4760 campioni da 17 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+trial_2_test.csv       rollout RMSE sd  10.28 cur   7.57 mA | amp sd 0.969 cur 0.973
+trial_8_test.csv       rollout RMSE sd  10.52 cur   7.16 mA | amp sd 0.976 cur 1.002
+trial_4_test.csv       rollout RMSE sd  10.57 cur   5.73 mA | amp sd 0.979 cur 0.989
+trial_15_test.csv      rollout RMSE sd  10.59 cur   6.83 mA | amp sd 0.965 cur 0.994
+trial_14_test.csv      rollout RMSE sd  10.69 cur   9.16 mA | amp sd 0.974 cur 0.988
+trial_5_test.csv       rollout RMSE sd  10.84 cur   4.90 mA | amp sd 0.986 cur 0.979
+trial_3_test.csv       rollout RMSE sd  11.09 cur   6.19 mA | amp sd 0.966 cur 0.967
+trial_1_test.csv       rollout RMSE sd  11.24 cur   5.74 mA | amp sd 0.950 cur 0.973
+trial_10_test.csv      rollout RMSE sd  11.66 cur   7.74 mA | amp sd 0.953 cur 0.981
+trial_13_test.csv      rollout RMSE sd  11.75 cur   9.12 mA | amp sd 0.977 cur 0.972
+trial_6_test.csv       rollout RMSE sd  11.82 cur   6.10 mA | amp sd 0.976 cur 0.980
+trial_12_test.csv      rollout RMSE sd  11.97 cur   6.82 mA | amp sd 0.956 cur 0.985
+trial_16_test.csv      rollout RMSE sd  12.28 cur   7.08 mA | amp sd 0.972 cur 0.991
+trial_7_test.csv       rollout RMSE sd  12.60 cur   7.17 mA | amp sd 0.958 cur 0.970
+trial_17_test.csv      rollout RMSE sd  12.65 cur   7.38 mA | amp sd 0.964 cur 0.989
+trial_9_test.csv       rollout RMSE sd  13.19 cur   9.69 mA | amp sd 0.959 cur 0.976
+trial_11_test.csv      rollout RMSE sd  15.42 cur   7.05 mA | amp sd 0.920 cur 0.993
+
+median rollout RMSE sd 11.66 cur 7.08 | max sd 15.42 cur 9.69
+amp sd mean 0.965 [0.920, 0.986] | amp cur mean 0.982 [0.967, 1.002]
+typical on both channels: trial_16_test.csv
