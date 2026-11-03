@@ -44,11 +44,11 @@ WD       = (1e-6, 1e-1)
 DROP     = (0.0, 0.5)
 CLIP     = [0.5, 1.0, 5.0]
 
-# config attuale di train_fm.py (run fm_base): primo trial accodato, cosi' il
-# tuning parte almeno da li'
+# config attuale di train.py (= i suoi default, best del tuning di ottobre):
+# primo trial accodato, cosi' il tuning parte almeno da li'
 CURRENT_DEFAULTS = dict(
-    gru_hidden=256, mlp_hidden=512, num_layers=1, dropout=0.06668923974698159,
-    weight_decay=1.582283830185358e-05, lr=0.0005621588402773221, batch_size=64, clip_norm=0.5,
+    gru_hidden=256, mlp_hidden=512, num_layers=1, dropout=0.09521580978692334,
+    weight_decay=0.00031464050304464146, lr=0.0006005748664321513, batch_size=128, clip_norm=0.5,
 )
 
 
@@ -136,15 +136,15 @@ def finite_trials(study):
             and t.value is not None and math.isfinite(t.value)]
 
 
-def train_cmd(params):
-    """Comando train_fm.py equivalente ai parametri di un trial."""
-    cmd = "python3 -u src/net/fm/train.py --dataset_dir src/net/dataset2710 --scaler_path src/net/scaler/scaler.pkl"
+def train_cmd(params, dataset_dir, scaler_path, study_name):
+    """Comando train.py equivalente ai parametri di un trial (stessi dati e scaler del tuning)."""
+    cmd = f"python3 -u src/net/fm/train.py --dataset_dir {dataset_dir} --scaler_path {scaler_path}"
     for k, v in params.items():
         cmd += f" --{k} {v}"
-    return cmd + " --tag fm_tuned"
+    return cmd + f" --tag {study_name}_tuned"
 
 
-def write_report(study, path):
+def write_report(study, path, args):
     ranked = sorted(finite_trials(study), key=lambda t: t.value)
     n_pruned = sum(t.state == optuna.trial.TrialState.PRUNED for t in study.trials)
     with open(path, "w") as f:
@@ -161,7 +161,7 @@ def write_report(study, path):
                 f.write(f"    {k}: {v}\n")
         if ranked:
             f.write("\n=== Comando train_fm.py con il best ===\n")
-            f.write(train_cmd(ranked[0].params) + "\n")
+            f.write(train_cmd(ranked[0].params, args.dataset_dir, args.scaler_path, study.study_name) + "\n")
         try:
             imp = optuna.importance.get_param_importances(study)
             f.write("\n=== Importanza parametri (fANOVA) ===\n")
@@ -225,7 +225,7 @@ if __name__ == "__main__":
                    n_trials=args.n_trials, gc_after_trial=True)
 
     report = os.path.join(SCRIPT_DIR, "tuning_results", f"best_{study_name}.txt")
-    write_report(study, report)
+    write_report(study, report, args)
     print(f"\nBest val: {study.best_value:.5f}")
     for k, v in study.best_params.items():
         print(f"  {k}: {v}")

@@ -1,0 +1,594 @@
+Studio: fm_1102 | device cpu | H=20
+Caricamento dataset (p=1)...
+Trovati 140 trial.
+Dataset grezzo: 140 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+/home/gemma/tesi/aquabot/src/net/fm/tuning/tune.py:210: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(
+/home/gemma/tesi/aquabot/src/net/fm/tuning/tune.py:210: ExperimentalWarning: Argument ``group`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(
+/home/gemma/tesi/aquabot/src/net/fm/tuning/tune.py:210: ExperimentalWarning: Argument ``constant_liar`` is an experimental feature. The interface can change in the future.
+  sampler = optuna.samplers.TPESampler(
+[I 2026-11-03 10:40:37,756] A new study created in RDB with name: fm_1102
+Primo trial = config attuale di train_fm.py
+Normalizzatore caricato da src/net/scaler/scaler_1102.pkl (nessun refit).
+Dataset: 39200 campioni da 140 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0852 | val 0.0261 (sd 0.0147 current 0.0376) | val/persist 0.054 | lr 6.01e-04
+Epoch   1 | train 0.0261 | val 0.0231 (sd 0.0150 current 0.0312) | val/persist 0.047 | lr 6.01e-04
+Epoch   2 | train 0.0220 | val 0.0158 (sd 0.0116 current 0.0200) | val/persist 0.032 | lr 6.01e-04
+Epoch   3 | train 0.0196 | val 0.0143 (sd 0.0097 current 0.0188) | val/persist 0.029 | lr 6.01e-04
+Epoch   4 | train 0.0183 | val 0.0142 (sd 0.0100 current 0.0183) | val/persist 0.029 | lr 6.01e-04
+Epoch   5 | train 0.0174 | val 0.0140 (sd 0.0116 current 0.0163) | val/persist 0.029 | lr 6.01e-04
+Epoch   6 | train 0.0167 | val 0.0117 (sd 0.0095 current 0.0140) | val/persist 0.024 | lr 6.01e-04
+Epoch   7 | train 0.0160 | val 0.0143 (sd 0.0113 current 0.0174) | val/persist 0.029 | lr 6.01e-04
+Epoch   8 | train 0.0154 | val 0.0120 (sd 0.0104 current 0.0135) | val/persist 0.025 | lr 6.01e-04
+Epoch   9 | train 0.0150 | val 0.0124 (sd 0.0115 current 0.0134) | val/persist 0.026 | lr 6.01e-04
+Epoch  10 | train 0.0146 | val 0.0105 (sd 0.0092 current 0.0118) | val/persist 0.022 | lr 6.01e-04
+Epoch  11 | train 0.0142 | val 0.0108 (sd 0.0099 current 0.0116) | val/persist 0.022 | lr 6.01e-04
+Epoch  12 | train 0.0143 | val 0.0103 (sd 0.0101 current 0.0105) | val/persist 0.021 | lr 6.01e-04
+Epoch  13 | train 0.0137 | val 0.0103 (sd 0.0094 current 0.0112) | val/persist 0.021 | lr 6.01e-04
+Epoch  14 | train 0.0135 | val 0.0105 (sd 0.0105 current 0.0106) | val/persist 0.022 | lr 6.01e-04
+Epoch  15 | train 0.0133 | val 0.0105 (sd 0.0090 current 0.0120) | val/persist 0.022 | lr 6.01e-04
+Epoch  16 | train 0.0133 | val 0.0100 (sd 0.0092 current 0.0107) | val/persist 0.021 | lr 6.01e-04
+Epoch  17 | train 0.0129 | val 0.0099 (sd 0.0093 current 0.0104) | val/persist 0.020 | lr 6.01e-04
+Epoch  18 | train 0.0128 | val 0.0109 (sd 0.0097 current 0.0121) | val/persist 0.022 | lr 6.01e-04
+Epoch  19 | train 0.0128 | val 0.0109 (sd 0.0103 current 0.0114) | val/persist 0.022 | lr 6.01e-04
+Epoch  20 | train 0.0126 | val 0.0102 (sd 0.0093 current 0.0112) | val/persist 0.021 | lr 6.01e-04
+Epoch  21 | train 0.0123 | val 0.0098 (sd 0.0093 current 0.0102) | val/persist 0.020 | lr 6.01e-04
+Epoch  22 | train 0.0121 | val 0.0096 (sd 0.0096 current 0.0096) | val/persist 0.020 | lr 6.01e-04
+Epoch  23 | train 0.0121 | val 0.0095 (sd 0.0084 current 0.0107) | val/persist 0.020 | lr 6.01e-04
+Epoch  24 | train 0.0121 | val 0.0092 (sd 0.0083 current 0.0100) | val/persist 0.019 | lr 6.01e-04
+Epoch  25 | train 0.0117 | val 0.0083 (sd 0.0083 current 0.0084) | val/persist 0.017 | lr 6.01e-04
+Epoch  26 | train 0.0116 | val 0.0096 (sd 0.0100 current 0.0091) | val/persist 0.020 | lr 6.01e-04
+Epoch  27 | train 0.0119 | val 0.0091 (sd 0.0093 current 0.0088) | val/persist 0.019 | lr 6.01e-04
+Epoch  28 | train 0.0116 | val 0.0088 (sd 0.0090 current 0.0086) | val/persist 0.018 | lr 6.01e-04
+Epoch  29 | train 0.0115 | val 0.0091 (sd 0.0081 current 0.0101) | val/persist 0.019 | lr 6.01e-04
+Epoch  30 | train 0.0117 | val 0.0093 (sd 0.0089 current 0.0097) | val/persist 0.019 | lr 6.01e-04
+Epoch  31 | train 0.0114 | val 0.0095 (sd 0.0085 current 0.0105) | val/persist 0.019 | lr 6.01e-04
+Epoch  32 | train 0.0112 | val 0.0088 (sd 0.0087 current 0.0090) | val/persist 0.018 | lr 6.01e-04
+Epoch  33 | train 0.0111 | val 0.0085 (sd 0.0079 current 0.0092) | val/persist 0.018 | lr 6.01e-04
+Epoch  34 | train 0.0110 | val 0.0081 (sd 0.0079 current 0.0083) | val/persist 0.017 | lr 6.01e-04
+Epoch  35 | train 0.0113 | val 0.0084 (sd 0.0081 current 0.0087) | val/persist 0.017 | lr 6.01e-04
+Epoch  36 | train 0.0108 | val 0.0092 (sd 0.0079 current 0.0105) | val/persist 0.019 | lr 6.01e-04
+Epoch  37 | train 0.0106 | val 0.0086 (sd 0.0078 current 0.0095) | val/persist 0.018 | lr 6.01e-04
+Epoch  38 | train 0.0105 | val 0.0082 (sd 0.0082 current 0.0082) | val/persist 0.017 | lr 6.01e-04
+Epoch  39 | train 0.0108 | val 0.0077 (sd 0.0076 current 0.0078) | val/persist 0.016 | lr 6.01e-04
+Epoch  40 | train 0.0105 | val 0.0088 (sd 0.0090 current 0.0086) | val/persist 0.018 | lr 6.01e-04
+Epoch  41 | train 0.0106 | val 0.0076 (sd 0.0073 current 0.0079) | val/persist 0.016 | lr 6.01e-04
+Epoch  42 | train 0.0105 | val 0.0083 (sd 0.0079 current 0.0086) | val/persist 0.017 | lr 6.01e-04
+Epoch  43 | train 0.0103 | val 0.0079 (sd 0.0075 current 0.0083) | val/persist 0.016 | lr 6.01e-04
+Epoch  44 | train 0.0105 | val 0.0080 (sd 0.0077 current 0.0082) | val/persist 0.016 | lr 6.01e-04
+Epoch  45 | train 0.0100 | val 0.0080 (sd 0.0074 current 0.0086) | val/persist 0.016 | lr 6.01e-04
+Epoch  46 | train 0.0102 | val 0.0087 (sd 0.0078 current 0.0096) | val/persist 0.018 | lr 6.01e-04
+Epoch  47 | train 0.0101 | val 0.0083 (sd 0.0086 current 0.0079) | val/persist 0.017 | lr 6.01e-04
+Epoch  48 | train 0.0101 | val 0.0084 (sd 0.0082 current 0.0086) | val/persist 0.017 | lr 6.01e-04
+Epoch  49 | train 0.0099 | val 0.0079 (sd 0.0082 current 0.0076) | val/persist 0.016 | lr 6.01e-04
+Epoch  50 | train 0.0100 | val 0.0075 (sd 0.0075 current 0.0075) | val/persist 0.015 | lr 6.01e-04
+Epoch  51 | train 0.0100 | val 0.0075 (sd 0.0076 current 0.0074) | val/persist 0.015 | lr 6.01e-04
+Epoch  52 | train 0.0101 | val 0.0091 (sd 0.0092 current 0.0090) | val/persist 0.019 | lr 6.01e-04
+Epoch  53 | train 0.0097 | val 0.0079 (sd 0.0084 current 0.0075) | val/persist 0.016 | lr 6.01e-04
+Epoch  54 | train 0.0098 | val 0.0077 (sd 0.0078 current 0.0076) | val/persist 0.016 | lr 6.01e-04
+Epoch  55 | train 0.0095 | val 0.0079 (sd 0.0078 current 0.0080) | val/persist 0.016 | lr 6.01e-04
+Epoch  56 | train 0.0097 | val 0.0083 (sd 0.0078 current 0.0088) | val/persist 0.017 | lr 6.01e-04
+Epoch  57 | train 0.0098 | val 0.0078 (sd 0.0072 current 0.0083) | val/persist 0.016 | lr 6.01e-04
+Epoch  58 | train 0.0094 | val 0.0076 (sd 0.0075 current 0.0076) | val/persist 0.016 | lr 6.01e-04
+Epoch  59 | train 0.0095 | val 0.0082 (sd 0.0074 current 0.0090) | val/persist 0.017 | lr 6.01e-04
+Epoch  60 | train 0.0093 | val 0.0076 (sd 0.0072 current 0.0080) | val/persist 0.016 | lr 6.01e-04
+Epoch  61 | train 0.0092 | val 0.0078 (sd 0.0081 current 0.0076) | val/persist 0.016 | lr 6.01e-04
+Epoch  62 | train 0.0093 | val 0.0072 (sd 0.0073 current 0.0072) | val/persist 0.015 | lr 6.01e-04
+Epoch  63 | train 0.0093 | val 0.0077 (sd 0.0080 current 0.0074) | val/persist 0.016 | lr 6.01e-04
+Epoch  64 | train 0.0092 | val 0.0075 (sd 0.0072 current 0.0078) | val/persist 0.015 | lr 6.01e-04
+Epoch  65 | train 0.0090 | val 0.0079 (sd 0.0078 current 0.0079) | val/persist 0.016 | lr 6.01e-04
+Epoch  66 | train 0.0091 | val 0.0074 (sd 0.0070 current 0.0078) | val/persist 0.015 | lr 6.01e-04
+Epoch  67 | train 0.0091 | val 0.0077 (sd 0.0075 current 0.0078) | val/persist 0.016 | lr 6.01e-04
+Epoch  68 | train 0.0089 | val 0.0079 (sd 0.0075 current 0.0084) | val/persist 0.016 | lr 6.01e-04
+Epoch  69 | train 0.0089 | val 0.0088 (sd 0.0095 current 0.0080) | val/persist 0.018 | lr 6.01e-04
+Epoch  70 | train 0.0089 | val 0.0084 (sd 0.0083 current 0.0084) | val/persist 0.017 | lr 6.01e-04
+Epoch  71 | train 0.0090 | val 0.0080 (sd 0.0072 current 0.0088) | val/persist 0.016 | lr 6.01e-04
+Epoch  72 | train 0.0088 | val 0.0078 (sd 0.0076 current 0.0081) | val/persist 0.016 | lr 6.01e-04
+Epoch  73 | train 0.0087 | val 0.0076 (sd 0.0075 current 0.0077) | val/persist 0.016 | lr 3.00e-04
+Epoch  74 | train 0.0080 | val 0.0070 (sd 0.0070 current 0.0069) | val/persist 0.014 | lr 3.00e-04
+Epoch  75 | train 0.0079 | val 0.0070 (sd 0.0069 current 0.0070) | val/persist 0.014 | lr 3.00e-04
+Epoch  76 | train 0.0078 | val 0.0070 (sd 0.0070 current 0.0070) | val/persist 0.014 | lr 3.00e-04
+Epoch  77 | train 0.0078 | val 0.0076 (sd 0.0074 current 0.0077) | val/persist 0.016 | lr 3.00e-04
+Epoch  78 | train 0.0078 | val 0.0071 (sd 0.0074 current 0.0068) | val/persist 0.014 | lr 3.00e-04
+Epoch  79 | train 0.0077 | val 0.0075 (sd 0.0074 current 0.0075) | val/persist 0.015 | lr 3.00e-04
+
+Training completato. Best val: 0.0070 a epoch 75 (persistenza 0.4867)
+[I 2026-11-03 11:04:39,849] Trial 0 finished with value: 0.006956482273811588 and parameters: {'gru_hidden': 256, 'mlp_hidden': 512, 'num_layers': 1, 'dropout': 0.09521580978692334, 'weight_decay': 0.00031464050304464146, 'lr': 0.0006005748664321513, 'batch_size': 128, 'clip_norm': 0.5}. Best is trial 0 with value: 0.006956482273811588.
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0847 | val 0.0261 (sd 0.0160 current 0.0362) | val/persist 0.054 | lr 2.83e-03
+Epoch   1 | train 0.0487 | val 0.0194 (sd 0.0144 current 0.0245) | val/persist 0.040 | lr 2.83e-03
+Epoch   2 | train 0.0454 | val 0.0257 (sd 0.0246 current 0.0268) | val/persist 0.053 | lr 2.83e-03
+Epoch   3 | train 0.0422 | val 0.0187 (sd 0.0140 current 0.0233) | val/persist 0.038 | lr 2.83e-03
+Epoch   4 | train 0.0398 | val 0.0161 (sd 0.0146 current 0.0175) | val/persist 0.033 | lr 2.83e-03
+Epoch   5 | train 0.0400 | val 0.0267 (sd 0.0126 current 0.0408) | val/persist 0.055 | lr 2.83e-03
+Epoch   6 | train 0.0372 | val 0.0139 (sd 0.0131 current 0.0148) | val/persist 0.029 | lr 2.83e-03
+Epoch   7 | train 0.0376 | val 0.0134 (sd 0.0104 current 0.0164) | val/persist 0.028 | lr 2.83e-03
+Epoch   8 | train 0.0364 | val 0.0169 (sd 0.0147 current 0.0192) | val/persist 0.035 | lr 2.83e-03
+Epoch   9 | train 0.0358 | val 0.0162 (sd 0.0157 current 0.0167) | val/persist 0.033 | lr 2.83e-03
+Epoch  10 | train 0.0362 | val 0.0232 (sd 0.0202 current 0.0263) | val/persist 0.048 | lr 2.83e-03
+Epoch  11 | train 0.0344 | val 0.0154 (sd 0.0132 current 0.0176) | val/persist 0.032 | lr 2.83e-03
+Epoch  12 | train 0.0348 | val 0.0132 (sd 0.0127 current 0.0137) | val/persist 0.027 | lr 2.83e-03
+Epoch  13 | train 0.0342 | val 0.0128 (sd 0.0121 current 0.0135) | val/persist 0.026 | lr 2.83e-03
+Epoch  14 | train 0.0336 | val 0.0134 (sd 0.0131 current 0.0137) | val/persist 0.027 | lr 2.83e-03
+Epoch  15 | train 0.0328 | val 0.0155 (sd 0.0140 current 0.0169) | val/persist 0.032 | lr 2.83e-03
+Epoch  16 | train 0.0324 | val 0.0139 (sd 0.0124 current 0.0154) | val/persist 0.029 | lr 2.83e-03
+Epoch  17 | train 0.0328 | val 0.0138 (sd 0.0109 current 0.0167) | val/persist 0.028 | lr 2.83e-03
+Epoch  18 | train 0.0317 | val 0.0144 (sd 0.0160 current 0.0128) | val/persist 0.030 | lr 2.83e-03
+Epoch  19 | train 0.0325 | val 0.0164 (sd 0.0145 current 0.0182) | val/persist 0.034 | lr 2.83e-03
+Epoch  20 | train 0.0328 | val 0.0150 (sd 0.0152 current 0.0147) | val/persist 0.031 | lr 2.83e-03
+Epoch  21 | train 0.0317 | val 0.0153 (sd 0.0159 current 0.0147) | val/persist 0.031 | lr 2.83e-03
+Epoch  22 | train 0.0316 | val 0.0133 (sd 0.0142 current 0.0124) | val/persist 0.027 | lr 2.83e-03
+Epoch  23 | train 0.0317 | val 0.0124 (sd 0.0109 current 0.0139) | val/persist 0.026 | lr 2.83e-03
+Epoch  24 | train 0.0313 | val 0.0144 (sd 0.0127 current 0.0160) | val/persist 0.030 | lr 2.83e-03
+Epoch  25 | train 0.0312 | val 0.0126 (sd 0.0120 current 0.0131) | val/persist 0.026 | lr 2.83e-03
+[I 2026-11-03 11:11:40,845] Trial 21 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0583 | val 0.0237 (sd 0.0154 current 0.0320) | val/persist 0.049 | lr 1.23e-03
+Epoch   1 | train 0.0296 | val 0.0184 (sd 0.0138 current 0.0231) | val/persist 0.038 | lr 1.23e-03
+Epoch   2 | train 0.0268 | val 0.0192 (sd 0.0144 current 0.0241) | val/persist 0.040 | lr 1.23e-03
+Epoch   3 | train 0.0253 | val 0.0164 (sd 0.0132 current 0.0197) | val/persist 0.034 | lr 1.23e-03
+Epoch   4 | train 0.0238 | val 0.0138 (sd 0.0100 current 0.0176) | val/persist 0.028 | lr 1.23e-03
+Epoch   5 | train 0.0230 | val 0.0164 (sd 0.0152 current 0.0175) | val/persist 0.034 | lr 1.23e-03
+Epoch   6 | train 0.0222 | val 0.0134 (sd 0.0107 current 0.0161) | val/persist 0.028 | lr 1.23e-03
+Epoch   7 | train 0.0222 | val 0.0131 (sd 0.0101 current 0.0162) | val/persist 0.027 | lr 1.23e-03
+Epoch   8 | train 0.0215 | val 0.0126 (sd 0.0093 current 0.0158) | val/persist 0.026 | lr 1.23e-03
+Epoch   9 | train 0.0214 | val 0.0119 (sd 0.0096 current 0.0141) | val/persist 0.024 | lr 1.23e-03
+Epoch  10 | train 0.0209 | val 0.0125 (sd 0.0105 current 0.0146) | val/persist 0.026 | lr 1.23e-03
+Epoch  11 | train 0.0207 | val 0.0141 (sd 0.0107 current 0.0174) | val/persist 0.029 | lr 1.23e-03
+Epoch  12 | train 0.0203 | val 0.0109 (sd 0.0094 current 0.0125) | val/persist 0.022 | lr 1.23e-03
+Epoch  13 | train 0.0202 | val 0.0125 (sd 0.0109 current 0.0140) | val/persist 0.026 | lr 1.23e-03
+Epoch  14 | train 0.0198 | val 0.0121 (sd 0.0109 current 0.0132) | val/persist 0.025 | lr 1.23e-03
+Epoch  15 | train 0.0197 | val 0.0122 (sd 0.0119 current 0.0126) | val/persist 0.025 | lr 1.23e-03
+Epoch  16 | train 0.0194 | val 0.0116 (sd 0.0105 current 0.0127) | val/persist 0.024 | lr 1.23e-03
+Epoch  17 | train 0.0196 | val 0.0111 (sd 0.0101 current 0.0121) | val/persist 0.023 | lr 1.23e-03
+Epoch  18 | train 0.0195 | val 0.0108 (sd 0.0096 current 0.0121) | val/persist 0.022 | lr 1.23e-03
+Epoch  19 | train 0.0188 | val 0.0116 (sd 0.0117 current 0.0115) | val/persist 0.024 | lr 1.23e-03
+Epoch  20 | train 0.0188 | val 0.0105 (sd 0.0096 current 0.0114) | val/persist 0.022 | lr 1.23e-03
+Epoch  21 | train 0.0187 | val 0.0154 (sd 0.0145 current 0.0163) | val/persist 0.032 | lr 1.23e-03
+Epoch  22 | train 0.0188 | val 0.0130 (sd 0.0103 current 0.0158) | val/persist 0.027 | lr 1.23e-03
+Epoch  23 | train 0.0185 | val 0.0102 (sd 0.0088 current 0.0115) | val/persist 0.021 | lr 1.23e-03
+Epoch  24 | train 0.0184 | val 0.0110 (sd 0.0099 current 0.0121) | val/persist 0.023 | lr 1.23e-03
+Epoch  25 | train 0.0182 | val 0.0115 (sd 0.0114 current 0.0116) | val/persist 0.024 | lr 1.23e-03
+Epoch  26 | train 0.0182 | val 0.0101 (sd 0.0087 current 0.0114) | val/persist 0.021 | lr 1.23e-03
+Epoch  27 | train 0.0179 | val 0.0118 (sd 0.0104 current 0.0132) | val/persist 0.024 | lr 1.23e-03
+Epoch  28 | train 0.0179 | val 0.0104 (sd 0.0099 current 0.0109) | val/persist 0.021 | lr 1.23e-03
+Epoch  29 | train 0.0181 | val 0.0104 (sd 0.0093 current 0.0114) | val/persist 0.021 | lr 1.23e-03
+Epoch  30 | train 0.0175 | val 0.0107 (sd 0.0102 current 0.0111) | val/persist 0.022 | lr 1.23e-03
+Epoch  31 | train 0.0174 | val 0.0095 (sd 0.0089 current 0.0100) | val/persist 0.019 | lr 1.23e-03
+Epoch  32 | train 0.0174 | val 0.0096 (sd 0.0094 current 0.0098) | val/persist 0.020 | lr 1.23e-03
+Epoch  33 | train 0.0173 | val 0.0117 (sd 0.0107 current 0.0127) | val/persist 0.024 | lr 1.23e-03
+Epoch  34 | train 0.0172 | val 0.0106 (sd 0.0097 current 0.0114) | val/persist 0.022 | lr 1.23e-03
+Epoch  35 | train 0.0173 | val 0.0123 (sd 0.0099 current 0.0147) | val/persist 0.025 | lr 1.23e-03
+Epoch  36 | train 0.0171 | val 0.0100 (sd 0.0090 current 0.0111) | val/persist 0.021 | lr 1.23e-03
+Epoch  37 | train 0.0169 | val 0.0102 (sd 0.0104 current 0.0100) | val/persist 0.021 | lr 1.23e-03
+Epoch  38 | train 0.0173 | val 0.0120 (sd 0.0108 current 0.0133) | val/persist 0.025 | lr 1.23e-03
+Epoch  39 | train 0.0170 | val 0.0100 (sd 0.0094 current 0.0106) | val/persist 0.021 | lr 1.23e-03
+Epoch  40 | train 0.0171 | val 0.0093 (sd 0.0087 current 0.0099) | val/persist 0.019 | lr 1.23e-03
+Epoch  41 | train 0.0169 | val 0.0112 (sd 0.0119 current 0.0106) | val/persist 0.023 | lr 1.23e-03
+Epoch  42 | train 0.0172 | val 0.0113 (sd 0.0111 current 0.0114) | val/persist 0.023 | lr 1.23e-03
+Epoch  43 | train 0.0166 | val 0.0092 (sd 0.0089 current 0.0095) | val/persist 0.019 | lr 1.23e-03
+Epoch  44 | train 0.0167 | val 0.0092 (sd 0.0087 current 0.0097) | val/persist 0.019 | lr 1.23e-03
+Epoch  45 | train 0.0165 | val 0.0114 (sd 0.0093 current 0.0136) | val/persist 0.024 | lr 1.23e-03
+Epoch  46 | train 0.0167 | val 0.0114 (sd 0.0127 current 0.0101) | val/persist 0.023 | lr 1.23e-03
+Epoch  47 | train 0.0167 | val 0.0109 (sd 0.0116 current 0.0102) | val/persist 0.022 | lr 1.23e-03
+Epoch  48 | train 0.0166 | val 0.0096 (sd 0.0090 current 0.0102) | val/persist 0.020 | lr 1.23e-03
+Epoch  49 | train 0.0163 | val 0.0101 (sd 0.0091 current 0.0112) | val/persist 0.021 | lr 1.23e-03
+Epoch  50 | train 0.0164 | val 0.0108 (sd 0.0123 current 0.0092) | val/persist 0.022 | lr 1.23e-03
+Epoch  51 | train 0.0161 | val 0.0091 (sd 0.0087 current 0.0096) | val/persist 0.019 | lr 1.23e-03
+Epoch  52 | train 0.0162 | val 0.0100 (sd 0.0100 current 0.0101) | val/persist 0.021 | lr 1.23e-03
+Epoch  53 | train 0.0159 | val 0.0113 (sd 0.0110 current 0.0115) | val/persist 0.023 | lr 1.23e-03
+Epoch  54 | train 0.0161 | val 0.0095 (sd 0.0088 current 0.0102) | val/persist 0.020 | lr 1.23e-03
+Epoch  55 | train 0.0159 | val 0.0095 (sd 0.0090 current 0.0101) | val/persist 0.020 | lr 1.23e-03
+Epoch  56 | train 0.0162 | val 0.0099 (sd 0.0094 current 0.0104) | val/persist 0.020 | lr 1.23e-03
+Epoch  57 | train 0.0161 | val 0.0095 (sd 0.0096 current 0.0095) | val/persist 0.020 | lr 1.23e-03
+Epoch  58 | train 0.0158 | val 0.0095 (sd 0.0090 current 0.0099) | val/persist 0.019 | lr 1.23e-03
+Epoch  59 | train 0.0157 | val 0.0094 (sd 0.0093 current 0.0094) | val/persist 0.019 | lr 1.23e-03
+Epoch  60 | train 0.0158 | val 0.0096 (sd 0.0097 current 0.0096) | val/persist 0.020 | lr 1.23e-03
+Epoch  61 | train 0.0158 | val 0.0096 (sd 0.0098 current 0.0093) | val/persist 0.020 | lr 1.23e-03
+Epoch  62 | train 0.0156 | val 0.0092 (sd 0.0094 current 0.0090) | val/persist 0.019 | lr 6.14e-04
+[I 2026-11-03 11:15:43,417] Trial 34 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0986 | val 0.0235 (sd 0.0157 current 0.0314) | val/persist 0.048 | lr 2.76e-03
+Epoch   1 | train 0.0502 | val 0.0224 (sd 0.0164 current 0.0283) | val/persist 0.046 | lr 2.76e-03
+Epoch   2 | train 0.0468 | val 0.0194 (sd 0.0146 current 0.0243) | val/persist 0.040 | lr 2.76e-03
+Epoch   3 | train 0.0428 | val 0.0184 (sd 0.0112 current 0.0257) | val/persist 0.038 | lr 2.76e-03
+Epoch   4 | train 0.0407 | val 0.0146 (sd 0.0114 current 0.0178) | val/persist 0.030 | lr 2.76e-03
+Epoch   5 | train 0.0399 | val 0.0151 (sd 0.0132 current 0.0169) | val/persist 0.031 | lr 2.76e-03
+Epoch   6 | train 0.0384 | val 0.0141 (sd 0.0121 current 0.0161) | val/persist 0.029 | lr 2.76e-03
+Epoch   7 | train 0.0380 | val 0.0156 (sd 0.0125 current 0.0186) | val/persist 0.032 | lr 2.76e-03
+Epoch   8 | train 0.0378 | val 0.0168 (sd 0.0133 current 0.0203) | val/persist 0.035 | lr 2.76e-03
+Epoch   9 | train 0.0375 | val 0.0135 (sd 0.0114 current 0.0157) | val/persist 0.028 | lr 2.76e-03
+Epoch  10 | train 0.0356 | val 0.0136 (sd 0.0125 current 0.0147) | val/persist 0.028 | lr 2.76e-03
+[I 2026-11-03 11:16:27,121] Trial 40 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.1817 | val 0.0443 (sd 0.0280 current 0.0605) | val/persist 0.091 | lr 2.40e-04
+Epoch   1 | train 0.0492 | val 0.0302 (sd 0.0206 current 0.0398) | val/persist 0.062 | lr 2.40e-04
+Epoch   2 | train 0.0400 | val 0.0262 (sd 0.0178 current 0.0346) | val/persist 0.054 | lr 2.40e-04
+Epoch   3 | train 0.0349 | val 0.0213 (sd 0.0142 current 0.0284) | val/persist 0.044 | lr 2.40e-04
+Epoch   4 | train 0.0323 | val 0.0205 (sd 0.0131 current 0.0280) | val/persist 0.042 | lr 2.40e-04
+Epoch   5 | train 0.0301 | val 0.0188 (sd 0.0121 current 0.0254) | val/persist 0.039 | lr 2.40e-04
+Epoch   6 | train 0.0285 | val 0.0176 (sd 0.0122 current 0.0230) | val/persist 0.036 | lr 2.40e-04
+Epoch   7 | train 0.0274 | val 0.0160 (sd 0.0111 current 0.0209) | val/persist 0.033 | lr 2.40e-04
+Epoch   8 | train 0.0260 | val 0.0158 (sd 0.0117 current 0.0198) | val/persist 0.032 | lr 2.40e-04
+[I 2026-11-03 11:17:14,934] Trial 43 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0550 | val 0.0191 (sd 0.0123 current 0.0260) | val/persist 0.039 | lr 3.82e-03
+Epoch   1 | train 0.0227 | val 0.0175 (sd 0.0124 current 0.0226) | val/persist 0.036 | lr 3.82e-03
+Epoch   2 | train 0.0192 | val 0.0152 (sd 0.0115 current 0.0189) | val/persist 0.031 | lr 3.82e-03
+Epoch   3 | train 0.0175 | val 0.0159 (sd 0.0132 current 0.0186) | val/persist 0.033 | lr 3.82e-03
+Epoch   4 | train 0.0174 | val 0.0157 (sd 0.0136 current 0.0179) | val/persist 0.032 | lr 3.82e-03
+Epoch   5 | train 0.0162 | val 0.0121 (sd 0.0099 current 0.0142) | val/persist 0.025 | lr 3.82e-03
+Epoch   6 | train 0.0153 | val 0.0106 (sd 0.0091 current 0.0120) | val/persist 0.022 | lr 3.82e-03
+Epoch   7 | train 0.0156 | val 0.0147 (sd 0.0158 current 0.0137) | val/persist 0.030 | lr 3.82e-03
+Epoch   8 | train 0.0146 | val 0.0141 (sd 0.0129 current 0.0152) | val/persist 0.029 | lr 3.82e-03
+Epoch   9 | train 0.0139 | val 0.0148 (sd 0.0108 current 0.0188) | val/persist 0.030 | lr 3.82e-03
+Epoch  10 | train 0.0141 | val 0.0124 (sd 0.0108 current 0.0141) | val/persist 0.026 | lr 3.82e-03
+Epoch  11 | train 0.0142 | val 0.0129 (sd 0.0139 current 0.0118) | val/persist 0.026 | lr 3.82e-03
+Epoch  12 | train 0.0137 | val 0.0128 (sd 0.0099 current 0.0157) | val/persist 0.026 | lr 3.82e-03
+Epoch  13 | train 0.0134 | val 0.0122 (sd 0.0135 current 0.0109) | val/persist 0.025 | lr 3.82e-03
+Epoch  14 | train 0.0140 | val 0.0104 (sd 0.0102 current 0.0106) | val/persist 0.021 | lr 3.82e-03
+Epoch  15 | train 0.0130 | val 0.0108 (sd 0.0097 current 0.0120) | val/persist 0.022 | lr 3.82e-03
+Epoch  16 | train 0.0122 | val 0.0104 (sd 0.0095 current 0.0113) | val/persist 0.021 | lr 3.82e-03
+Epoch  17 | train 0.0127 | val 0.0126 (sd 0.0139 current 0.0112) | val/persist 0.026 | lr 3.82e-03
+Epoch  18 | train 0.0120 | val 0.0107 (sd 0.0098 current 0.0116) | val/persist 0.022 | lr 3.82e-03
+Epoch  19 | train 0.0126 | val 0.0149 (sd 0.0144 current 0.0153) | val/persist 0.031 | lr 3.82e-03
+Epoch  20 | train 0.0123 | val 0.0115 (sd 0.0095 current 0.0135) | val/persist 0.024 | lr 3.82e-03
+Epoch  21 | train 0.0121 | val 0.0105 (sd 0.0116 current 0.0094) | val/persist 0.022 | lr 3.82e-03
+Epoch  22 | train 0.0121 | val 0.0092 (sd 0.0086 current 0.0098) | val/persist 0.019 | lr 3.82e-03
+Epoch  23 | train 0.0120 | val 0.0122 (sd 0.0127 current 0.0118) | val/persist 0.025 | lr 3.82e-03
+Epoch  24 | train 0.0113 | val 0.0091 (sd 0.0094 current 0.0088) | val/persist 0.019 | lr 3.82e-03
+Epoch  25 | train 0.0119 | val 0.0102 (sd 0.0101 current 0.0102) | val/persist 0.021 | lr 3.82e-03
+Epoch  26 | train 0.0114 | val 0.0110 (sd 0.0114 current 0.0105) | val/persist 0.023 | lr 3.82e-03
+Epoch  27 | train 0.0117 | val 0.0110 (sd 0.0098 current 0.0122) | val/persist 0.023 | lr 3.82e-03
+Epoch  28 | train 0.0117 | val 0.0099 (sd 0.0084 current 0.0115) | val/persist 0.020 | lr 3.82e-03
+Epoch  29 | train 0.0115 | val 0.0109 (sd 0.0117 current 0.0100) | val/persist 0.022 | lr 3.82e-03
+Epoch  30 | train 0.0112 | val 0.0096 (sd 0.0108 current 0.0083) | val/persist 0.020 | lr 3.82e-03
+Epoch  31 | train 0.0111 | val 0.0102 (sd 0.0100 current 0.0103) | val/persist 0.021 | lr 3.82e-03
+Epoch  32 | train 0.0111 | val 0.0125 (sd 0.0144 current 0.0106) | val/persist 0.026 | lr 3.82e-03
+Epoch  33 | train 0.0109 | val 0.0087 (sd 0.0090 current 0.0084) | val/persist 0.018 | lr 3.82e-03
+Epoch  34 | train 0.0112 | val 0.0104 (sd 0.0106 current 0.0102) | val/persist 0.021 | lr 3.82e-03
+Epoch  35 | train 0.0110 | val 0.0093 (sd 0.0094 current 0.0093) | val/persist 0.019 | lr 3.82e-03
+Epoch  36 | train 0.0112 | val 0.0105 (sd 0.0101 current 0.0109) | val/persist 0.022 | lr 3.82e-03
+Epoch  37 | train 0.0106 | val 0.0088 (sd 0.0090 current 0.0085) | val/persist 0.018 | lr 3.82e-03
+Epoch  38 | train 0.0110 | val 0.0120 (sd 0.0139 current 0.0100) | val/persist 0.025 | lr 3.82e-03
+Epoch  39 | train 0.0105 | val 0.0087 (sd 0.0085 current 0.0088) | val/persist 0.018 | lr 3.82e-03
+Epoch  40 | train 0.0107 | val 0.0092 (sd 0.0102 current 0.0082) | val/persist 0.019 | lr 3.82e-03
+Epoch  41 | train 0.0102 | val 0.0085 (sd 0.0091 current 0.0080) | val/persist 0.017 | lr 3.82e-03
+Epoch  42 | train 0.0104 | val 0.0101 (sd 0.0102 current 0.0100) | val/persist 0.021 | lr 3.82e-03
+Epoch  43 | train 0.0104 | val 0.0092 (sd 0.0089 current 0.0095) | val/persist 0.019 | lr 3.82e-03
+Epoch  44 | train 0.0102 | val 0.0087 (sd 0.0087 current 0.0088) | val/persist 0.018 | lr 3.82e-03
+Epoch  45 | train 0.0106 | val 0.0092 (sd 0.0103 current 0.0082) | val/persist 0.019 | lr 3.82e-03
+Epoch  46 | train 0.0106 | val 0.0096 (sd 0.0096 current 0.0096) | val/persist 0.020 | lr 3.82e-03
+Epoch  47 | train 0.0101 | val 0.0086 (sd 0.0089 current 0.0083) | val/persist 0.018 | lr 3.82e-03
+Epoch  48 | train 0.0107 | val 0.0096 (sd 0.0097 current 0.0095) | val/persist 0.020 | lr 3.82e-03
+Epoch  49 | train 0.0101 | val 0.0104 (sd 0.0109 current 0.0100) | val/persist 0.021 | lr 3.82e-03
+Epoch  50 | train 0.0098 | val 0.0100 (sd 0.0102 current 0.0098) | val/persist 0.021 | lr 3.82e-03
+Epoch  51 | train 0.0098 | val 0.0099 (sd 0.0107 current 0.0091) | val/persist 0.020 | lr 3.82e-03
+Epoch  52 | train 0.0099 | val 0.0091 (sd 0.0093 current 0.0089) | val/persist 0.019 | lr 1.91e-03
+Epoch  53 | train 0.0081 | val 0.0080 (sd 0.0079 current 0.0080) | val/persist 0.016 | lr 1.91e-03
+Epoch  54 | train 0.0079 | val 0.0077 (sd 0.0084 current 0.0071) | val/persist 0.016 | lr 1.91e-03
+Epoch  55 | train 0.0080 | val 0.0075 (sd 0.0076 current 0.0074) | val/persist 0.015 | lr 1.91e-03
+Epoch  56 | train 0.0079 | val 0.0077 (sd 0.0079 current 0.0075) | val/persist 0.016 | lr 1.91e-03
+Epoch  57 | train 0.0079 | val 0.0077 (sd 0.0080 current 0.0075) | val/persist 0.016 | lr 1.91e-03
+Epoch  58 | train 0.0079 | val 0.0086 (sd 0.0094 current 0.0077) | val/persist 0.018 | lr 1.91e-03
+Epoch  59 | train 0.0079 | val 0.0083 (sd 0.0078 current 0.0088) | val/persist 0.017 | lr 1.91e-03
+Epoch  60 | train 0.0078 | val 0.0090 (sd 0.0095 current 0.0085) | val/persist 0.018 | lr 1.91e-03
+Epoch  61 | train 0.0079 | val 0.0081 (sd 0.0084 current 0.0078) | val/persist 0.017 | lr 1.91e-03
+Epoch  62 | train 0.0078 | val 0.0079 (sd 0.0079 current 0.0078) | val/persist 0.016 | lr 1.91e-03
+Epoch  63 | train 0.0079 | val 0.0080 (sd 0.0079 current 0.0081) | val/persist 0.016 | lr 1.91e-03
+Epoch  64 | train 0.0077 | val 0.0079 (sd 0.0080 current 0.0078) | val/persist 0.016 | lr 1.91e-03
+Epoch  65 | train 0.0079 | val 0.0088 (sd 0.0093 current 0.0083) | val/persist 0.018 | lr 1.91e-03
+Epoch  66 | train 0.0077 | val 0.0082 (sd 0.0082 current 0.0082) | val/persist 0.017 | lr 9.54e-04
+Epoch  67 | train 0.0069 | val 0.0077 (sd 0.0079 current 0.0075) | val/persist 0.016 | lr 9.54e-04
+Epoch  68 | train 0.0068 | val 0.0074 (sd 0.0075 current 0.0073) | val/persist 0.015 | lr 9.54e-04
+Epoch  69 | train 0.0067 | val 0.0077 (sd 0.0077 current 0.0078) | val/persist 0.016 | lr 9.54e-04
+Epoch  70 | train 0.0066 | val 0.0075 (sd 0.0076 current 0.0074) | val/persist 0.015 | lr 9.54e-04
+Epoch  71 | train 0.0068 | val 0.0076 (sd 0.0078 current 0.0073) | val/persist 0.016 | lr 9.54e-04
+Epoch  72 | train 0.0067 | val 0.0075 (sd 0.0076 current 0.0074) | val/persist 0.015 | lr 9.54e-04
+Epoch  73 | train 0.0067 | val 0.0075 (sd 0.0078 current 0.0072) | val/persist 0.015 | lr 9.54e-04
+Epoch  74 | train 0.0066 | val 0.0077 (sd 0.0078 current 0.0076) | val/persist 0.016 | lr 9.54e-04
+Epoch  75 | train 0.0065 | val 0.0074 (sd 0.0076 current 0.0072) | val/persist 0.015 | lr 9.54e-04
+Epoch  76 | train 0.0067 | val 0.0079 (sd 0.0080 current 0.0079) | val/persist 0.016 | lr 9.54e-04
+Epoch  77 | train 0.0066 | val 0.0077 (sd 0.0079 current 0.0075) | val/persist 0.016 | lr 9.54e-04
+Epoch  78 | train 0.0066 | val 0.0079 (sd 0.0080 current 0.0079) | val/persist 0.016 | lr 9.54e-04
+Epoch  79 | train 0.0065 | val 0.0075 (sd 0.0078 current 0.0072) | val/persist 0.015 | lr 4.77e-04
+
+Training completato. Best val: 0.0074 a epoch 68 (persistenza 0.4867)
+[I 2026-11-03 11:20:36,116] Trial 45 finished with value: 0.007428432083023446 and parameters: {'gru_hidden': 64, 'mlp_hidden': 256, 'num_layers': 1, 'dropout': 0.03481663080567678, 'weight_decay': 3.798848862259539e-06, 'lr': 0.0038157408877134234, 'batch_size': 128, 'clip_norm': 1.0}. Best is trial 32 with value: 0.006814791608069624.
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0912 | val 0.0293 (sd 0.0164 current 0.0421) | val/persist 0.060 | lr 1.25e-03
+Epoch   1 | train 0.0264 | val 0.0196 (sd 0.0130 current 0.0261) | val/persist 0.040 | lr 1.25e-03
+Epoch   2 | train 0.0222 | val 0.0170 (sd 0.0109 current 0.0230) | val/persist 0.035 | lr 1.25e-03
+Epoch   3 | train 0.0197 | val 0.0159 (sd 0.0128 current 0.0191) | val/persist 0.033 | lr 1.25e-03
+Epoch   4 | train 0.0180 | val 0.0157 (sd 0.0138 current 0.0175) | val/persist 0.032 | lr 1.25e-03
+Epoch   5 | train 0.0171 | val 0.0137 (sd 0.0100 current 0.0174) | val/persist 0.028 | lr 1.25e-03
+Epoch   6 | train 0.0162 | val 0.0120 (sd 0.0096 current 0.0144) | val/persist 0.025 | lr 1.25e-03
+Epoch   7 | train 0.0156 | val 0.0121 (sd 0.0097 current 0.0145) | val/persist 0.025 | lr 1.25e-03
+Epoch   8 | train 0.0150 | val 0.0120 (sd 0.0104 current 0.0136) | val/persist 0.025 | lr 1.25e-03
+Epoch   9 | train 0.0144 | val 0.0111 (sd 0.0091 current 0.0132) | val/persist 0.023 | lr 1.25e-03
+Epoch  10 | train 0.0142 | val 0.0111 (sd 0.0091 current 0.0131) | val/persist 0.023 | lr 1.25e-03
+Epoch  11 | train 0.0141 | val 0.0112 (sd 0.0105 current 0.0119) | val/persist 0.023 | lr 1.25e-03
+Epoch  12 | train 0.0132 | val 0.0110 (sd 0.0098 current 0.0121) | val/persist 0.023 | lr 1.25e-03
+Epoch  13 | train 0.0132 | val 0.0105 (sd 0.0099 current 0.0111) | val/persist 0.022 | lr 1.25e-03
+Epoch  14 | train 0.0128 | val 0.0115 (sd 0.0098 current 0.0133) | val/persist 0.024 | lr 1.25e-03
+Epoch  15 | train 0.0128 | val 0.0102 (sd 0.0103 current 0.0101) | val/persist 0.021 | lr 1.25e-03
+Epoch  16 | train 0.0127 | val 0.0099 (sd 0.0087 current 0.0112) | val/persist 0.020 | lr 1.25e-03
+Epoch  17 | train 0.0124 | val 0.0096 (sd 0.0089 current 0.0103) | val/persist 0.020 | lr 1.25e-03
+Epoch  18 | train 0.0122 | val 0.0112 (sd 0.0089 current 0.0135) | val/persist 0.023 | lr 1.25e-03
+Epoch  19 | train 0.0122 | val 0.0105 (sd 0.0109 current 0.0102) | val/persist 0.022 | lr 1.25e-03
+Epoch  20 | train 0.0121 | val 0.0093 (sd 0.0090 current 0.0097) | val/persist 0.019 | lr 1.25e-03
+Epoch  21 | train 0.0116 | val 0.0090 (sd 0.0085 current 0.0096) | val/persist 0.019 | lr 1.25e-03
+Epoch  22 | train 0.0119 | val 0.0099 (sd 0.0097 current 0.0101) | val/persist 0.020 | lr 1.25e-03
+Epoch  23 | train 0.0122 | val 0.0106 (sd 0.0104 current 0.0108) | val/persist 0.022 | lr 1.25e-03
+Epoch  24 | train 0.0116 | val 0.0095 (sd 0.0085 current 0.0105) | val/persist 0.020 | lr 1.25e-03
+Epoch  25 | train 0.0114 | val 0.0097 (sd 0.0088 current 0.0105) | val/persist 0.020 | lr 1.25e-03
+Epoch  26 | train 0.0112 | val 0.0087 (sd 0.0084 current 0.0090) | val/persist 0.018 | lr 1.25e-03
+Epoch  27 | train 0.0113 | val 0.0093 (sd 0.0087 current 0.0099) | val/persist 0.019 | lr 1.25e-03
+Epoch  28 | train 0.0113 | val 0.0089 (sd 0.0088 current 0.0090) | val/persist 0.018 | lr 1.25e-03
+Epoch  29 | train 0.0109 | val 0.0089 (sd 0.0089 current 0.0089) | val/persist 0.018 | lr 1.25e-03
+Epoch  30 | train 0.0110 | val 0.0090 (sd 0.0087 current 0.0093) | val/persist 0.018 | lr 1.25e-03
+Epoch  31 | train 0.0109 | val 0.0098 (sd 0.0102 current 0.0094) | val/persist 0.020 | lr 1.25e-03
+Epoch  32 | train 0.0108 | val 0.0094 (sd 0.0096 current 0.0092) | val/persist 0.019 | lr 1.25e-03
+Epoch  33 | train 0.0108 | val 0.0082 (sd 0.0083 current 0.0082) | val/persist 0.017 | lr 1.25e-03
+Epoch  34 | train 0.0110 | val 0.0089 (sd 0.0086 current 0.0092) | val/persist 0.018 | lr 1.25e-03
+Epoch  35 | train 0.0106 | val 0.0085 (sd 0.0088 current 0.0083) | val/persist 0.018 | lr 1.25e-03
+Epoch  36 | train 0.0104 | val 0.0092 (sd 0.0085 current 0.0099) | val/persist 0.019 | lr 1.25e-03
+Epoch  37 | train 0.0104 | val 0.0084 (sd 0.0083 current 0.0086) | val/persist 0.017 | lr 1.25e-03
+Epoch  38 | train 0.0102 | val 0.0094 (sd 0.0084 current 0.0104) | val/persist 0.019 | lr 1.25e-03
+Epoch  39 | train 0.0104 | val 0.0085 (sd 0.0087 current 0.0082) | val/persist 0.017 | lr 1.25e-03
+Epoch  40 | train 0.0103 | val 0.0090 (sd 0.0096 current 0.0084) | val/persist 0.019 | lr 1.25e-03
+Epoch  41 | train 0.0105 | val 0.0097 (sd 0.0100 current 0.0095) | val/persist 0.020 | lr 1.25e-03
+Epoch  42 | train 0.0100 | val 0.0080 (sd 0.0080 current 0.0079) | val/persist 0.016 | lr 1.25e-03
+Epoch  43 | train 0.0104 | val 0.0089 (sd 0.0082 current 0.0097) | val/persist 0.018 | lr 1.25e-03
+Epoch  44 | train 0.0101 | val 0.0078 (sd 0.0077 current 0.0079) | val/persist 0.016 | lr 1.25e-03
+Epoch  45 | train 0.0101 | val 0.0082 (sd 0.0090 current 0.0075) | val/persist 0.017 | lr 1.25e-03
+Epoch  46 | train 0.0098 | val 0.0081 (sd 0.0081 current 0.0081) | val/persist 0.017 | lr 1.25e-03
+Epoch  47 | train 0.0098 | val 0.0080 (sd 0.0079 current 0.0082) | val/persist 0.016 | lr 1.25e-03
+Epoch  48 | train 0.0099 | val 0.0084 (sd 0.0083 current 0.0086) | val/persist 0.017 | lr 1.25e-03
+Epoch  49 | train 0.0097 | val 0.0090 (sd 0.0081 current 0.0098) | val/persist 0.018 | lr 1.25e-03
+Epoch  50 | train 0.0096 | val 0.0088 (sd 0.0084 current 0.0093) | val/persist 0.018 | lr 1.25e-03
+Epoch  51 | train 0.0096 | val 0.0081 (sd 0.0084 current 0.0077) | val/persist 0.017 | lr 1.25e-03
+Epoch  52 | train 0.0096 | val 0.0083 (sd 0.0076 current 0.0089) | val/persist 0.017 | lr 1.25e-03
+Epoch  53 | train 0.0097 | val 0.0087 (sd 0.0078 current 0.0096) | val/persist 0.018 | lr 1.25e-03
+Epoch  54 | train 0.0096 | val 0.0088 (sd 0.0086 current 0.0089) | val/persist 0.018 | lr 1.25e-03
+Epoch  55 | train 0.0097 | val 0.0079 (sd 0.0076 current 0.0083) | val/persist 0.016 | lr 6.23e-04
+Epoch  56 | train 0.0086 | val 0.0075 (sd 0.0078 current 0.0071) | val/persist 0.015 | lr 6.23e-04
+Epoch  57 | train 0.0086 | val 0.0072 (sd 0.0074 current 0.0069) | val/persist 0.015 | lr 6.23e-04
+Epoch  58 | train 0.0086 | val 0.0072 (sd 0.0075 current 0.0069) | val/persist 0.015 | lr 6.23e-04
+Epoch  59 | train 0.0085 | val 0.0072 (sd 0.0074 current 0.0070) | val/persist 0.015 | lr 6.23e-04
+Epoch  60 | train 0.0086 | val 0.0072 (sd 0.0075 current 0.0068) | val/persist 0.015 | lr 6.23e-04
+Epoch  61 | train 0.0086 | val 0.0073 (sd 0.0074 current 0.0073) | val/persist 0.015 | lr 6.23e-04
+Epoch  62 | train 0.0085 | val 0.0077 (sd 0.0077 current 0.0077) | val/persist 0.016 | lr 6.23e-04
+Epoch  63 | train 0.0086 | val 0.0073 (sd 0.0076 current 0.0069) | val/persist 0.015 | lr 6.23e-04
+Epoch  64 | train 0.0084 | val 0.0073 (sd 0.0077 current 0.0069) | val/persist 0.015 | lr 6.23e-04
+Epoch  65 | train 0.0084 | val 0.0078 (sd 0.0075 current 0.0081) | val/persist 0.016 | lr 6.23e-04
+Epoch  66 | train 0.0085 | val 0.0072 (sd 0.0075 current 0.0069) | val/persist 0.015 | lr 6.23e-04
+Epoch  67 | train 0.0082 | val 0.0072 (sd 0.0074 current 0.0070) | val/persist 0.015 | lr 6.23e-04
+Epoch  68 | train 0.0084 | val 0.0072 (sd 0.0075 current 0.0068) | val/persist 0.015 | lr 6.23e-04
+Epoch  69 | train 0.0085 | val 0.0075 (sd 0.0074 current 0.0076) | val/persist 0.015 | lr 6.23e-04
+Epoch  70 | train 0.0084 | val 0.0073 (sd 0.0075 current 0.0071) | val/persist 0.015 | lr 6.23e-04
+Epoch  71 | train 0.0083 | val 0.0072 (sd 0.0072 current 0.0072) | val/persist 0.015 | lr 6.23e-04
+Epoch  72 | train 0.0083 | val 0.0072 (sd 0.0073 current 0.0071) | val/persist 0.015 | lr 6.23e-04
+Epoch  73 | train 0.0083 | val 0.0076 (sd 0.0081 current 0.0071) | val/persist 0.016 | lr 6.23e-04
+Epoch  74 | train 0.0082 | val 0.0072 (sd 0.0075 current 0.0070) | val/persist 0.015 | lr 6.23e-04
+Epoch  75 | train 0.0081 | val 0.0073 (sd 0.0078 current 0.0068) | val/persist 0.015 | lr 6.23e-04
+Epoch  76 | train 0.0082 | val 0.0071 (sd 0.0073 current 0.0069) | val/persist 0.015 | lr 6.23e-04
+Epoch  77 | train 0.0082 | val 0.0072 (sd 0.0073 current 0.0070) | val/persist 0.015 | lr 6.23e-04
+Epoch  78 | train 0.0081 | val 0.0071 (sd 0.0075 current 0.0068) | val/persist 0.015 | lr 6.23e-04
+Epoch  79 | train 0.0081 | val 0.0079 (sd 0.0075 current 0.0083) | val/persist 0.016 | lr 6.23e-04
+
+Training completato. Best val: 0.0071 a epoch 76 (persistenza 0.4867)
+[I 2026-11-03 11:23:52,617] Trial 48 finished with value: 0.007088583977702929 and parameters: {'gru_hidden': 64, 'mlp_hidden': 256, 'num_layers': 1, 'dropout': 0.03274235798434526, 'weight_decay': 1.3470893537459316e-05, 'lr': 0.0012452142288989164, 'batch_size': 128, 'clip_norm': 1.0}. Best is trial 32 with value: 0.006814791608069624.
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.1349 | val 0.0315 (sd 0.0224 current 0.0405) | val/persist 0.065 | lr 5.63e-04
+Epoch   1 | train 0.0376 | val 0.0237 (sd 0.0150 current 0.0323) | val/persist 0.049 | lr 5.63e-04
+Epoch   2 | train 0.0310 | val 0.0204 (sd 0.0141 current 0.0268) | val/persist 0.042 | lr 5.63e-04
+Epoch   3 | train 0.0281 | val 0.0195 (sd 0.0127 current 0.0264) | val/persist 0.040 | lr 5.63e-04
+Epoch   4 | train 0.0262 | val 0.0167 (sd 0.0113 current 0.0221) | val/persist 0.034 | lr 5.63e-04
+Epoch   5 | train 0.0245 | val 0.0154 (sd 0.0110 current 0.0197) | val/persist 0.032 | lr 5.63e-04
+Epoch   6 | train 0.0233 | val 0.0149 (sd 0.0117 current 0.0182) | val/persist 0.031 | lr 5.63e-04
+Epoch   7 | train 0.0228 | val 0.0144 (sd 0.0108 current 0.0181) | val/persist 0.030 | lr 5.63e-04
+Epoch   8 | train 0.0220 | val 0.0132 (sd 0.0096 current 0.0168) | val/persist 0.027 | lr 5.63e-04
+Epoch   9 | train 0.0212 | val 0.0133 (sd 0.0096 current 0.0170) | val/persist 0.027 | lr 5.63e-04
+[I 2026-11-03 11:24:16,926] Trial 54 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.1176 | val 0.0273 (sd 0.0167 current 0.0378) | val/persist 0.056 | lr 4.85e-04
+Epoch   1 | train 0.0345 | val 0.0231 (sd 0.0171 current 0.0291) | val/persist 0.047 | lr 4.85e-04
+Epoch   2 | train 0.0304 | val 0.0196 (sd 0.0138 current 0.0254) | val/persist 0.040 | lr 4.85e-04
+Epoch   3 | train 0.0275 | val 0.0161 (sd 0.0109 current 0.0213) | val/persist 0.033 | lr 4.85e-04
+Epoch   4 | train 0.0254 | val 0.0164 (sd 0.0129 current 0.0199) | val/persist 0.034 | lr 4.85e-04
+Epoch   5 | train 0.0241 | val 0.0141 (sd 0.0107 current 0.0175) | val/persist 0.029 | lr 4.85e-04
+Epoch   6 | train 0.0230 | val 0.0156 (sd 0.0120 current 0.0192) | val/persist 0.032 | lr 4.85e-04
+Epoch   7 | train 0.0221 | val 0.0148 (sd 0.0104 current 0.0193) | val/persist 0.030 | lr 4.85e-04
+Epoch   8 | train 0.0215 | val 0.0121 (sd 0.0100 current 0.0142) | val/persist 0.025 | lr 4.85e-04
+Epoch   9 | train 0.0210 | val 0.0125 (sd 0.0103 current 0.0146) | val/persist 0.026 | lr 4.85e-04
+Epoch  10 | train 0.0203 | val 0.0119 (sd 0.0108 current 0.0129) | val/persist 0.024 | lr 4.85e-04
+Epoch  11 | train 0.0199 | val 0.0110 (sd 0.0095 current 0.0125) | val/persist 0.023 | lr 4.85e-04
+Epoch  12 | train 0.0195 | val 0.0113 (sd 0.0093 current 0.0133) | val/persist 0.023 | lr 4.85e-04
+Epoch  13 | train 0.0195 | val 0.0105 (sd 0.0091 current 0.0119) | val/persist 0.022 | lr 4.85e-04
+Epoch  14 | train 0.0190 | val 0.0122 (sd 0.0118 current 0.0126) | val/persist 0.025 | lr 4.85e-04
+Epoch  15 | train 0.0191 | val 0.0110 (sd 0.0101 current 0.0119) | val/persist 0.023 | lr 4.85e-04
+Epoch  16 | train 0.0185 | val 0.0106 (sd 0.0097 current 0.0115) | val/persist 0.022 | lr 4.85e-04
+Epoch  17 | train 0.0187 | val 0.0115 (sd 0.0100 current 0.0131) | val/persist 0.024 | lr 4.85e-04
+Epoch  18 | train 0.0187 | val 0.0106 (sd 0.0097 current 0.0115) | val/persist 0.022 | lr 4.85e-04
+Epoch  19 | train 0.0180 | val 0.0118 (sd 0.0115 current 0.0122) | val/persist 0.024 | lr 4.85e-04
+Epoch  20 | train 0.0179 | val 0.0115 (sd 0.0099 current 0.0131) | val/persist 0.024 | lr 4.85e-04
+Epoch  21 | train 0.0181 | val 0.0109 (sd 0.0104 current 0.0113) | val/persist 0.022 | lr 4.85e-04
+Epoch  22 | train 0.0176 | val 0.0100 (sd 0.0094 current 0.0105) | val/persist 0.021 | lr 4.85e-04
+Epoch  23 | train 0.0175 | val 0.0111 (sd 0.0099 current 0.0124) | val/persist 0.023 | lr 4.85e-04
+Epoch  24 | train 0.0174 | val 0.0117 (sd 0.0114 current 0.0119) | val/persist 0.024 | lr 4.85e-04
+Epoch  25 | train 0.0171 | val 0.0093 (sd 0.0089 current 0.0097) | val/persist 0.019 | lr 4.85e-04
+Epoch  26 | train 0.0173 | val 0.0110 (sd 0.0100 current 0.0119) | val/persist 0.023 | lr 4.85e-04
+Epoch  27 | train 0.0166 | val 0.0110 (sd 0.0093 current 0.0126) | val/persist 0.023 | lr 4.85e-04
+Epoch  28 | train 0.0165 | val 0.0097 (sd 0.0093 current 0.0101) | val/persist 0.020 | lr 4.85e-04
+Epoch  29 | train 0.0165 | val 0.0108 (sd 0.0105 current 0.0111) | val/persist 0.022 | lr 4.85e-04
+Epoch  30 | train 0.0166 | val 0.0103 (sd 0.0096 current 0.0111) | val/persist 0.021 | lr 4.85e-04
+Epoch  31 | train 0.0164 | val 0.0099 (sd 0.0094 current 0.0105) | val/persist 0.020 | lr 4.85e-04
+Epoch  32 | train 0.0161 | val 0.0114 (sd 0.0101 current 0.0127) | val/persist 0.023 | lr 4.85e-04
+Epoch  33 | train 0.0161 | val 0.0102 (sd 0.0100 current 0.0105) | val/persist 0.021 | lr 4.85e-04
+Epoch  34 | train 0.0160 | val 0.0091 (sd 0.0084 current 0.0099) | val/persist 0.019 | lr 4.85e-04
+Epoch  35 | train 0.0158 | val 0.0107 (sd 0.0107 current 0.0108) | val/persist 0.022 | lr 4.85e-04
+Epoch  36 | train 0.0160 | val 0.0094 (sd 0.0091 current 0.0097) | val/persist 0.019 | lr 4.85e-04
+Epoch  37 | train 0.0155 | val 0.0098 (sd 0.0093 current 0.0102) | val/persist 0.020 | lr 4.85e-04
+Epoch  38 | train 0.0159 | val 0.0094 (sd 0.0092 current 0.0095) | val/persist 0.019 | lr 4.85e-04
+[I 2026-11-03 11:33:58,215] Trial 55 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.0744 | val 0.0212 (sd 0.0136 current 0.0289) | val/persist 0.044 | lr 2.87e-03
+Epoch   1 | train 0.0229 | val 0.0255 (sd 0.0155 current 0.0354) | val/persist 0.052 | lr 2.87e-03
+Epoch   2 | train 0.0182 | val 0.0139 (sd 0.0104 current 0.0174) | val/persist 0.029 | lr 2.87e-03
+Epoch   3 | train 0.0161 | val 0.0119 (sd 0.0099 current 0.0139) | val/persist 0.024 | lr 2.87e-03
+Epoch   4 | train 0.0147 | val 0.0120 (sd 0.0098 current 0.0142) | val/persist 0.025 | lr 2.87e-03
+Epoch   5 | train 0.0153 | val 0.0106 (sd 0.0097 current 0.0114) | val/persist 0.022 | lr 2.87e-03
+Epoch   6 | train 0.0134 | val 0.0106 (sd 0.0093 current 0.0119) | val/persist 0.022 | lr 2.87e-03
+Epoch   7 | train 0.0134 | val 0.0128 (sd 0.0127 current 0.0129) | val/persist 0.026 | lr 2.87e-03
+Epoch   8 | train 0.0144 | val 0.0135 (sd 0.0124 current 0.0147) | val/persist 0.028 | lr 2.87e-03
+Epoch   9 | train 0.0130 | val 0.0106 (sd 0.0092 current 0.0119) | val/persist 0.022 | lr 2.87e-03
+Epoch  10 | train 0.0127 | val 0.0125 (sd 0.0107 current 0.0142) | val/persist 0.026 | lr 2.87e-03
+Epoch  11 | train 0.0117 | val 0.0110 (sd 0.0103 current 0.0117) | val/persist 0.023 | lr 2.87e-03
+Epoch  12 | train 0.0115 | val 0.0098 (sd 0.0090 current 0.0105) | val/persist 0.020 | lr 2.87e-03
+Epoch  13 | train 0.0115 | val 0.0101 (sd 0.0095 current 0.0108) | val/persist 0.021 | lr 2.87e-03
+Epoch  14 | train 0.0114 | val 0.0108 (sd 0.0100 current 0.0116) | val/persist 0.022 | lr 2.87e-03
+Epoch  15 | train 0.0111 | val 0.0100 (sd 0.0094 current 0.0105) | val/persist 0.020 | lr 2.87e-03
+Epoch  16 | train 0.0109 | val 0.0105 (sd 0.0102 current 0.0108) | val/persist 0.022 | lr 2.87e-03
+Epoch  17 | train 0.0107 | val 0.0101 (sd 0.0086 current 0.0116) | val/persist 0.021 | lr 2.87e-03
+Epoch  18 | train 0.0109 | val 0.0108 (sd 0.0108 current 0.0109) | val/persist 0.022 | lr 2.87e-03
+Epoch  19 | train 0.0109 | val 0.0096 (sd 0.0090 current 0.0102) | val/persist 0.020 | lr 2.87e-03
+Epoch  20 | train 0.0104 | val 0.0102 (sd 0.0104 current 0.0099) | val/persist 0.021 | lr 2.87e-03
+Epoch  21 | train 0.0105 | val 0.0118 (sd 0.0087 current 0.0148) | val/persist 0.024 | lr 2.87e-03
+Epoch  22 | train 0.0099 | val 0.0107 (sd 0.0099 current 0.0115) | val/persist 0.022 | lr 2.87e-03
+Epoch  23 | train 0.0099 | val 0.0096 (sd 0.0096 current 0.0097) | val/persist 0.020 | lr 2.87e-03
+Epoch  24 | train 0.0099 | val 0.0096 (sd 0.0094 current 0.0099) | val/persist 0.020 | lr 2.87e-03
+Epoch  25 | train 0.0100 | val 0.0095 (sd 0.0103 current 0.0087) | val/persist 0.019 | lr 2.87e-03
+Epoch  26 | train 0.0096 | val 0.0089 (sd 0.0081 current 0.0097) | val/persist 0.018 | lr 2.87e-03
+Epoch  27 | train 0.0096 | val 0.0092 (sd 0.0089 current 0.0096) | val/persist 0.019 | lr 2.87e-03
+Epoch  28 | train 0.0106 | val 0.0093 (sd 0.0085 current 0.0102) | val/persist 0.019 | lr 2.87e-03
+Epoch  29 | train 0.0098 | val 0.0101 (sd 0.0103 current 0.0100) | val/persist 0.021 | lr 2.87e-03
+Epoch  30 | train 0.0093 | val 0.0085 (sd 0.0080 current 0.0090) | val/persist 0.017 | lr 2.87e-03
+Epoch  31 | train 0.0089 | val 0.0114 (sd 0.0123 current 0.0105) | val/persist 0.023 | lr 2.87e-03
+Epoch  32 | train 0.0092 | val 0.0096 (sd 0.0092 current 0.0100) | val/persist 0.020 | lr 2.87e-03
+Epoch  33 | train 0.0090 | val 0.0096 (sd 0.0094 current 0.0098) | val/persist 0.020 | lr 2.87e-03
+Epoch  34 | train 0.0086 | val 0.0093 (sd 0.0087 current 0.0098) | val/persist 0.019 | lr 2.87e-03
+Epoch  35 | train 0.0088 | val 0.0115 (sd 0.0097 current 0.0133) | val/persist 0.024 | lr 2.87e-03
+Epoch  36 | train 0.0092 | val 0.0081 (sd 0.0081 current 0.0082) | val/persist 0.017 | lr 2.87e-03
+Epoch  37 | train 0.0085 | val 0.0086 (sd 0.0083 current 0.0088) | val/persist 0.018 | lr 2.87e-03
+Epoch  38 | train 0.0087 | val 0.0100 (sd 0.0098 current 0.0102) | val/persist 0.021 | lr 2.87e-03
+Epoch  39 | train 0.0086 | val 0.0091 (sd 0.0092 current 0.0090) | val/persist 0.019 | lr 2.87e-03
+Epoch  40 | train 0.0083 | val 0.0121 (sd 0.0118 current 0.0125) | val/persist 0.025 | lr 2.87e-03
+Epoch  41 | train 0.0090 | val 0.0089 (sd 0.0091 current 0.0088) | val/persist 0.018 | lr 2.87e-03
+Epoch  42 | train 0.0083 | val 0.0088 (sd 0.0090 current 0.0086) | val/persist 0.018 | lr 2.87e-03
+Epoch  43 | train 0.0080 | val 0.0094 (sd 0.0100 current 0.0087) | val/persist 0.019 | lr 2.87e-03
+Epoch  44 | train 0.0084 | val 0.0114 (sd 0.0103 current 0.0125) | val/persist 0.023 | lr 2.87e-03
+Epoch  45 | train 0.0081 | val 0.0087 (sd 0.0087 current 0.0086) | val/persist 0.018 | lr 2.87e-03
+Epoch  46 | train 0.0077 | val 0.0080 (sd 0.0079 current 0.0081) | val/persist 0.016 | lr 2.87e-03
+Epoch  47 | train 0.0082 | val 0.0088 (sd 0.0088 current 0.0089) | val/persist 0.018 | lr 2.87e-03
+Epoch  48 | train 0.0076 | val 0.0094 (sd 0.0090 current 0.0098) | val/persist 0.019 | lr 2.87e-03
+Epoch  49 | train 0.0075 | val 0.0106 (sd 0.0101 current 0.0112) | val/persist 0.022 | lr 2.87e-03
+Epoch  50 | train 0.0076 | val 0.0084 (sd 0.0080 current 0.0088) | val/persist 0.017 | lr 2.87e-03
+Epoch  51 | train 0.0076 | val 0.0089 (sd 0.0080 current 0.0097) | val/persist 0.018 | lr 2.87e-03
+Epoch  52 | train 0.0079 | val 0.0093 (sd 0.0098 current 0.0088) | val/persist 0.019 | lr 2.87e-03
+Epoch  53 | train 0.0077 | val 0.0091 (sd 0.0093 current 0.0089) | val/persist 0.019 | lr 2.87e-03
+Epoch  54 | train 0.0075 | val 0.0083 (sd 0.0084 current 0.0082) | val/persist 0.017 | lr 2.87e-03
+Epoch  55 | train 0.0068 | val 0.0091 (sd 0.0100 current 0.0083) | val/persist 0.019 | lr 2.87e-03
+Epoch  56 | train 0.0071 | val 0.0087 (sd 0.0089 current 0.0084) | val/persist 0.018 | lr 2.87e-03
+Epoch  57 | train 0.0069 | val 0.0088 (sd 0.0086 current 0.0089) | val/persist 0.018 | lr 1.44e-03
+Epoch  58 | train 0.0055 | val 0.0081 (sd 0.0076 current 0.0085) | val/persist 0.017 | lr 1.44e-03
+Epoch  59 | train 0.0052 | val 0.0081 (sd 0.0077 current 0.0085) | val/persist 0.017 | lr 1.44e-03
+Epoch  60 | train 0.0052 | val 0.0079 (sd 0.0075 current 0.0082) | val/persist 0.016 | lr 1.44e-03
+Epoch  61 | train 0.0050 | val 0.0078 (sd 0.0077 current 0.0079) | val/persist 0.016 | lr 1.44e-03
+Epoch  62 | train 0.0051 | val 0.0085 (sd 0.0082 current 0.0089) | val/persist 0.018 | lr 1.44e-03
+[I 2026-11-03 11:39:14,887] Trial 71 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.1207 | val 0.0292 (sd 0.0195 current 0.0388) | val/persist 0.060 | lr 3.45e-04
+Epoch   1 | train 0.0350 | val 0.0227 (sd 0.0154 current 0.0299) | val/persist 0.047 | lr 3.45e-04
+Epoch   2 | train 0.0298 | val 0.0200 (sd 0.0125 current 0.0274) | val/persist 0.041 | lr 3.45e-04
+Epoch   3 | train 0.0273 | val 0.0168 (sd 0.0110 current 0.0226) | val/persist 0.035 | lr 3.45e-04
+Epoch   4 | train 0.0248 | val 0.0167 (sd 0.0107 current 0.0226) | val/persist 0.034 | lr 3.45e-04
+Epoch   5 | train 0.0241 | val 0.0148 (sd 0.0102 current 0.0194) | val/persist 0.030 | lr 3.45e-04
+Epoch   6 | train 0.0225 | val 0.0139 (sd 0.0105 current 0.0174) | val/persist 0.029 | lr 3.45e-04
+Epoch   7 | train 0.0221 | val 0.0143 (sd 0.0109 current 0.0177) | val/persist 0.029 | lr 3.45e-04
+Epoch   8 | train 0.0211 | val 0.0127 (sd 0.0101 current 0.0153) | val/persist 0.026 | lr 3.45e-04
+[I 2026-11-03 11:40:12,932] Trial 78 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.4551 | val 0.0991 (sd 0.0542 current 0.1439) | val/persist 0.204 | lr 2.62e-04
+Epoch   1 | train 0.1251 | val 0.0715 (sd 0.0390 current 0.1040) | val/persist 0.147 | lr 2.62e-04
+Epoch   2 | train 0.0961 | val 0.0532 (sd 0.0257 current 0.0807) | val/persist 0.109 | lr 2.62e-04
+Epoch   3 | train 0.0799 | val 0.0422 (sd 0.0220 current 0.0625) | val/persist 0.087 | lr 2.62e-04
+Epoch   4 | train 0.0687 | val 0.0360 (sd 0.0207 current 0.0513) | val/persist 0.074 | lr 2.62e-04
+Epoch   5 | train 0.0610 | val 0.0311 (sd 0.0185 current 0.0436) | val/persist 0.064 | lr 2.62e-04
+Epoch   6 | train 0.0573 | val 0.0288 (sd 0.0194 current 0.0383) | val/persist 0.059 | lr 2.62e-04
+Epoch   7 | train 0.0529 | val 0.0269 (sd 0.0189 current 0.0348) | val/persist 0.055 | lr 2.62e-04
+Epoch   8 | train 0.0505 | val 0.0243 (sd 0.0159 current 0.0328) | val/persist 0.050 | lr 2.62e-04
+[I 2026-11-03 11:40:55,129] Trial 81 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.1074 | val 0.0309 (sd 0.0217 current 0.0401) | val/persist 0.063 | lr 6.58e-04
+Epoch   1 | train 0.0323 | val 0.0213 (sd 0.0141 current 0.0285) | val/persist 0.044 | lr 6.58e-04
+Epoch   2 | train 0.0261 | val 0.0178 (sd 0.0118 current 0.0239) | val/persist 0.037 | lr 6.58e-04
+Epoch   3 | train 0.0236 | val 0.0159 (sd 0.0110 current 0.0208) | val/persist 0.033 | lr 6.58e-04
+Epoch   4 | train 0.0215 | val 0.0150 (sd 0.0116 current 0.0184) | val/persist 0.031 | lr 6.58e-04
+Epoch   5 | train 0.0201 | val 0.0143 (sd 0.0114 current 0.0172) | val/persist 0.029 | lr 6.58e-04
+Epoch   6 | train 0.0187 | val 0.0129 (sd 0.0099 current 0.0158) | val/persist 0.026 | lr 6.58e-04
+Epoch   7 | train 0.0180 | val 0.0127 (sd 0.0103 current 0.0152) | val/persist 0.026 | lr 6.58e-04
+Epoch   8 | train 0.0175 | val 0.0124 (sd 0.0115 current 0.0134) | val/persist 0.026 | lr 6.58e-04
+Epoch   9 | train 0.0171 | val 0.0116 (sd 0.0104 current 0.0128) | val/persist 0.024 | lr 6.58e-04
+Epoch  10 | train 0.0168 | val 0.0110 (sd 0.0092 current 0.0129) | val/persist 0.023 | lr 6.58e-04
+Epoch  11 | train 0.0161 | val 0.0119 (sd 0.0094 current 0.0145) | val/persist 0.025 | lr 6.58e-04
+Epoch  12 | train 0.0159 | val 0.0108 (sd 0.0095 current 0.0120) | val/persist 0.022 | lr 6.58e-04
+Epoch  13 | train 0.0158 | val 0.0107 (sd 0.0090 current 0.0124) | val/persist 0.022 | lr 6.58e-04
+Epoch  14 | train 0.0153 | val 0.0114 (sd 0.0091 current 0.0136) | val/persist 0.023 | lr 6.58e-04
+Epoch  15 | train 0.0150 | val 0.0100 (sd 0.0093 current 0.0108) | val/persist 0.021 | lr 6.58e-04
+Epoch  16 | train 0.0149 | val 0.0100 (sd 0.0088 current 0.0112) | val/persist 0.021 | lr 6.58e-04
+Epoch  17 | train 0.0147 | val 0.0104 (sd 0.0092 current 0.0116) | val/persist 0.021 | lr 6.58e-04
+Epoch  18 | train 0.0145 | val 0.0109 (sd 0.0099 current 0.0120) | val/persist 0.022 | lr 6.58e-04
+Epoch  19 | train 0.0145 | val 0.0107 (sd 0.0093 current 0.0122) | val/persist 0.022 | lr 6.58e-04
+Epoch  20 | train 0.0142 | val 0.0101 (sd 0.0088 current 0.0115) | val/persist 0.021 | lr 6.58e-04
+[I 2026-11-03 11:42:02,129] Trial 83 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.1482 | val 0.0326 (sd 0.0226 current 0.0426) | val/persist 0.067 | lr 9.07e-04
+Epoch   1 | train 0.0590 | val 0.0257 (sd 0.0171 current 0.0343) | val/persist 0.053 | lr 9.07e-04
+Epoch   2 | train 0.0527 | val 0.0213 (sd 0.0143 current 0.0283) | val/persist 0.044 | lr 9.07e-04
+Epoch   3 | train 0.0495 | val 0.0208 (sd 0.0139 current 0.0277) | val/persist 0.043 | lr 9.07e-04
+Epoch   4 | train 0.0463 | val 0.0179 (sd 0.0127 current 0.0232) | val/persist 0.037 | lr 9.07e-04
+Epoch   5 | train 0.0445 | val 0.0160 (sd 0.0118 current 0.0202) | val/persist 0.033 | lr 9.07e-04
+Epoch   6 | train 0.0426 | val 0.0155 (sd 0.0126 current 0.0184) | val/persist 0.032 | lr 9.07e-04
+Epoch   7 | train 0.0422 | val 0.0165 (sd 0.0147 current 0.0183) | val/persist 0.034 | lr 9.07e-04
+Epoch   8 | train 0.0414 | val 0.0142 (sd 0.0112 current 0.0173) | val/persist 0.029 | lr 9.07e-04
+[I 2026-11-03 11:42:30,486] Trial 87 pruned. 
+Split per-trial: 31360 finestre train | 7840 finestre val
+Baseline persistenza (val): 0.4867 (sd 0.4317 | current 0.5416)
+Epoch   0 | train 0.2050 | val 0.0451 (sd 0.0284 current 0.0619) | val/persist 0.093 | lr 4.78e-04
+Epoch   1 | train 0.0455 | val 0.0300 (sd 0.0205 current 0.0396) | val/persist 0.062 | lr 4.78e-04
+Epoch   2 | train 0.0357 | val 0.0258 (sd 0.0168 current 0.0349) | val/persist 0.053 | lr 4.78e-04
+Epoch   3 | train 0.0311 | val 0.0227 (sd 0.0145 current 0.0309) | val/persist 0.047 | lr 4.78e-04
+Epoch   4 | train 0.0280 | val 0.0196 (sd 0.0131 current 0.0262) | val/persist 0.040 | lr 4.78e-04
+Epoch   5 | train 0.0262 | val 0.0187 (sd 0.0128 current 0.0246) | val/persist 0.038 | lr 4.78e-04
+Epoch   6 | train 0.0244 | val 0.0177 (sd 0.0127 current 0.0227) | val/persist 0.036 | lr 4.78e-04
+Epoch   7 | train 0.0234 | val 0.0167 (sd 0.0117 current 0.0217) | val/persist 0.034 | lr 4.78e-04
+Epoch   8 | train 0.0224 | val 0.0153 (sd 0.0110 current 0.0195) | val/persist 0.031 | lr 4.78e-04
+[I 2026-11-03 11:42:50,382] Trial 88 pruned. 
+
+Best val: 0.00655
+  gru_hidden: 256
+  mlp_hidden: 512
+  num_layers: 1
+  dropout: 0.025788333211440487
+  weight_decay: 0.00015165131889405937
+  lr: 0.0009379946673077916
+  batch_size: 256
+  clip_norm: 0.5
+Report: /home/gemma/tesi/aquabot/src/net/fm/tuning/tuning_results/best_fm_1102.txt
