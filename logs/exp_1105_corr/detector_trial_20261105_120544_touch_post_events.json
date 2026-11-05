@@ -1,0 +1,36 @@
+{
+  "trial": "trial_20261105_120544_touch_post.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9,
+    61.9,
+    81.9,
+    101.9
+  ],
+  "slow_events": [
+    {
+      "channel": "current",
+      "t_alarm": 424,
+      "t_alarm_s": 42.4,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 45.6,
+      "duration_s": 3.2
+    },
+    {
+      "channel": "current",
+      "t_alarm": 615,
+      "t_alarm_s": 61.5,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 63.6,
+      "duration_s": 2.1
+    }
+  ],
+  "final_state": "normal",
+  "events": []
+}

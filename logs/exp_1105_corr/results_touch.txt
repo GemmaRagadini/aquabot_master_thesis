@@ -1,0 +1,44 @@
+Trovati 2 trial.
+Dataset grezzo: 2 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 2068 campioni da 2 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_20261105_120224_touch.csv [train] | 1808 samples (180.7 s) | 0 injected perturbations
+Rollout re-anchors at t = [21.9, 41.9, 70.4, 98.3, 126.2, 154.8] s
+ALARM at 23.4 s (channels: current) -> TRANSIENT decided at 29.9 s
+    current      transient    onset abrupt (S_R rise: 0.94 thresholds)
+ALARM at 44.2 s (channels: current) -> TRANSIENT decided at 50.7 s
+    sensor_diff  transient    onset abrupt (S_R rise: 0.85 thresholds)
+    current      transient    onset abrupt (S_R rise: 1.13 thresholds)
+ALARM at 58.9 s (channels: current) -> TRANSIENT decided at 65.4 s
+    sensor_diff  transient    onset abrupt (S_R rise: 0.71 thresholds)
+    current      transient    onset abrupt (S_R rise: 1.54 thresholds)
+ALARM at 86.8 s (channels: current) -> TRANSIENT decided at 93.3 s
+    sensor_diff  transient    onset abrupt (S_R rise: 0.99 thresholds)
+    current      transient    onset abrupt (S_R rise: 2.09 thresholds)
+ALARM at 109.7 s (channels: current) -> PERSISTENT decided at 116.2 s
+    ended at 116.3 s (duration 6.6 s), automatic return to normal
+    sensor_diff  persistent   onset abrupt (S_R rise: 0.78 thresholds, persistent by S_R)
+    current      persistent   onset abrupt (S_R rise: 1.18 thresholds, persistent by S_R)
+ALARM at 143.3 s (channels: current) -> TRANSIENT decided at 149.8 s
+    current      transient    onset abrupt (S_R rise: 1.72 thresholds)
+ALARM at 155.8 s (channels: current) -> TRANSIENT decided at 162.3 s
+    sensor_diff  transient    onset abrupt (S_R rise: 1.09 thresholds)
+    current      transient    onset abrupt (S_R rise: 2.06 thresholds)
+ALARM at 172.6 s (channels: current) -> TRANSIENT decided at 179.1 s
+    current      transient    onset abrupt (S_R rise: 1.32 thresholds)
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on current at 39.0 s, ended at 47.1 s (duration 8.1 s) (origin)
+  SLOW ALARM on current at 59.0 s, ended at 61.7 s (duration 2.7 s) (origin)
+  SLOW ALARM on sensor_diff at 59.3 s, ended at 62.0 s (duration 2.7 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on current at 87.1 s, ended at 93.2 s (duration 6.1 s) (origin)
+  SLOW ALARM on sensor_diff at 87.3 s, ended at 90.4 s (duration 3.1 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on current at 104.5 s, ended at 122.5 s (duration 18.0 s) (origin)
+  SLOW ALARM on sensor_diff at 110.2 s, ended at 118.2 s (duration 8.0 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on current at 143.5 s, ended at 150.7 s (duration 7.2 s) (origin)
+  SLOW ALARM on current at 156.0 s, ended at 162.2 s (duration 6.2 s) (origin)
+  SLOW ALARM on sensor_diff at 156.2 s, ended at 164.3 s (duration 8.1 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on current at 172.9 s, still active at the end of the trial (origin)
+Saved logs/exp_1105_corr/detector_trial_20261105_120224_touch.png
+Saved logs/exp_1105_corr/detector_trial_20261105_120224_touch_events.json
