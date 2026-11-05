@@ -1,0 +1,2 @@
+Trovati 1 trial.
+Dataset grezzo: 1 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
