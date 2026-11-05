@@ -1,0 +1,50 @@
+{
+  "trial": "trial_20261105_114116_peso.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [],
+  "slow_events": [
+    {
+      "channel": "current",
+      "t_alarm": 28,
+      "t_alarm_s": 2.8,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0
+    },
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 32,
+      "t_alarm_s": 3.2,
+      "secondary": true,
+      "origin": "current",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "persistent",
+  "events": [
+    {
+      "t_alarm": 26,
+      "t_alarm_s": 2.6,
+      "t_decision_s": 9.1,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "undetermined",
+          "SR_rise": null,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "persistent",
+          "onset": "undetermined",
+          "SR_rise": null,
+          "persistent_by": "S_R"
+        }
+      }
+    }
+  ]
+}

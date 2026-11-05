@@ -1,0 +1,2 @@
+control=trial_20261105_113014_peso_pre.csv shift=0.325 gain_sd=1.0239 offset_sd=-28.63 files=[]
+APPLIED (mean of pre and post controls): shift=0.25 gain_sd=1.028 offset_sd=-30.0 files=['trial_20261105_114116_peso.csv', 'trial_20261105_114946_peso_post.csv']
