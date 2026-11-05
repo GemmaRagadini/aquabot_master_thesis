@@ -1,0 +1,99 @@
+{
+  "trial": "trial_20261102_151022_TS_10min.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9,
+    61.9,
+    81.9,
+    101.9,
+    121.9,
+    141.9,
+    161.9,
+    181.9,
+    201.9,
+    221.9,
+    241.9,
+    261.9,
+    281.9,
+    301.9,
+    321.9,
+    341.9,
+    361.9,
+    381.9,
+    401.9,
+    421.9,
+    441.9,
+    461.9,
+    481.9,
+    501.9
+  ],
+  "slow_events": [
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 5183,
+      "t_alarm_s": 518.3,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    },
+    {
+      "channel": "current",
+      "t_alarm": 5267,
+      "t_alarm_s": 526.7,
+      "secondary": true,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "persistent",
+  "events": [
+    {
+      "t_alarm": 5185,
+      "t_alarm_s": 518.5,
+      "t_decision_s": 525.0,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "transient",
+      "channels": {
+        "sensor_diff": {
+          "class": "transient",
+          "onset": "abrupt",
+          "SR_rise": 0.605,
+          "persistent_by": null
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      }
+    },
+    {
+      "t_alarm": 5256,
+      "t_alarm_s": 525.6,
+      "t_decision_s": 532.1,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "abrupt",
+          "SR_rise": 0.898,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      }
+    }
+  ]
+}

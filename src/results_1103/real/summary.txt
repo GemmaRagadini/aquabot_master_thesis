@@ -1,0 +1,67 @@
+########## trial_20261103_110416_asseX.csv
+Trial trial_20261103_110416_asseX.csv [train] | 1817 samples (181.6 s) | 0 injected perturbations
+ALARM at 2.4 s (channels: sensor_diff) -> PERSISTENT decided at 8.9 s
+    still in progress at the end of the trial
+    sensor_diff  persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by S_R)
+Final state: persistent
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on sensor_diff at 2.4 s, still active at the end of the trial (origin)
+  SLOW ALARM on current at 2.9 s, still active at the end of the trial (SECONDARY, probable effect of sensor_diff)
+########## trial_20261103_112141_asseZ.csv
+Trial trial_20261103_112141_asseZ.csv [train] | 1821 samples (182.0 s) | 0 injected perturbations
+ALARM at 2.4 s (channels: sensor_diff) -> PERSISTENT decided at 8.9 s
+    ended at 123.4 s (duration 121.0 s), automatic return to normal
+    sensor_diff  persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by S_R)
+    current      persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by CUSUM)
+ALARM at 130.4 s (channels: sensor_diff) -> PERSISTENT decided at 136.9 s
+    still in progress at the end of the trial
+    sensor_diff  transient    onset abrupt (S_R rise: 0.60 thresholds)
+    current      persistent   onset gradual (S_R rise: 0.45 thresholds, persistent by S_R)
+Final state: persistent
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on sensor_diff at 2.4 s, still active at the end of the trial (origin)
+  SLOW ALARM on current at 2.5 s, still active at the end of the trial (SECONDARY, probable effect of sensor_diff)
+########## trial_20261103_114119_peso.csv
+Trial trial_20261103_114119_peso.csv [train] | 1820 samples (181.9 s) | 0 injected perturbations
+ALARM at 2.4 s (channels: sensor_diff, current) -> PERSISTENT decided at 8.9 s
+    still in progress at the end of the trial
+    sensor_diff  persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by S_R)
+    current      persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by S_R)
+Final state: persistent
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on current at 2.6 s, still active at the end of the trial (origin)
+  SLOW ALARM on sensor_diff at 2.7 s, still active at the end of the trial (SECONDARY, probable effect of current)
+########## trial_20261103_115302_nofin.csv
+Trial trial_20261103_115302_nofin.csv [train] | 1815 samples (181.4 s) | 0 injected perturbations
+ALARM at 18.6 s (channels: sensor_diff) -> PERSISTENT decided at 25.1 s
+    ended at 44.5 s (duration 25.9 s), automatic return to normal
+    sensor_diff  persistent   onset gradual (S_R rise: 0.25 thresholds, persistent by S_R)
+ALARM at 51.3 s (channels: sensor_diff) -> PERSISTENT decided at 57.8 s
+    ended at 126.2 s (duration 74.9 s), automatic return to normal
+    sensor_diff  persistent   onset gradual (S_R rise: 0.10 thresholds, persistent by S_R)
+ALARM at 132.2 s (channels: sensor_diff) -> PERSISTENT decided at 138.7 s
+    ended at 168.1 s (duration 35.9 s), automatic return to normal
+    sensor_diff  persistent   onset abrupt (S_R rise: 0.54 thresholds, persistent by S_R)
+ALARM at 173.6 s (channels: sensor_diff) -> PERSISTENT decided at 180.1 s
+    still in progress at the end of the trial
+    sensor_diff  persistent   onset gradual (S_R rise: 0.18 thresholds, persistent by S_R)
+Final state: persistent
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on current at 3.2 s, ended at 9.5 s (duration 6.3 s) (origin)
+  SLOW ALARM on sensor_diff at 4.4 s, ended at 8.8 s (duration 4.4 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on sensor_diff at 16.0 s, still active at the end of the trial (origin)
+  SLOW ALARM on current at 16.1 s, ended at 174.5 s (duration 158.4 s) (SECONDARY, probable effect of sensor_diff)
+  SLOW ALARM on current at 180.6 s, still active at the end of the trial (SECONDARY, probable effect of sensor_diff)
+########## trial_20261103_120408_touch.csv
+Trial trial_20261103_120408_touch.csv [val] | 1814 samples (181.3 s) | 0 injected perturbations
+ALARM at 2.4 s (channels: sensor_diff) -> PERSISTENT decided at 8.9 s
+    ended at 158.3 s (duration 155.9 s), automatic return to normal
+    sensor_diff  persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by S_R)
+Trial ended with an alarm not yet classified.
+Final state: alarm
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on sensor_diff at 2.4 s, ended at 161.1 s (duration 158.7 s) (origin)
+  SLOW ALARM on current at 4.0 s, ended at 160.7 s (duration 156.7 s) (SECONDARY, probable effect of sensor_diff)
+  SLOW ALARM on current at 179.9 s, still active at the end of the trial (origin)
+  SLOW ALARM on sensor_diff at 180.0 s, still active at the end of the trial (SECONDARY, probable effect of current)
+########## trial_20261102_151022_TS_10min.csv

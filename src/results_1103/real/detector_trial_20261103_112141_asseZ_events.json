@@ -1,0 +1,75 @@
+{
+  "trial": "trial_20261103_112141_asseZ.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [],
+  "slow_events": [
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 24,
+      "t_alarm_s": 2.4,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    },
+    {
+      "channel": "current",
+      "t_alarm": 25,
+      "t_alarm_s": 2.5,
+      "secondary": true,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "persistent",
+  "events": [
+    {
+      "t_alarm": 24,
+      "t_alarm_s": 2.4,
+      "t_decision_s": 8.9,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "undetermined",
+          "SR_rise": null,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "persistent",
+          "onset": "undetermined",
+          "SR_rise": null,
+          "persistent_by": "CUSUM"
+        }
+      },
+      "t_end_s": 123.4,
+      "duration_s": 121.0
+    },
+    {
+      "t_alarm": 1304,
+      "t_alarm_s": 130.4,
+      "t_decision_s": 136.9,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "transient",
+          "onset": "abrupt",
+          "SR_rise": 0.597,
+          "persistent_by": null
+        },
+        "current": {
+          "class": "persistent",
+          "onset": "gradual",
+          "SR_rise": 0.446,
+          "persistent_by": "S_R"
+        }
+      }
+    }
+  ]
+}

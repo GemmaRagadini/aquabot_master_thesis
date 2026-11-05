@@ -1,0 +1,155 @@
+{
+  "trial": "trial_20261103_115302_nofin.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [],
+  "slow_events": [
+    {
+      "channel": "current",
+      "t_alarm": 32,
+      "t_alarm_s": 3.2,
+      "secondary": false,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 9.5,
+      "duration_s": 6.3
+    },
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 44,
+      "t_alarm_s": 4.4,
+      "secondary": true,
+      "origin": "current",
+      "ref": 1.0,
+      "t_end_s": 8.8,
+      "duration_s": 4.4
+    },
+    {
+      "channel": "sensor_diff",
+      "t_alarm": 160,
+      "t_alarm_s": 16.0,
+      "secondary": false,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    },
+    {
+      "channel": "current",
+      "t_alarm": 161,
+      "t_alarm_s": 16.1,
+      "secondary": true,
+      "origin": "sensor_diff",
+      "ref": 1.0,
+      "t_end_s": 174.5,
+      "duration_s": 158.4
+    },
+    {
+      "channel": "current",
+      "t_alarm": 1806,
+      "t_alarm_s": 180.6,
+      "secondary": true,
+      "origin": "sensor_diff",
+      "ref": 1.0
+    }
+  ],
+  "final_state": "persistent",
+  "events": [
+    {
+      "t_alarm": 186,
+      "t_alarm_s": 18.6,
+      "t_decision_s": 25.1,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "gradual",
+          "SR_rise": 0.253,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      },
+      "t_end_s": 44.5,
+      "duration_s": 25.9
+    },
+    {
+      "t_alarm": 513,
+      "t_alarm_s": 51.3,
+      "t_decision_s": 57.8,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "gradual",
+          "SR_rise": 0.096,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      },
+      "t_end_s": 126.2,
+      "duration_s": 74.9
+    },
+    {
+      "t_alarm": 1322,
+      "t_alarm_s": 132.2,
+      "t_decision_s": 138.7,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "abrupt",
+          "SR_rise": 0.539,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      },
+      "t_end_s": 168.1,
+      "duration_s": 35.9
+    },
+    {
+      "t_alarm": 1736,
+      "t_alarm_s": 173.6,
+      "t_decision_s": 180.1,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "persistent",
+      "channels": {
+        "sensor_diff": {
+          "class": "persistent",
+          "onset": "gradual",
+          "SR_rise": 0.181,
+          "persistent_by": "S_R"
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+Trovati 5 trial.
+Dataset grezzo: 5 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 8987 campioni da 5 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_20261103_115302_nofin.csv [train] | 1815 samples (181.4 s) | 0 injected perturbations
+Rollout re-anchors at t = [] s
+ALARM at 18.6 s (channels: sensor_diff) -> PERSISTENT decided at 25.1 s
+    ended at 44.5 s (duration 25.9 s), automatic return to normal
+    sensor_diff  persistent   onset gradual (S_R rise: 0.25 thresholds, persistent by S_R)
+ALARM at 51.3 s (channels: sensor_diff) -> PERSISTENT decided at 57.8 s
+    ended at 126.2 s (duration 74.9 s), automatic return to normal
+    sensor_diff  persistent   onset gradual (S_R rise: 0.10 thresholds, persistent by S_R)
+ALARM at 132.2 s (channels: sensor_diff) -> PERSISTENT decided at 138.7 s
+    ended at 168.1 s (duration 35.9 s), automatic return to normal
+    sensor_diff  persistent   onset abrupt (S_R rise: 0.54 thresholds, persistent by S_R)
+ALARM at 173.6 s (channels: sensor_diff) -> PERSISTENT decided at 180.1 s
+    still in progress at the end of the trial
+    sensor_diff  persistent   onset gradual (S_R rise: 0.18 thresholds, persistent by S_R)
+Final state: persistent
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on current at 3.2 s, ended at 9.5 s (duration 6.3 s) (origin)
+  SLOW ALARM on sensor_diff at 4.4 s, ended at 8.8 s (duration 4.4 s) (SECONDARY, probable effect of current)
+  SLOW ALARM on sensor_diff at 16.0 s, still active at the end of the trial (origin)
+  SLOW ALARM on current at 16.1 s, ended at 174.5 s (duration 158.4 s) (SECONDARY, probable effect of sensor_diff)
+  SLOW ALARM on current at 180.6 s, still active at the end of the trial (SECONDARY, probable effect of sensor_diff)
+Saved src/results_1103/real/detector_trial_20261103_115302_nofin.png
+Saved src/results_1103/real/detector_trial_20261103_115302_nofin_events.json
