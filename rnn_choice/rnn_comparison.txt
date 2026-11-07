@@ -1,10 +1,10 @@
 Trovati 174 trial.
 Dataset grezzo: 174 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
-Normalizzatore caricato da src/net/scaler/scalers_joint_v2.pkl (nessun refit).
+Normalizzatore caricato da src/net/scaler/scaler_v2.pkl (nessun refit).
 Dataset: 48721 campioni da 174 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
 Trovati 28 trial.
 Dataset grezzo: 28 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
-Normalizzatore caricato da src/net/scaler/scalers_joint_v2.pkl (nessun refit).
+Normalizzatore caricato da src/net/scaler/scaler_v2.pkl (nessun refit).
 Dataset: 7841 campioni da 28 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
 Split per-trial: 38922 finestre train | 9799 finestre val
 Baseline persistenza (val): 0.7017 (sd 0.3421 | current 1.0613)

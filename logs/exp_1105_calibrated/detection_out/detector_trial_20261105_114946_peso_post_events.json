@@ -1,0 +1,15 @@
+{
+  "trial": "trial_20261105_114946_peso_post.csv",
+  "split": "val",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9,
+    61.9,
+    81.9,
+    101.9
+  ],
+  "slow_events": [],
+  "final_state": "normal",
+  "events": []
+}

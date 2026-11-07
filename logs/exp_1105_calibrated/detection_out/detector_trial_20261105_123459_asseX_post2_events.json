@@ -1,0 +1,12 @@
+{
+  "trial": "trial_20261105_123459_asseX_post2.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9
+  ],
+  "slow_events": [],
+  "final_state": "normal",
+  "events": []
+}

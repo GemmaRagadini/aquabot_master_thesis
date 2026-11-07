@@ -1,0 +1,94 @@
+nohup: ignoring input
+=== metrics (test) gru seed 1 ===
+=== metrics (test) gru seed 2 ===
+=== metrics (test) gru seed 3 ===
+=== metrics (test) gru seed 4 ===
+=== metrics (test) gru seed 5 ===
+=== metrics (test) lstm seed 1 ===
+=== metrics (test) lstm seed 2 ===
+=== metrics (test) lstm seed 3 ===
+=== metrics (test) lstm seed 4 ===
+=== metrics (test) lstm seed 5 ===
+=== one-step, test set: mean +- std over the seeds ===
+
+                   Model |         sensor_diff RMSE |        sensor_diff nRMSE |             current RMSE |            current nRMSE
+             Persistence |                    68.99 |                    0.624 |                    59.22 |                    0.712
+                     ARX |                    17.44 |                    0.158 |                    26.44 |                    0.318
+          LSTM (5 seeds) |              8.99 ± 0.25 |            0.081 ± 0.002 |              6.97 ± 0.15 |            0.084 ± 0.002
+           GRU (5 seeds) |              9.02 ± 0.12 |            0.081 ± 0.001 |              6.82 ± 0.12 |            0.082 ± 0.001
+
+Righe LaTeX (sensor_diff RMSE & nRMSE & current RMSE & nRMSE):
+    Persistence & \num{68.99} & \num{0.624} & \num{59.22} & \num{0.712} \\
+    ARX & \num{17.44} & \num{0.158} & \num{26.44} & \num{0.318} \\
+    LSTM & $\num{8.99} \pm \num{0.25}$ & $\num{0.081} \pm \num{0.002}$ & $\num{6.97} \pm \num{0.15}$ & $\num{0.084} \pm \num{0.002}$ \\
+    GRU & $\num{9.02} \pm \num{0.12}$ & $\num{0.081} \pm \num{0.001}$ & $\num{6.82} \pm \num{0.12}$ & $\num{0.082} \pm \num{0.001}$ \\
+
+RMSE: sensor_diff in sensor units, current in mA. nRMSE = RMSE / std del segnale.
+=== rollout, test set ===
+Modello da src/net/fm/checkpoints_fm/best_gru_s1.pt: GRU 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_gru_s2.pt: GRU 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_gru_s3.pt: GRU 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_gru_s4.pt: GRU 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_gru_s5.pt: GRU 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_lstm_s1.pt: LSTM 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_lstm_s2.pt: LSTM 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_lstm_s3.pt: LSTM 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_lstm_s4.pt: LSTM 256x1 | MLP 512 | H=20
+Modello da src/net/fm/checkpoints_fm/best_lstm_s5.pt: LSTM 256x1 | MLP 512 | H=20
+Trovati 17 trial.
+Dataset grezzo: 17 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 4760 campioni da 17 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+Trovati 140 trial.
+Dataset grezzo: 140 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 39200 campioni da 140 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Whole-trial rollout | 17 trials (all) | common duration: 280 steps (28.0 s) | GRU: 5 run(s), LSTM: 5 run(s), ARX: 1 run(s), Persistence: 1 run(s)
+
+sensor_diff  GRU          RMSE over the whole rollout: 11.7 ± 0.4319 sensor units | nRMSE 0.106 | R2 0.989
+sensor_diff  LSTM         RMSE over the whole rollout: 11.72 ± 1.163 sensor units | nRMSE 0.106 | R2 0.989
+sensor_diff  ARX          RMSE over the whole rollout: 20.94 sensor units | nRMSE 0.189 | R2 0.964
+sensor_diff  Persistence  RMSE over the whole rollout: 160.4 sensor units | nRMSE 1.450 | R2 -1.102
+sensor_diff  signal std 110.6 sensor units
+
+current      GRU          RMSE over the whole rollout: 7.235 ± 0.1881 mA | nRMSE 0.087 | R2 0.992
+current      LSTM         RMSE over the whole rollout: 7.458 ± 0.4395 mA | nRMSE 0.090 | R2 0.992
+current      ARX          RMSE over the whole rollout: 27.42 mA | nRMSE 0.330 | R2 0.891
+current      Persistence  RMSE over the whole rollout: 117.5 mA | nRMSE 1.413 | R2 -0.996
+current      signal std 83.21 mA
+
+ from_s  to_s  sensor_diff_nRMSE_GRU  sensor_diff_nRMSE_LSTM  sensor_diff_nRMSE_ARX  sensor_diff_nRMSE_Persistence  current_nRMSE_GRU  current_nRMSE_LSTM  current_nRMSE_ARX  current_nRMSE_Persistence
+      0     1                 0.0924                  0.0923                 0.1777                         1.3352             0.1075              0.1066             0.3113                     1.3515
+      1     2                 0.0921                  0.0922                 0.1907                         1.4579             0.0699              0.0742             0.3454                     1.3223
+      2     3                 0.1060                  0.1043                 0.1901                         1.3459             0.1105              0.1078             0.3183                     1.3240
+      3     4                 0.1108                  0.1102                 0.2087                         1.3215             0.0787              0.0812             0.2912                     1.1990
+      4     5                 0.1081                  0.1048                 0.1937                         1.3645             0.0849              0.0873             0.3368                     1.2465
+      5     6                 0.0983                  0.0979                 0.1806                         1.2436             0.0733              0.0765             0.3189                     1.1637
+      6     7                 0.1067                  0.1058                 0.2067                         1.1699             0.0804              0.0805             0.3029                     1.1677
+      7     8                 0.1040                  0.1039                 0.2089                         1.2420             0.0747              0.0787             0.2862                     1.2227
+      8     9                 0.1088                  0.1094                 0.1994                         1.3644             0.0779              0.0828             0.3305                     1.3211
+      9    10                 0.1107                  0.1128                 0.1920                         1.2970             0.0920              0.1008             0.3540                     1.3963
+     10    11                 0.1076                  0.1062                 0.1879                         1.4845             0.0849              0.0872             0.3394                     1.4252
+     11    12                 0.1070                  0.1091                 0.1814                         1.4991             0.0713              0.0794             0.3439                     1.3998
+     12    13                 0.1178                  0.1173                 0.1983                         1.4669             0.0881              0.0900             0.3284                     1.5511
+     13    14                 0.1075                  0.1080                 0.1691                         1.7226             0.0833              0.0902             0.3683                     1.6645
+     14    15                 0.1097                  0.1125                 0.1884                         1.5597             0.0798              0.0771             0.3353                     1.5240
+     15    16                 0.1136                  0.1166                 0.1856                         1.5622             0.0894              0.0936             0.3283                     1.4747
+     16    17                 0.1124                  0.1117                 0.1964                         1.5216             0.0982              0.0998             0.3188                     1.5176
+     17    18                 0.1098                  0.1086                 0.1982                         1.5132             0.1023              0.1040             0.2731                     1.4342
+     18    19                 0.1086                  0.1082                 0.1856                         1.5176             0.0973              0.0958             0.3260                     1.5026
+     19    20                 0.1022                  0.1030                 0.1723                         1.5106             0.1001              0.1025             0.3263                     1.4252
+     20    21                 0.1076                  0.1089                 0.1728                         1.5473             0.0885              0.0947             0.3440                     1.5780
+     21    22                 0.1009                  0.1042                 0.1927                         1.3755             0.0745              0.0764             0.2990                     1.3655
+     22    23                 0.1031                  0.1034                 0.1837                         1.5336             0.0790              0.0865             0.3504                     1.5781
+     23    24                 0.1078                  0.1074                 0.1884                         1.5405             0.0765              0.0802             0.3438                     1.4260
+     24    25                 0.1012                  0.0998                 0.1835                         1.4116             0.0952              0.0932             0.3419                     1.4181
+     25    26                 0.1057                  0.1060                 0.1804                         1.6263             0.0921              0.0964             0.3603                     1.4558
+     26    27                 0.1009                  0.1012                 0.1888                         1.4165             0.0888              0.0923             0.3531                     1.5135
+     27    28                 0.0939                  0.0924                 0.1917                         1.4988             0.0733              0.0752             0.3301                     1.4285
+
+Saved src/net/fm/results_seeds/rollout/rollout_horizon.pdf and src/net/fm/results_seeds/rollout/rollout_horizon.csv
+Saved src/net/fm/results_seeds/rollout/full_rollout_sensor_diff.png  (example trial trial_1_test.csv)
+Saved src/net/fm/results_seeds/rollout/full_rollout_current.png  (example trial trial_1_test.csv)
+Fatto. Risultati in src/net/fm/results_seeds/

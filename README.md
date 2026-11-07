@@ -37,10 +37,12 @@ root in aquabot
 - capire a quanto corrisponde un unit sensor 
 - controllare che la scrittura della tesi sia coerente alle ultime modifiche sulla frequenza di campionamento
 - riguardare codice 
-- valutare se mettere o no immagine con e senza pinna
 - chiarire bene la questione accumulazione della fase 
+- inserire schema della sezione del pesce  
+- e foto con etichette
+- ripartire da sensing
 
-# Requirements 
+# Requirements 0
 uv pip install -r requirements.txt
 
 30 s: tocco leggero, solo appoggiato;

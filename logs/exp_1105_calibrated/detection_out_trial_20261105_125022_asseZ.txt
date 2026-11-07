@@ -1,0 +1,17 @@
+Trovati 8 trial.
+Dataset grezzo: 8 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 10739 campioni da 8 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_20261105_125022_asseZ.csv [val] | 1808 samples (180.7 s) | 0 injected perturbations
+Rollout re-anchors at t = [] s
+ALARM at 2.4 s (channels: sensor_diff) -> PERSISTENT decided at 8.9 s
+    still in progress at the end of the trial
+    sensor_diff  persistent   onset undetermined (alarm at startup: S_R history too short to measure the rise, persistent by S_R)
+    current      persistent   onset gradual (S_R rise: 0.27 thresholds, persistent by S_R)
+Final state: persistent
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  SLOW ALARM on sensor_diff at 2.7 s, still active at the end of the trial (origin)
+  SLOW ALARM on current at 3.0 s, still active at the end of the trial (SECONDARY, probable effect of sensor_diff)
+Saved logs/exp_1105_calibrated/detection_out/detector_trial_20261105_125022_asseZ.png
+Saved logs/exp_1105_calibrated/detection_out/detector_trial_20261105_125022_asseZ_events.json

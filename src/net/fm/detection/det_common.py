@@ -39,7 +39,7 @@ CH_TO_KEY  = {"sensor_diff": "sd", "current": "vf"}
 CH_UNIT    = {"sensor_diff": "sensor units", "current": "mA"}
 
 DEFAULT_DATASET = os.path.join(REPO_ROOT, "src", "net", "dataset")
-DEFAULT_SCALER  = os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl")
+DEFAULT_SCALER  = os.path.join(REPO_ROOT, "src", "net", "scaler", "scaler.pkl")
 
 
 def default_calib_path(checkpoint):

@@ -1,0 +1,37 @@
+{
+  "trial": "trial_20261105_125749_asseZ_post.csv",
+  "split": "train",
+  "inject": [],
+  "reanchor_s": [
+    21.9,
+    41.9,
+    61.9
+  ],
+  "slow_events": [],
+  "final_state": "normal",
+  "events": [
+    {
+      "t_alarm": 284,
+      "t_alarm_s": 28.4,
+      "t_decision_s": 34.9,
+      "trigger": [
+        "sensor_diff"
+      ],
+      "class": "transient",
+      "channels": {
+        "sensor_diff": {
+          "class": "transient",
+          "onset": "gradual",
+          "SR_rise": 0.498,
+          "persistent_by": null
+        },
+        "current": {
+          "class": "none",
+          "onset": null,
+          "SR_rise": null,
+          "persistent_by": null
+        }
+      }
+    }
+  ]
+}

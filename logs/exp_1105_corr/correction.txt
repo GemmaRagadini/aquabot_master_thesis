@@ -1,5 +1,0 @@
-control=trial_20261105_113014_peso_pre.csv shift=0.325 gain_sd=1.0239 offset_sd=-28.63 files=[]
-APPLIED (mean of pre and post controls): shift=0.25 gain_sd=1.028 offset_sd=-30.0 files=['trial_20261105_114116_peso.csv', 'trial_20261105_114946_peso_post.csv']
-APPLIED (mean of peso_post and touch_post controls): shift=0.19 gain_sd=1.027 offset_sd=-27.3 files=['trial_20261105_120224_touch.csv', 'trial_20261105_120544_touch_post.csv']
-APPLIED (control touch_post only: matches the experiment sensor levels; asseX_post/asseX_post2 levels changed after handling): shift=0.2 gain_sd=1.022 offset_sd=-23.1 files=['trial_20261105_121957_asseX.csv']
-APPLIED (control asseZ_post only: matches the experiment sensor levels; nofin_post sd mean -18 after refitting the fin): shift=0.34 gain_sd=1.107 offset_sd=-9.6 files=['trial_20261105_130501_nofin.csv']

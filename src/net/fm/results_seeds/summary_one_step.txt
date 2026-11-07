@@ -1,0 +1,14 @@
+
+                   Model |         sensor_diff RMSE |        sensor_diff nRMSE |             current RMSE |            current nRMSE
+             Persistence |                    68.99 |                    0.624 |                    59.22 |                    0.712
+                     ARX |                    17.44 |                    0.158 |                    26.44 |                    0.318
+          LSTM (5 seeds) |              8.99 ± 0.25 |            0.081 ± 0.002 |              6.97 ± 0.15 |            0.084 ± 0.002
+           GRU (5 seeds) |              9.02 ± 0.12 |            0.081 ± 0.001 |              6.82 ± 0.12 |            0.082 ± 0.001
+
+Righe LaTeX (sensor_diff RMSE & nRMSE & current RMSE & nRMSE):
+    Persistence & \num{68.99} & \num{0.624} & \num{59.22} & \num{0.712} \\
+    ARX & \num{17.44} & \num{0.158} & \num{26.44} & \num{0.318} \\
+    LSTM & $\num{8.99} \pm \num{0.25}$ & $\num{0.081} \pm \num{0.002}$ & $\num{6.97} \pm \num{0.15}$ & $\num{0.084} \pm \num{0.002}$ \\
+    GRU & $\num{9.02} \pm \num{0.12}$ & $\num{0.081} \pm \num{0.001}$ & $\num{6.82} \pm \num{0.12}$ & $\num{0.082} \pm \num{0.001}$ \\
+
+RMSE: sensor_diff in sensor units, current in mA. nRMSE = RMSE / std del segnale.

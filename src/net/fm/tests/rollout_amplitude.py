@@ -65,7 +65,7 @@ def main():
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
     ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler",
-                                                          "scalers_joint.pkl"))
+                                                          "scaler.pkl"))
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--csv_out", default=None, help="save the per-trial table to CSV")
     ap.add_argument("--all_trials", action="store_true",

@@ -10,7 +10,7 @@ Dataset grezzo: 120 trial letti. Scaler e finestre costruiti in split_by_trial()
   sampler = optuna.samplers.TPESampler(
 [I 2026-09-26 12:51:39,966] A new study created in RDB with name: joint_combo_p1_k10
 Primo trial = config attuale di train.py
-Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scaler.pkl (nessun refit).
 Dataset: 32520 campioni da 120 trial. H=20 P=10 | seq_cmd=(20, 1) seq_sens=(20, 2)
 Split per-trial: 26015 finestre train | 6505 finestre val
 Epoch   0 | train 0.4634 (IM@1 0.1568 FM@1 0.3066) | val 0.1794 (IM@1 0.0346 FM@1 0.1449) sup 0.4634/0.1794 roll 1.1670/0.7874 (λ=0.00) | lr 3.59e-04

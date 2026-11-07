@@ -1,0 +1,13 @@
+Trovati 8 trial.
+Dataset grezzo: 8 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 10739 campioni da 8 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+
+Trial trial_20261105_120544_touch_post.csv [train] | 1212 samples (121.1 s) | 0 injected perturbations
+Rollout re-anchors at t = [21.9, 41.9, 61.9, 81.9, 101.9] s
+No alarm.
+Final state: normal
+Slow detector: reference [1.0, 1.0] (fixed), thresholds h [32.2, 28.4]
+  no slow alarm
+Saved logs/exp_1105_calibrated/detection_out/detector_trial_20261105_120544_touch_post.png
+Saved logs/exp_1105_calibrated/detection_out/detector_trial_20261105_120544_touch_post_events.json

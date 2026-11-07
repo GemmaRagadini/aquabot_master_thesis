@@ -38,6 +38,9 @@ Uso:
   python3 src/net/fm/metrics.py --checkpoint src/net/fm/checkpoints_fm/best_fm_tuned.pt
   python3 src/net/fm/metrics.py --checkpoint ... --metrics rmse mae nrmse r2 --csv_out metrics.csv
   python3 src/net/fm/metrics.py --checkpoint ... --summary_only        # solo le righe per la slide
+  # sul TEST set (ARX stimato sul training):
+  python3 src/net/fm/metrics.py --checkpoint .../best_gru_s1.pt --dataset_dir src/net/test_set \
+      --train_dir src/net/dataset --all_trials --summary_only --csv_out metrics_gru_s1.csv
   --dataset_dir
 """
 import argparse
@@ -53,7 +56,7 @@ REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 # flat import (come train_fm). In repo: from net.fm.model_fm import ...
-from net.fm.model import build_model
+from net.fm.model import load_forward_model
 from net.dataset  import FishJointDataset
 
 FM_CHANNELS = ["sensor_diff", "current"]
@@ -114,21 +117,8 @@ def fit_arx(dataset, train_idx, lags, ridge):
 
 # ------------------------------- checkpoint/model -------------------------------
 def load_model(checkpoint, device):
-    """Ricostruisce il forward model con gli iperparametri salvati nel checkpoint."""
-    ckpt = torch.load(checkpoint, map_location=device, weights_only=False)
-    # I pesi di un modello allenato con uscita residua si caricherebbero senza
-    # errori ma darebbero predizioni sbagliate (manca la somma con sens(t-1)).
-    if ckpt.get("residual", True):
-        raise ValueError(
-            f"{checkpoint} e' stato allenato con uscita residua, non piu' "
-            f"supportata: riallena con train_fm.py.")
-    FM = build_model(gru_hidden=ckpt["gru_hidden"], mlp_hidden=ckpt["mlp_hidden"],
-                     num_layers=ckpt.get("num_layers", 1))
-    FM.load_state_dict(ckpt["fm_state"])
-    FM.to(device).eval()
-    print(f"Modello dal checkpoint: GRU {FM.gru_hidden}x{FM.num_layers} | "
-          f"MLP {FM.mlp_hidden} | H={ckpt.get('H')}")
-    return FM, ckpt
+    """Ricostruisce il forward model (GRU o LSTM) dal checkpoint."""
+    return load_forward_model(checkpoint, device)
 
 
 def run_trial(dataset, FM, device, trial_idx, batch_size=256, arx=None):
@@ -180,10 +170,11 @@ def channel_columns(ch, real, metrics, baselines):
     for mt in metrics:
         cols[f"{ch}_{METRIC_LABEL[mt]}"] = METRIC_FUNCS[mt](pred, true)
     if "persist" in baselines:
+        for mt in metrics:
+            cols[f"{ch}_{METRIC_LABEL[mt]}_persist"] = METRIC_FUNCS[mt](real["persist"], true)
         for mt in [m for m in metrics if m in SKILL_METRICS]:
             mm = METRIC_FUNCS[mt](pred, true)
             pp = METRIC_FUNCS[mt](real["persist"], true)
-            cols[f"{ch}_{METRIC_LABEL[mt]}_persist"] = pp
             cols[f"{ch}_skill_{mt}"] = 1.0 - mm / pp if pp > 0 else float("nan")
     if "arx" in baselines:
         for mt in metrics:
@@ -234,6 +225,9 @@ def main():
     ap.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl"),
                     help="normalizzatore condiviso: DEVE essere lo stesso del training")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--train_dir", default=None,
+                    help="cartella del dataset di TRAINING, su cui si stima l'ARX. "
+                         "Obbligatoria se --dataset_dir e' il test set. Default: --dataset_dir")
     ap.add_argument("--all_trials", action="store_true",
                     help="includi anche i trial di train (default: solo validation)")
     ap.add_argument("--csv_out", default=None,
@@ -260,6 +254,9 @@ def main():
                     help="scrivi solo le righe MEDIA/pooled, non i singoli trial.")
     args = ap.parse_args()
 
+    if not os.path.exists(args.scaler_path):
+        raise SystemExit(f"Scaler {args.scaler_path} non trovato: senza, il dataset verrebbe "
+                         f"normalizzato con statistiche diverse da quelle del training.")
     device = torch.device(args.device)
     FM, ckpt = load_model(args.checkpoint, device)
 
@@ -278,7 +275,16 @@ def main():
         lags = args.arx_lags or dataset.h
         if not 1 <= lags <= dataset.h:
             raise SystemExit(f"--arx_lags deve stare tra 1 e H={dataset.h}")
-        W = fit_arx(dataset, np.sort(np.asarray(train_ds.indices)), lags, args.arx_ridge)
+        if args.train_dir and os.path.abspath(args.train_dir) != os.path.abspath(args.dataset_dir):
+            # ARX stimato sui trial di training del dataset di training (es. valutazione sul test)
+            train_dataset = FishJointDataset(args.train_dir, **ds_kwargs)
+            tr_ds, _ = train_dataset.split_by_trial(val_frac=VAL_FRAC, seed=SPLIT_SEED)
+            W = fit_arx(train_dataset, np.sort(np.asarray(tr_ds.indices)), lags, args.arx_ridge)
+        else:
+            if args.all_trials:
+                raise SystemExit("Con --all_trials (es. test set) serve --train_dir: altrimenti "
+                                 "l'ARX verrebbe stimato sui dati da valutare.")
+            W = fit_arx(dataset, np.sort(np.asarray(train_ds.indices)), lags, args.arx_ridge)
         arx = (W, lags)
 
     channels = list(dict.fromkeys(args.channels))

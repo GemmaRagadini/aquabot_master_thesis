@@ -35,7 +35,7 @@ REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
 # flat import (come train_fm). In repo: from net.Estimator.model_fm import ...
-from net.fm.model import build_model
+from net.fm.model import load_forward_model
 from net.dataset  import FishJointDataset
 
 # canali di uscita del forward model (sensori)
@@ -97,21 +97,8 @@ def resolve_trial(dataset, trial_arg, val_trial_idxs):
 
 
 def load_model(checkpoint, device):
-    """Ricostruisce il forward model con gli iperparametri salvati nel checkpoint."""
-    ckpt = torch.load(checkpoint, map_location=device, weights_only=False)
-    # I pesi di un modello allenato con uscita residua si caricherebbero senza
-    # errori ma darebbero predizioni sbagliate (manca la somma con sens(t-1)).
-    if ckpt.get("residual", True):
-        raise ValueError(
-            f"{checkpoint} e' stato allenato con uscita residua, non piu' "
-            f"supportata: riallena con train_fm.py.")
-    FM = build_model(gru_hidden=ckpt["gru_hidden"], mlp_hidden=ckpt["mlp_hidden"],
-                     num_layers=ckpt.get("num_layers", 1))
-    FM.load_state_dict(ckpt["fm_state"])
-    FM.to(device).eval()
-    print(f"Modello dal checkpoint: GRU {FM.gru_hidden}x{FM.num_layers} | "
-          f"MLP {FM.mlp_hidden} | H={ckpt.get('H')}")
-    return FM, ckpt
+    """Ricostruisce il forward model (GRU o LSTM) dal checkpoint."""
+    return load_forward_model(checkpoint, device)
 
 
 def run_model_on_trial(dataset, FM, device, trial_idx, batch_size=256):
@@ -188,7 +175,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", default=os.path.join(SCRIPT_DIR, "checkpoints_fm", "best.pt"))
     parser.add_argument("--dataset_dir", default=os.path.join(REPO_ROOT, "src", "net", "dataset"))
-    parser.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scalers_joint.pkl"))
+    parser.add_argument("--scaler_path", default=os.path.join(REPO_ROOT, "src", "net", "scaler", "scaler.pkl"))
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--trial", default=None,
                         help="nome/sottostringa/indice del trial. Default: primo del validation split.")

@@ -46,7 +46,8 @@ NOTE:
   - on_epoch_end: hook per Optuna (report/pruning/early stop).
 
 USO:
-  python3 src/net/Estimator/train_fm.py --tag fm_base
+  python3 src/net/fm/train.py --tag gru_s1 --seed 1
+  python3 src/net/fm/train.py --tag lstm_s1 --seed 1 --cell lstm   # baseline LSTM
 
 Output in --checkpoint_dir: best_<tag>.pt (miglior val), fm_<tag>.pt (finale),
 loss_history_<tag>.json, loss_curve_<tag>.png.
@@ -167,6 +168,7 @@ def _ckpt_dict(FM, norm_stats, meta=None):
         "gru_hidden": FM.gru_hidden,
         "mlp_hidden": FM.mlp_hidden,
         "num_layers": FM.num_layers,
+        "cell":       FM.cell,    # 'gru' o 'lstm'
         "residual":   False,      # uscita diretta sens(t): i vecchi checkpoint
                                   # con residual=True NON sono compatibili
         "H":          MODEL_H,
@@ -203,6 +205,8 @@ if __name__ == '__main__':
     parser.add_argument('--dropout',        type=float, default=0.025788333211440487)
     parser.add_argument('--weight_decay',   type=float, default=0.00015165131889405937)
     parser.add_argument('--clip_norm',      type=float, default=0.5)
+    parser.add_argument('--cell',           default='gru', choices=['gru', 'lstm'],
+                        help="rete ricorrente: gru (modello) o lstm (baseline, stessi iperparametri)")
     parser.add_argument('--device',         default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--threads',        type=int,   default=8)
     parser.add_argument('--scaler_path',    default=os.path.join(REPO_ROOT, 'src', 'net', 'scaler', 'scalers.pkl'))
@@ -235,12 +239,13 @@ if __name__ == '__main__':
                                scaler_path=args.scaler_path).to(DEVICE)
 
     FM = build_model(gru_hidden=args.gru_hidden, mlp_hidden=args.mlp_hidden,
-                     num_layers=args.num_layers, dropout=args.dropout).to(DEVICE)
+                     num_layers=args.num_layers, dropout=args.dropout,
+                     cell=args.cell).to(DEVICE)
     n_par = sum(p.numel() for p in FM.parameters())
-    print(f"Parametri FM: {n_par} | GRU {FM.gru_hidden}x{FM.num_layers} | "
+    print(f"Parametri FM: {n_par} | {FM.cell.upper()} {FM.gru_hidden}x{FM.num_layers} | "
           f"MLP {FM.mlp_hidden}")
 
-    meta = {"tag": tag, "seed": args.seed, "optimizer": "AdamW", "lr": args.lr,
+    meta = {"tag": tag, "seed": args.seed, "cell": args.cell, "optimizer": "AdamW", "lr": args.lr,
             "weight_decay": args.weight_decay, "dropout": args.dropout,
             "batch_size": args.batch_size, "clip_norm": args.clip_norm}
 
@@ -293,7 +298,7 @@ if __name__ == '__main__':
     ax2.legend(fontsize=9, loc='upper center', bbox_to_anchor=(0.5, -0.16), ncol=2, frameon=False)
     ax2.grid(True, which='both')
 
-    suptitle = "Forward model (GRU + MLP)"
+    suptitle = f"Forward model ({args.cell.upper()} + MLP)"
     if tag:
         suptitle += f"  [{tag}]"
     fig.suptitle(suptitle, fontsize=16, fontweight='bold')

@@ -9,7 +9,7 @@ Dataset grezzo: 120 trial letti. Scaler e finestre costruiti in split_by_trial()
 /home/gemma/tesi/aquabot/src/net/Estimator/tuning/tune_joint.py:245: ExperimentalWarning: Argument ``constant_liar`` is an experimental feature. The interface can change in the future.
   sampler = optuna.samplers.TPESampler(
 [I 2026-09-26 12:51:42,353] Using an existing study with name 'joint_combo_p1_k10' instead of creating a new one.
-Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scalers_joint.pkl (nessun refit).
+Normalizzatore caricato da /home/gemma/tesi/aquabot/src/net/scaler/scaler.pkl (nessun refit).
 Dataset: 32520 campioni da 120 trial. H=20 P=10 | seq_cmd=(20, 1) seq_sens=(20, 2)
 Split per-trial: 26015 finestre train | 6505 finestre val
 Epoch   0 | train 0.3593 (IM@1 0.1063 FM@1 0.2530) | val 0.1414 (IM@1 0.0256 FM@1 0.1158) sup 0.3593/0.1414 roll 1.1007/0.5231 (λ=0.00) | lr 3.49e-04

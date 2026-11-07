@@ -11,7 +11,7 @@ Prints one line per episode and saves everything to a JSON file.
 Usage (from the aquabot folder):
   python3 src/net/fm/classification/classify_trial.py \
       --checkpoint src/net/fm/checkpoints_fm/best_fm_v2.pt \
-      --scaler_path src/net/scaler/scalers_joint_v2.pkl \
+      --scaler_path src/net/scaler/scaler_v2.pkl \
       --calib src/net/fm/checkpoints_fm/detector_v2.json \
       --dataset_dir src/net/test_tocchi --trial trial_TOUCH_1.csv
 

@@ -1,0 +1,19 @@
+Modello da src/net/fm/checkpoints_fm/best_lstm_s4.pt: LSTM 256x1 | MLP 512 | H=20
+Trovati 17 trial.
+Dataset grezzo: 17 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 4760 campioni da 17 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+Trovati 140 trial.
+Dataset grezzo: 140 trial letti. Scaler e finestre costruiti in split_by_trial() (fit solo su train).
+Normalizzatore caricato da src/net/scaler/scaler.pkl (nessun refit).
+Dataset: 39200 campioni da 140 trial. H=20 P=1 | seq_cmd=(20, 1) seq_sens=(20, 2)
+ARX: 20 ritardi, 62 coefficienti per canale, ridge=1.0 | RMSE train (normalizzato): sd 0.1509, current 0.3271
+Metriche: ['rmse', 'nrmse', 'r2'] | baseline: ['persist', 'arx'] | canali: ['sensor_diff', 'current'] | agg: both
+trial considerati: 17 (tutti)
+
+                     trial      split  n_finestre  sensor_diff_RMSE  sensor_diff_nRMSE  sensor_diff_R2  sensor_diff_RMSE_persist  sensor_diff_nRMSE_persist  sensor_diff_R2_persist  sensor_diff_skill_rmse  sensor_diff_RMSE_arx  sensor_diff_nRMSE_arx  sensor_diff_R2_arx  sensor_diff_skill_rmse_arx  current_RMSE  current_nRMSE  current_R2  current_RMSE_persist  current_nRMSE_persist  current_R2_persist  current_skill_rmse  current_RMSE_arx  current_nRMSE_arx  current_R2_arx  current_skill_rmse_arx
+     == MEDIA per-trial ==  MEDIA_all          17            8.8540             0.0839          0.9928                   67.4295                     0.6274                  0.5976                  0.8632               17.3638                 0.1642              0.9726                      0.4887        6.8237         0.0839      0.9928               58.9241                 0.7268              0.4647              0.8831           26.3068             0.3230          0.8951                  0.7403
+== COMPLESSIVO (pooled) == POOLED_all        4760            8.8837             0.0803          0.9935                   68.9871                     0.6237                  0.6110                  0.8712               17.4357                 0.1576              0.9752                      0.4905        6.9092         0.0830      0.9931               59.2176                 0.7117              0.4935              0.8833           26.4401             0.3178          0.8990                  0.7387
+
+Master aggiornato: src/net/fm/results_seeds/metrics_lstm_s4.csv
+Unita': sensor_diff=unita' sensore, current=mA

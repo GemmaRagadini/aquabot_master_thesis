@@ -1,0 +1,42 @@
+nohup: ignoring input
+=== train gru seed 1 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_gru_s1.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_gru_s1.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_gru_s1.png
+=== train gru seed 2 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_gru_s2.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_gru_s2.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_gru_s2.png
+=== train gru seed 3 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_gru_s3.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_gru_s3.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_gru_s3.png
+=== train gru seed 4 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_gru_s4.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_gru_s4.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_gru_s4.png
+=== train gru seed 5 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_gru_s5.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_gru_s5.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_gru_s5.png
+=== train lstm seed 1 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_lstm_s1.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_lstm_s1.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_lstm_s1.png
+=== train lstm seed 2 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_lstm_s2.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_lstm_s2.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_lstm_s2.png
+=== train lstm seed 3 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_lstm_s3.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_lstm_s3.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_lstm_s3.png
+=== train lstm seed 4 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_lstm_s4.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_lstm_s4.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_lstm_s4.png
+=== train lstm seed 5 ===
+Checkpoint finale salvato in src/net/fm/checkpoints_fm/fm_lstm_s5.pt
+Storia loss salvata in src/net/fm/checkpoints_fm/loss_history_lstm_s5.json
+Loss curve salvata in src/net/fm/checkpoints_fm/loss_curve_lstm_s5.png
+=== metrics (test) gru seed 1 ===
